@@ -52,4 +52,5 @@ Mkfile.old
 dkms.conf
 
 # Build Output Directory
-*build*
+source/master/build
+source/remote/build
