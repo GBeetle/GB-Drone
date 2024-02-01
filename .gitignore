@@ -54,3 +54,7 @@ dkms.conf
 # Build Output Directory
 source/master/build
 source/remote/build
+
+hardware/GB-Drone*/__Previews*
+hardware/GB-Drone*/History
+hardware/GB-Drone*/Project Logs*
