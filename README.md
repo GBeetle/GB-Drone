@@ -1,2 +1,7 @@
 # GB-Drone
-A simple quadrotor project using ESP32 family chip
+
+从零开始制作四旋翼无人机项目分享
+
+[Bilibili 合集](https://space.bilibili.com/173526357/channel/series)
+
+持续更新中... (注：项目仍在开发中，后续可能会进行一些调整。)
