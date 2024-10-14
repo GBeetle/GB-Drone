@@ -15,19 +15,31 @@ call env_setting.bat
 
 cd ../source/master
 
+if "%~1"=="init" (
+    :: create soft link
+    call pre_processing.bat
+    idf.py set-target esp32s3
+    idf.py add-dependency esp_tinyusb
+    exit /b
+)
+
 if "%~1"=="config" (
     start cmd /k "idf.py menuconfig"
     exit /b
 )
 
 if "%~1"=="clean" (
+    idf.py clean
+    exit /b
+)
+
+if "%~1"=="fullclean" (
     idf.py fullclean
     exit /b
 )
 
 if "%~1"=="build" (
     echo "start building"
-    idf.py set-target esp32s3
     idf.py build
     exit /b
 )

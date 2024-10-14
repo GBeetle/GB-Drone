@@ -15,11 +15,3 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-
-void app_main(void)
-{
-    printf("Hello world!\n");
-
-    return;
-}

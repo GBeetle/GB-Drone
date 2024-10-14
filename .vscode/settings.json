@@ -1,0 +1,24 @@
+{
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "source/master/components/*": true,
+        "remote/master/components/*": true,
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/*.code-search": true,
+        "source/master/components/*": true,
+        "remote/master/components/*": true,
+    },
+    "files.associations": {
+        "cdc.h": "c",
+        "tinyusb_types.h": "c",
+        "vector": "cpp"
+    }
+}

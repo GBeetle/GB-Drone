@@ -1,5 +1,5 @@
 /*
- * This file is part of welkin project (https://github.com/GBeetle/welkin).
+ * This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
  * Copyright (c) 2022 GBeetle.
  *
  * This program is free software: you can redistribute it and/or modify
