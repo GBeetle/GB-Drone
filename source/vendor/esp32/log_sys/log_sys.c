@@ -21,6 +21,8 @@
 #include "class/cdc/cdc_device.h"
 #include "log_sys.h"
 
+#define GB_LOG_BUFFER_SIZE 1024
+
 const char* SENSOR_TAG = "[SENSOR_CHECK]";
 const char* ERROR_TAG = "[ERROR]";
 const char* ST_TAG = "[SELF_TEST]";
@@ -78,28 +80,33 @@ void gb_log_system_init()
 
 void gb_print_log(GB_LOG_LEVEL level, const char *tag, const char* format, ...)
 {
-#if 0
+    char log_buffer[GB_LOG_BUFFER_SIZE] = {0};
+    va_list list;
+
+    va_start(list, format);
+    vsnprintf(log_buffer, sizeof(log_buffer), format, list);
+    va_end(list);
+
     switch (level)
     {
         case GB_LOG_LEVEL_ERROR:
-            ESP_LOGE(tag, format, ##__VA_ARGS__);
+            ESP_LOGE(tag, "%s", log_buffer);
             break;
         case GB_LOG_LEVEL_WARNING:
-            ESP_LOGW(tag, format, ##__VA_ARGS__);
+            ESP_LOGW(tag, "%s", log_buffer);
             break;
         case GB_LOG_LEVEL_INFO:
-            ESP_LOGI(tag, format, ##__VA_ARGS__);
+            ESP_LOGI(tag, "%s", log_buffer);
             break;
         case GB_LOG_LEVEL_DEBUG:
-            ESP_LOGD(tag, format, ##__VA_ARGS__);
+            ESP_LOGD(tag, "%s", log_buffer);
             break;
         case GB_LOG_LEVEL_VERBOSE:
-            ESP_LOGV(tag, format, ##__VA_ARGS__);
+            ESP_LOGV(tag, "%s", log_buffer);
             break;
         default:
-            ESP_LOGE(tag, format, ##__VA_ARGS__);
+            ESP_LOGE(tag, "%s", log_buffer);
     }
-#endif
 }
 
 GB_RESULT gb_usb_read_bytes(int cdc_intf, uint8_t *buf, size_t *rx_size)

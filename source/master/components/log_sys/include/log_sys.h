@@ -29,11 +29,11 @@ typedef enum
     GB_LOG_LEVEL_VERBOSE
 } GB_LOG_LEVEL;
 
-#define GB_DEBUGE(tag, format, ...) gb_print_log(GB_LOG_LEVEL_ERROR, #tag, #format, #__VA_ARGS__)
-#define GB_DEBUGW(tag, format, ...) gb_print_log(GB_LOG_LEVEL_WARNING, #tag, #format, #__VA_ARGS__)
-#define GB_DEBUGI(tag, format, ...) gb_print_log(GB_LOG_LEVEL_INFO, #tag, #format, #__VA_ARGS__)
-#define GB_DEBUGD(tag, format, ...) gb_print_log(GB_LOG_LEVEL_DEBUG, #tag, #format, #__VA_ARGS__)
-#define GB_DEBUGV(tag, format, ...) gb_print_log(GB_LOG_LEVEL_VERBOSE, #tag, #format, #__VA_ARGS__)
+#define GB_DEBUGE(tag, format, ...) gb_print_log(GB_LOG_LEVEL_ERROR, #tag, #format, ##__VA_ARGS__)
+#define GB_DEBUGW(tag, format, ...) gb_print_log(GB_LOG_LEVEL_WARNING, #tag, #format, ##__VA_ARGS__)
+#define GB_DEBUGI(tag, format, ...) gb_print_log(GB_LOG_LEVEL_INFO, #tag, #format, ##__VA_ARGS__)
+#define GB_DEBUGD(tag, format, ...) gb_print_log(GB_LOG_LEVEL_DEBUG, #tag, #format, ##__VA_ARGS__)
+#define GB_DEBUGV(tag, format, ...) gb_print_log(GB_LOG_LEVEL_VERBOSE, #tag, #format, ##__VA_ARGS__)
 
 extern const char* SENSOR_TAG;
 extern const char* ERROR_TAG;

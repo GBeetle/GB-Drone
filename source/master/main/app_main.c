@@ -16,10 +16,17 @@
  */
 
 #include <stdio.h>
+#include "log_sys.h"
 
 void app_main(void)
 {
+    int i = 0;
     printf("Hello world!\n");
+    GB_DEBUGE(GB_INFO, "Hello world! [%d]", i++);
+    GB_DEBUGW(GB_INFO, "Hello world! [%d]", i++);
+    GB_DEBUGI(GB_INFO, "Hello world! [%d]", i++);
+    GB_DEBUGD(GB_INFO, "Hello world! [%d]", i++);
+    GB_DEBUGV(GB_INFO, "Hello world! [%d]", i++);
 
     return;
 }
