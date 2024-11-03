@@ -4,7 +4,7 @@ setlocal
 rem set source dir and target dir
 set "sourceDir=%cd%\..\vendor\esp32"
 set "targetDir=%cd%\components"
-set "sourceFolders=i2c_bus error_handle log_sys spi_bus"
+set "sourceFolders=i2c_bus error_handle log_sys spi_bus mpu_driver"
 
 rem create target dir
 if not exist "%targetDir%" (

@@ -15,42 +15,27 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "i2c_bus.h"
 #include <stdio.h>
 #include <stdint.h>
+#include "driver/i2c.h"
+#include "driver/gpio.h"
+#include "esp_err.h"
+
+#include "i2c_bus.h"
 #include "sdkconfig.h"
 #include "log_sys.h"
 
-#if defined   CONFIG_I2CBUS_LOG_RW_LEVEL_INFO
-#define I2CBUS_LOG_RW(format, ...) GB_DEBUGI(TAG, format, ##__VA_ARGS__)
-#elif defined CONFIG_I2CBUS_LOG_RW_LEVEL_DEBUG
-#define I2CBUS_LOG_RW(format, ...) GB_DEBUGD(TAG, format, ##__VA_ARGS__)
-#elif defined CONFIG_I2CBUS_LOG_RW_LEVEL_VERBOSE
-#define I2CBUS_LOG_RW(format, ...) GB_DEBUGV(TAG, format, ##__VA_ARGS__)
-#endif
-#define I2CBUS_LOGE(format, ...)   GB_DEBUGE(TAG, format, ##__VA_ARGS__)
-
+#define I2C_MASTER_TIMEOUT_MS 1000
 
 #define I2C_MASTER_ACK_EN   true    /*!< Enable ack check for master */
 #define I2C_MASTER_ACK_DIS  false   /*!< Disable ack check for master */
 
-
-static const char* TAG __attribute__((unused)) = "I2Cbus";
-
-/*******************************************************************************
- * OBJECTS
- ******************************************************************************/
-struct i2c i2c0;
-struct i2c i2c1;
-//init_i2c(&i2c0, I2C_NUM_0)
-//init_i2c(&i2c1, I2C_NUM_1)
-
 const uint32_t kDefaultClockSpeed = 100000;  /*!< Clock speed in Hz, default: 100KHz */
 const uint32_t kDefaultTimeout = 1000;       /*!< Timeout in milliseconds, default: 1000ms */
 
-static GB_RESULT begin(struct i2c *i2c, gpio_num_t sda_io_num, gpio_num_t scl_io_num, uint32_t clk_speed);
-static GB_RESULT begin_pull_enable(struct i2c *i2c, gpio_num_t sda_io_num, gpio_num_t scl_io_num, gpio_pullup_t sda_pullup_en,
-        gpio_pullup_t scl_pullup_en, uint32_t clk_speed);
+static GB_RESULT begin(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t clk_speed);
+static GB_RESULT beginPullEnable(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t sda_pullup_en,
+                                 uint32_t scl_pullup_en, uint32_t clk_speed);
 static GB_RESULT close(struct i2c *i2c);
 static void setTimeout(struct i2c *i2c, uint32_t ms);
 /*******************************************************************************
@@ -69,50 +54,65 @@ static GB_RESULT readBits(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uin
 static GB_RESULT readByte(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t *data);
 static GB_RESULT readBytes(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data);
 
-
 /*******************************************************************************
  * UTILS
  ******************************************************************************/
 static GB_RESULT testConnection(struct i2c *i2c, uint8_t devAddr, int32_t timeout);
 static void scanner(struct i2c *i2c);
 
+/*******************************************************************************
+ * OBJECTS
+ ******************************************************************************/
+struct i2c i2c0 = {
+    .port = I2C_NUM_0,
+    .ticksToWait = pdMS_TO_TICKS(kDefaultTimeout),
+    .begin = &begin,
+    .beginPullEnable = &beginPullEnable,
+    .close = &close,
+    .setTimeout = &setTimeout,
+    .writeBit = &writeBit,
+    .writeBits = &writeBits,
+    .writeByte = &writeByte,
+    .writeBytes = &writeBytes,
+    .readBit = &readBit,
+    .readBits = &readBits,
+    .readByte = &readByte,
+    .readBytes = &readBytes,
+    .testConnection = &testConnection,
+    .scanner = &scanner,
+};
+
+struct i2c i2c1 = {
+    .port = I2C_NUM_1,
+    .ticksToWait = pdMS_TO_TICKS(kDefaultTimeout),
+    .begin = &begin,
+    .beginPullEnable = &beginPullEnable,
+    .close = &close,
+    .setTimeout = &setTimeout,
+    .writeBit = &writeBit,
+    .writeBits = &writeBits,
+    .writeByte = &writeByte,
+    .writeBytes = &writeBytes,
+    .readBit = &readBit,
+    .readBits = &readBits,
+    .readByte = &readByte,
+    .readBytes = &readBytes,
+    .testConnection = &testConnection,
+    .scanner = &scanner,
+};
 
 /* ^^^^^^
  * I2Cbus
  * ^^^^^^ */
-
-/*******************************************************************************
- * SETUP
- ******************************************************************************/
-void init_i2c(struct i2c *i2c, i2c_port_t port) {
-    i2c->port = port;
-    i2c->ticksToWait = pdMS_TO_TICKS(kDefaultTimeout);
-    i2c->begin = &begin;
-    i2c->begin_pull_enable = &begin_pull_enable;
-    i2c->close = &close;
-    i2c->setTimeout = &setTimeout;
-    i2c->writeBit = &writeBit;
-    i2c->writeBits = &writeBits;
-    i2c->writeByte = &writeByte;
-    i2c->writeBytes = &writeBytes;
-    i2c->readBit = &readBit;
-    i2c->readBits = &readBits;
-    i2c->readByte = &readByte;
-    i2c->readBytes = &readBytes;
-    i2c->testConnection = &testConnection;
-    i2c->scanner = &scanner;
-}
-
-
-static GB_RESULT begin(struct i2c *i2c, gpio_num_t sda_io_num, gpio_num_t scl_io_num, uint32_t clk_speed) {
+static GB_RESULT begin(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t clk_speed) {
     GB_RESULT res = GB_OK;
-    CHK_RES(i2c->begin_pull_enable(i2c, sda_io_num, scl_io_num, GPIO_PULLUP_ENABLE, GPIO_PULLUP_ENABLE, clk_speed));
+    CHK_RES(i2c->beginPullEnable(i2c, sda_io_num, scl_io_num, GPIO_PULLUP_ENABLE, GPIO_PULLUP_ENABLE, clk_speed));
 error_exit:
     return res;
 }
 
-static GB_RESULT begin_pull_enable(struct i2c *i2c, gpio_num_t sda_io_num, gpio_num_t scl_io_num, gpio_pullup_t sda_pullup_en,
-        gpio_pullup_t scl_pullup_en, uint32_t clk_speed) {
+static GB_RESULT beginPullEnable(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t sda_pullup_en,
+        uint32_t scl_pullup_en, uint32_t clk_speed) {
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
     conf.sda_io_num = sda_io_num;
@@ -192,7 +192,7 @@ static GB_RESULT writeBytes(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, s
     esp_err_t err = i2c_master_cmd_begin(i2c->port, cmd, (timeout < 0 ? i2c->ticksToWait : pdMS_TO_TICKS(timeout)));
     i2c_cmd_link_delete(cmd);
     if (err != ESP_OK) {
-        I2CBUS_LOGE("[port:%d, slave:0x%X] Failed to write %d bytes to__ register 0x%X, error: 0x%X",
+        GB_DEBUGE("[port:%d, slave:0x%X] Failed to write %d bytes to__ register 0x%X, error: 0x%X",
             i2c->port, devAddr, length, regAddr, err);
         return GB_I2C_RW_FAIL;
     }
@@ -270,21 +270,15 @@ static GB_RESULT testConnection(struct i2c *i2c, uint8_t devAddr, int32_t timeou
 
 static void scanner(struct i2c *i2c) {
     const int32_t scanTimeout = 20;
-    GB_DEBUGE(ERROR_TAG, "\n>> i2c scanning ..." LOG_RESET_COLOR "\n");
+    GB_DEBUGE(ERROR_TAG, "\n>> i2c scanning ... \n");
     uint8_t count = 0;
     for (size_t i = 0x3; i < 0x78; i++) {
         if (testConnection(i2c, i, scanTimeout) == ESP_OK) {
-            GB_DEBUGE(ERROR_TAG, "- Device found at address 0x%X%s", i, LOG_RESET_COLOR "\n");
+            GB_DEBUGE(ERROR_TAG, "- Device found at address 0x%X%s, i \n");
             count++;
         }
     }
     if (count == 0)
-        GB_DEBUGE(ERROR_TAG, "- No i2c devices found!" LOG_RESET_COLOR "\n");
+        GB_DEBUGE(ERROR_TAG, "- No i2c devices found! \n");
     GB_DEBUGE(ERROR_TAG, "\n");
 }
-
-/* Get default objects */
-struct i2c* getI2C(i2c_port_t port) {
-    return port == 0 ? &i2c0 : &i2c1;
-}
-

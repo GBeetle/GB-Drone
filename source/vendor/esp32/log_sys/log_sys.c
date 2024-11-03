@@ -37,7 +37,7 @@ void gb_log_system_init()
 {
     esp_log_level_set(SENSOR_TAG, ESP_LOG_DEBUG);
     esp_log_level_set(ERROR_TAG, ESP_LOG_ERROR);
-    esp_log_level_set(ST_TAG, ESP_LOG_ERROR);
+    esp_log_level_set(ST_TAG, ESP_LOG_DEBUG);
     esp_log_level_set(CHK_TAG, ESP_LOG_ERROR);
     esp_log_level_set(RF24_TAG, ESP_LOG_DEBUG);
     esp_log_level_set(GB_INFO, ESP_LOG_INFO);

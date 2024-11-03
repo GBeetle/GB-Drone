@@ -15,24 +15,5 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include "log_sys.h"
-#include "mpu_driver.h"
+#include "io_define.h"
 
-void app_main(void)
-{
-    gb_log_system_init();
-
-    struct mpu mpu;
-
-    init_mpu(&mpu);
-    CHK_EXIT(mpu.testConnection(&mpu));
-    //CHK_EXIT(mpu.initialize(&mpu));
-
-    // test for sensor is good & horizontal
-    //selftest_t st_result;
-    //CHK_EXIT(mpu.selfTest(&mpu, &st_result));
-    //CHK_EXIT(mpu.setOffsets(&mpu));
-
-    return;
-}

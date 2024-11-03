@@ -1,0 +1,37 @@
+menu "mpu_driver"
+
+    choice MPU_CHOICE
+        prompt "MPU Chip Selection"
+        default MPU6050
+        help
+            This helps to choose MPU host stack
+
+        config MPU6050
+            bool "MPU6050"
+
+        config MPU6500
+            bool "mpu6500"
+    endchoice
+
+    choice MPU_RROTOCAL
+        prompt "MPU Connection Protocol"
+        default MPU_I2C
+        help
+            This helps to choose MPU connection protocol
+
+        config MPU_I2C
+            bool "MPU_I2C"
+
+        config MPU_SPI
+            bool "MPU_SPI"
+    endchoice
+
+    config AUX_LIS3MDL
+        bool "enable AUX_LIS3MDL"
+        default "n"
+
+    config AUX_BMP280
+        bool "enable AUX_BMP280"
+        default "n"
+
+endmenu

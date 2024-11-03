@@ -19,39 +19,13 @@
 #define _I2CBUS_HPP_
 
 #include <stdint.h>
-#include "driver/i2c.h"
-#include "driver/gpio.h"
-#include "esp_err.h"
-#include "esp_log.h"
 #include "error_handle.h"
 
-#define I2C_MASTER_TIMEOUT_MS 1000
-
-
-/* ^^^^^^
- * I2Cbus
- * ^^^^^^ */
-extern const uint32_t kDefaultClockSpeed;  /*!< Clock speed in Hz, default: 100KHz */
-extern const uint32_t kDefaultTimeout;       /*!< Timeout in milliseconds, default: 1000ms */
-
-struct i2c;
-
-
-// Default Objects
-extern struct i2c i2c0;        /*!< port: I2C_NUM_0 */
-extern struct i2c i2c1;        /*!< port: I2C_NUM_1 */
-
-/* Get default objects */
-struct i2c* getI2C(i2c_port_t port);
-/*******************************************************************************
- * SETUP
- ******************************************************************************/
-void init_i2c(struct i2c *i2c, i2c_port_t port);
-
+typedef int GB_I2cPort;
 
 // i2c class definition
 struct i2c {
-    i2c_port_t port;            /*!< i2c port: I2C_NUM_0 or I2C_NUM_1 */
+    GB_I2cPort port;            /*!< i2c port: I2C_NUM_0 or I2C_NUM_1 */
     uint32_t ticksToWait;       /*!< Timeout in ticks for read and write */
 
     /** *** i2c Begin ***
@@ -66,11 +40,9 @@ struct i2c {
      *                       - GB_I2C_CFG_FAIL Parameter error
      *                       - GB_I2C_INS_FAIL Driver install error
      */
-    GB_RESULT (*begin)(struct i2c *i2c, gpio_num_t sda_io_num, gpio_num_t scl_io_num, uint32_t clk_speed);
-
-    GB_RESULT (*begin_pull_enable)(struct i2c *i2c, gpio_num_t sda_io_num, gpio_num_t scl_io_num,
-                    gpio_pullup_t sda_pullup_en, gpio_pullup_t scl_pullup_en,
-                    uint32_t clk_speed);
+    GB_RESULT (*begin)(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t clk_speed);
+    GB_RESULT (*beginPullEnable)(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t sda_pullup_en,
+                                 uint32_t scl_pullup_en, uint32_t clk_speed);
 
     /**
      * Stop i2c bus and unninstall driver
@@ -81,7 +53,6 @@ struct i2c {
      * Timeout read and write in milliseconds
      */
     void (*setTimeout)(struct i2c *i2c, uint32_t ms);
-
 
     /**
      * *** WRITING interface ***
@@ -137,7 +108,16 @@ struct i2c {
      * i2c scanner utility, prints out all device addresses found on this i2c bus.
      */
     void (*scanner)(struct i2c *i2c);
+
 };
 
+// Default Objects
+extern struct i2c i2c0;        /*!< port: I2C_NUM_0 */
+extern struct i2c i2c1;        /*!< port: I2C_NUM_1 */
+/* ^^^^^^
+ * I2Cbus
+ * ^^^^^^ */
+extern const uint32_t kDefaultClockSpeed;    /*!< Clock speed in Hz, default: 100KHz */
+extern const uint32_t kDefaultTimeout;       /*!< Timeout in milliseconds, default: 1000ms */
 
 #endif /* end of include guard: _I2CBUS_H_ */
