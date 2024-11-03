@@ -67,3 +67,10 @@ hardware/GB-Drone_master_aux/GB-Drone_master_aux.PrjPcbStructure
 # components
 source/master/managed_components
 remote/master/managed_components
+
+# for mklink files
+source/master/components/error_handle
+source/master/components/i2c_bus
+source/master/components/log_sys
+source/master/components/mpu_driver
+source/master/components/spi_bus
