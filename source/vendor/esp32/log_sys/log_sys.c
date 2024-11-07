@@ -18,6 +18,8 @@
 #include "esp_log.h"
 #include "tusb_cdc_acm.h"
 #include "tusb_console.h"
+#include "tinyusb.h"
+#include "tinyusb_net.h"
 #include "class/cdc/cdc_device.h"
 #include "log_sys.h"
 
@@ -35,7 +37,7 @@ const char* FS_TAG = "[FS]";
 
 void gb_log_system_init()
 {
-    esp_log_level_set(SENSOR_TAG, ESP_LOG_DEBUG);
+    esp_log_level_set(SENSOR_TAG, ESP_LOG_INFO);
     esp_log_level_set(ERROR_TAG, ESP_LOG_ERROR);
     esp_log_level_set(ST_TAG, ESP_LOG_DEBUG);
     esp_log_level_set(CHK_TAG, ESP_LOG_ERROR);
@@ -57,7 +59,7 @@ void gb_log_system_init()
     ESP_ERROR_CHECK(uart_param_config(UART_NUM_0, &uart_config));
 #endif
 
-#ifdef CONFIG_USB_ENABLED
+#ifdef CONFIG_USB_LOG_ENABLE
     ESP_LOGI(GB_INFO, "USB device initialization");
     tinyusb_config_t tusb_cfg = {}; // the configuration using default values
     ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
@@ -109,11 +111,35 @@ void gb_print_log(GB_LOG_LEVEL level, const char *tag, const char* format, ...)
     }
 }
 
-GB_RESULT gb_usb_read_bytes(int cdc_intf, uint8_t *buf, size_t *rx_size)
+void gb_dump_log(GB_LOG_LEVEL level, const char *tag, const uint8_t *data, uint32_t size)
+{
+    switch (level)
+    {
+        case GB_LOG_LEVEL_ERROR:
+            ESP_LOG_BUFFER_HEXDUMP(tag, data, size, ESP_LOG_ERROR);
+            break;
+        case GB_LOG_LEVEL_WARNING:
+            ESP_LOG_BUFFER_HEXDUMP(tag, data, size, ESP_LOG_WARN);
+            break;
+        case GB_LOG_LEVEL_INFO:
+            ESP_LOG_BUFFER_HEXDUMP(tag, data, size, ESP_LOG_INFO);
+            break;
+        case GB_LOG_LEVEL_DEBUG:
+            ESP_LOG_BUFFER_HEXDUMP(tag, data, size, ESP_LOG_DEBUG);
+            break;
+        case GB_LOG_LEVEL_VERBOSE:
+            ESP_LOG_BUFFER_HEXDUMP(tag, data, size, ESP_LOG_VERBOSE);
+            break;
+        default:
+            ESP_LOG_BUFFER_HEXDUMP(tag, data, size, ESP_LOG_ERROR);
+    }
+}
+
+GB_RESULT gb_usb_read_bytes(uint8_t *buf, size_t *rx_size)
 {
     GB_RESULT res = GB_OK;
     /* read */
-    esp_err_t ret = tinyusb_cdcacm_read(cdc_intf, buf, CONFIG_TINYUSB_CDC_RX_BUFSIZE, rx_size);
+    esp_err_t ret = tinyusb_cdcacm_read(TINYUSB_CDC_ACM_0, buf, CONFIG_TINYUSB_CDC_RX_BUFSIZE, rx_size);
     if (ret == ESP_OK) {
         *rx_size -= 1;        // remove usb last byte '0x0a' = \n
         buf[*rx_size] = '\0';
@@ -123,15 +149,15 @@ GB_RESULT gb_usb_read_bytes(int cdc_intf, uint8_t *buf, size_t *rx_size)
     return res;
 }
 
-GB_RESULT gb_usb_write_bytes(int cdc_intf, const uint8_t *buf, size_t tx_size)
+GB_RESULT gb_usb_write_bytes(const uint8_t *buf, size_t tx_size)
 {
     GB_RESULT res = GB_OK;
     /* write */
-    esp_err_t ret = tinyusb_cdcacm_write_queue(cdc_intf, buf, tx_size);
+    esp_err_t ret = tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, buf, tx_size);
     if (ret != ESP_OK) {
         res = GB_LOG_USB_READ_FAIL;
     }
-    tinyusb_cdcacm_write_flush(cdc_intf, 10);
+    tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, 10);
     return res;
 }
 

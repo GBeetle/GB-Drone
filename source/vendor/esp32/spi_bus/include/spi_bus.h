@@ -40,16 +40,16 @@ struct spi {
      * @param   miso_io_num     [GPIO number for Master-in Slave-out]
      * @param   sclk_io_num     [GPIO number for clock line]
      * @param   max_transfer_sz [Maximum transfer size, in bytes. Defaults to 4094 if 0.]
-     * @return  - WK_SPI_INI_FAIL      spi init failed
-     *          - WK_OK                on success
+     * @return  - GB_SPI_INI_FAIL      spi init failed
+     *          - GB_OK                on success
      * */
     GB_RESULT (*begin)(struct spi *spi, int mosi_io_num, int miso_io_num, int sclk_io_num, int max_transfer_sz);
 
     /**
      * @brief   Free the spi bus
      * @warning In order for this to succeed, all devices have to be removed first.
-     * @return  - WK_SPI_FREE_FAIL     spi free failed
-     *          - WK_OK                on success
+     * @return  - GB_SPI_FREE_FAIL     spi free failed
+     *          - GB_OK                on success
      * */
     GB_RESULT (*close)(struct spi *spi);
 
@@ -60,8 +60,8 @@ struct spi {
      * @param   cs_io_num       [ChipSelect GPIO pin for this device, or -1 if not used]
      * @param   dev_config      [spi interface protocol config for the device (for more custom configs)]
      *                          @see driver/spi_master.h
-     * @return  - WK_SPI_CFG_FAIL      spi config failed
-     *          - WK_OK                on success
+     * @return  - GB_SPI_CFG_FAIL      spi config failed
+     *          - GB_OK                on success
      * */
     GB_RESULT (*addDevice)(struct spi *spi, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
     GB_RESULT (*addDeviceCfg)(struct spi *spi, uint8_t address_len, spi_device_interface_config_t *dev_config);
@@ -78,8 +78,8 @@ struct spi {
      * @param  data      [Value(s) to be write to the register]
      * @param  length    [Number of bytes to write (should be within the data buffer size)]
      *                   [writeBits() -> Number of bits after bitStart (including)]
-     * @return  - WK_SPI_RW_FAIL       spi read/write failed
-     *          - WK_OK                on success
+     * @return  - GB_SPI_RW_FAIL       spi read/write failed
+     *          - GB_OK                on success
      */
     GB_RESULT (*writeBit)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data);
     GB_RESULT (*writeBits)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
@@ -96,8 +96,8 @@ struct spi {
      * @param  bitStart  [Start bit number when writing a bit-sequence (MSB)]
      * @param  data      [Buffer to store the read value(s)]
      * @param  length    [Number of bytes to read (should be within the data buffer size)]
-     * @return  - WK_SPI_RW_FAIL       spi read/write failed
-     *          - WK_OK                on success
+     * @return  - GB_SPI_RW_FAIL       spi read/write failed
+     *          - GB_OK                on success
      */
     GB_RESULT (*readBit)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data);
     GB_RESULT (*readBits)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);

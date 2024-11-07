@@ -1,5 +1,5 @@
 /*
- * This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
+ * This file is part of welkin project (https://github.com/GBeetle/welkin).
  * Copyright (c) 2022 GBeetle.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,22 +15,18 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef _ANOTIC_DEBUG__
+#define _ANOTIC_DEBUG__
+
 #include <stdio.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include <stdarg.h>
 #include "log_sys.h"
-#include "mpu_driver.h"
-#include "task_manager.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+uint8_t __bswap_8(uint8_t value);
+uint16_t float2int16(float value);
+int anotc_init_data(uint8_t *send_buffer, uint8_t f_id, uint32_t arg_nums, ...);
 
-void app_main(void)
-{
-    gb_log_system_init();
-
-    xTaskCreatePinnedToCore( mpu_get_sensor_data, "mpu_get_sensor_data", 4096, NULL, configMAX_PRIORITIES - 1, &mpu_isr_handle, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
-
-    GB_DEBUGI(GB_INFO, "Taks Create DONE");
-
-    return;
-}
+#endif /* end of include guard: _ANOTIC_DEBUG__ */

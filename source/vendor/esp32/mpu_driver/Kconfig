@@ -10,7 +10,7 @@ menu "mpu_driver"
             bool "MPU6050"
 
         config MPU6500
-            bool "mpu6500"
+            bool "MPU6500"
     endchoice
 
     choice MPU_RROTOCAL

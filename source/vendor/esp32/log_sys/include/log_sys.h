@@ -35,6 +35,12 @@ typedef enum
 #define GB_DEBUGD(tag, format, ...) gb_print_log(GB_LOG_LEVEL_DEBUG, tag, #format, ##__VA_ARGS__)
 #define GB_DEBUGV(tag, format, ...) gb_print_log(GB_LOG_LEVEL_VERBOSE, tag, #format, ##__VA_ARGS__)
 
+#define GB_DUMMPE(tag, data, size) gb_dump_log(GB_LOG_LEVEL_ERROR, tag, data, size)
+#define GB_DUMMPW(tag, data, size) gb_dump_log(GB_LOG_LEVEL_WARNING, tag, data, size)
+#define GB_DUMMPI(tag, data, size) gb_dump_log(GB_LOG_LEVEL_INFO, tag, data, size)
+#define GB_DUMMPD(tag, data, size) gb_dump_log(GB_LOG_LEVEL_DEBUG, tag, data, size)
+#define GB_DUMMPV(tag, data, size) gb_dump_log(GB_LOG_LEVEL_VERBOSE, tag, data, size)
+
 extern const char* SENSOR_TAG;
 extern const char* ERROR_TAG;
 extern const char* ST_TAG;
@@ -47,7 +53,8 @@ extern const char* FS_TAG;
 
 void gb_log_system_init(void);
 void gb_print_log(GB_LOG_LEVEL level, const char *tag, const char* format, ...);
-GB_RESULT gb_usb_read_bytes(int cdc_intf, uint8_t *buf, size_t *rx_size);
-GB_RESULT gb_usb_write_bytes(int cdc_intf, const uint8_t *buf, size_t tx_size);
+void gb_dump_log(GB_LOG_LEVEL level, const char *tag, const uint8_t *data, uint32_t size);
+GB_RESULT gb_usb_read_bytes(uint8_t *buf, size_t *rx_size);
+GB_RESULT gb_usb_write_bytes(const uint8_t *buf, size_t tx_size);
 
 #endif /* end of include guard: _LOG_SYS__ */

@@ -2,22 +2,34 @@
 setlocal
 
 rem set source dir and target dir
-set "sourceDir=%cd%\..\vendor\esp32"
+set "vendorSourceDir=%cd%\..\vendor\esp32"
+set "utilitySourceDir=%cd%\..\utility"
 set "targetDir=%cd%\components"
-set "sourceFolders=i2c_bus error_handle log_sys spi_bus mpu_driver"
+set "vendorSourceFolders=i2c_bus error_handle log_sys spi_bus mpu_driver"
+set "utilitySourceFolders=Fusion"
 
 rem create target dir
 if not exist "%targetDir%" (
     mkdir "%targetDir%"
 )
 
-echo %sourceDir%
+echo %vendorSourceDir%
+echo %utilitySourceDir%
 echo %targetDir%
 
 rem create soft-link
-for %%f in (%sourceFolders%) do (
+for %%f in (%vendorSourceFolders%) do (
     if not exist "%targetDir%\%%f" (
-        mklink /j "%targetDir%\%%f" "%sourceDir%\%%f"
+        mklink /j "%targetDir%\%%f" "%vendorSourceDir%\%%f"
+        echo Created symlink for %%f
+    ) else (
+        echo Symlink for %%f already exists
+    )
+)
+
+for %%f in (%utilitySourceFolders%) do (
+    if not exist "%targetDir%\%%f" (
+        mklink /j "%targetDir%\%%f" "%utilitySourceDir%\%%f"
         echo Created symlink for %%f
     ) else (
         echo Symlink for %%f already exists

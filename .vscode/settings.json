@@ -11,6 +11,7 @@
         "source/master/components/error_handle": true,
         "source/master/components/log_sys": true,
         "source/master/components/mpu_driver": true,
+        "source/master/components/Fusion": true,
         "remote/master/components/*": true,
     },
     "search.exclude": {
@@ -22,6 +23,7 @@
         "source/master/components/error_handle": true,
         "source/master/components/log_sys": true,
         "source/master/components/mpu_driver": true,
+        "source/master/components/Fusion": true,
         "remote/master/components/*": true,
     },
     "files.associations": {
@@ -36,6 +38,7 @@
         "mpu_types.h": "c",
         "sdkconfig.h": "c",
         "mpu_registers.h": "c",
-        "mpu_math.h": "c"
+        "mpu_math.h": "c",
+        "utility": "cpp"
     }
 }
