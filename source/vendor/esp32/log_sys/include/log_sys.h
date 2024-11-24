@@ -54,7 +54,7 @@ extern const char* FS_TAG;
 void gb_log_system_init(void);
 void gb_print_log(GB_LOG_LEVEL level, const char *tag, const char* format, ...);
 void gb_dump_log(GB_LOG_LEVEL level, const char *tag, const uint8_t *data, uint32_t size);
-GB_RESULT gb_usb_read_bytes(uint8_t *buf, size_t *rx_size);
-GB_RESULT gb_usb_write_bytes(const uint8_t *buf, size_t tx_size);
+GB_RESULT gb_read_bytes(uint8_t *buf, size_t *rx_size);
+GB_RESULT gb_write_bytes(const uint8_t *buf, size_t tx_size);
 
 #endif /* end of include guard: _LOG_SYS__ */

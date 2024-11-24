@@ -89,8 +89,6 @@ inline float_axes_t gyroRadPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_
     return axes;
 }
 
-#ifdef CONFIG_AUX_LIS3MDL
-
 // 量程 1-±4  return  4
 //      2-±8  return 8
 //      3-±12 return 12
@@ -113,8 +111,6 @@ inline float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const lis3mdl_scale
     axes.data.z = raw_axes->data.z * magResolution(fs);
     return axes;
 }
-
-#endif
 
 inline float tempCelsius(const int16_t temp)
 {

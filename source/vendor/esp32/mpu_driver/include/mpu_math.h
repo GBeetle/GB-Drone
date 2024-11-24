@@ -20,9 +20,7 @@
 
 #include <math.h>
 #include <stdint.h>
-#if defined CONFIG_AUX_LIS3MDL
 #include "lis3mdl.h"
-#endif
 #include "mpu_types.h"
 #include "sdkconfig.h"
 
@@ -95,11 +93,9 @@ float_axes_t gyroDegPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_t fs);
 float gyroRadPerSec(const int16_t axis, const gyro_fs_t fs);
 float_axes_t gyroRadPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_t fs);
 
-#ifdef CONFIG_AUX_LIS3MDL
 uint8_t magFSRvalue(const lis3mdl_scale_t fs);
 float magResolution(const lis3mdl_scale_t fs);
 float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const lis3mdl_scale_t fs);
-#endif
 
 float tempCelsius(const int16_t temp);
 float tempFahrenheit(const int16_t temp);

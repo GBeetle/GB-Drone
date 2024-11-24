@@ -45,7 +45,7 @@ typedef uint8_t mpu_addr_handle_t;
 #if defined CONFIG_MPU6050
 static const uint16_t SAMPLE_RATE_MAX = 8000;
 #elif defined CONFIG_MPU6500
-static const uint16_t SAMPLE_RATE_MAX                  = 32000;
+static const uint16_t SAMPLE_RATE_MAX = 32000;
 #endif
 
 /*! Gyroscope full-scale range 传感器坐标系上角速度 满量程32800*/
@@ -450,43 +450,27 @@ static const dmp_tap_axis_t DMP_TAP_XYZ     {0x3F};
 /*! Generic axes struct to store sensors' data */
 
 //!< Axes type to hold gyroscope, accelerometer, magnetometer raw data.
-typedef struct raw_data
-{
-    int16_t x;
-    int16_t y;
-    int16_t z;
-}_raw_data;
 typedef union raw_axes_t
 {
-    union {
-        struct {
-            int16_t x;
-            int16_t y;
-            int16_t z;
-        };
-        int16_t xyz[3];
-        _raw_data data;
-    };
+    int16_t xyz[3];
+    struct
+    {
+        int16_t x;
+        int16_t y;
+        int16_t z;
+    } data;
 }raw_axes_t;
 
 //!< Axes type to hold converted sensor data.
-typedef struct float_data
-{
-    float x;
-    float y;
-    float z;
-}_float_data;
 typedef union float_axes_t
 {
-    union {
-        struct {
-            float x;
-            float y;
-            float z;
-        };
-        float xyz[3];
-        _float_data data;
-    };
+    float xyz[3];
+    struct
+    {
+        float x;
+        float y;
+        float z;
+    } data;
 }float_axes_t;
 
 
@@ -569,6 +553,11 @@ static const uint8_t MAG_DATA_LENGTH = 8;  // bytes
 #define MAG_SLAVE_READ_DATA  AUXI2C_SLAVE_0  // read measurement data
 
 #define MAG_DATA_LENGTH  8  // bytes
+
+#else // fake data, fix build error
+
+#define COMPASS_I2CADDRESS       0x00
+#define MAG_SLAVE_READ_DATA  AUXI2C_SLAVE_0  // read measurement data
 
 #endif  // end of Magnetometer stuff
 

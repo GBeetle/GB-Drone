@@ -18,6 +18,8 @@
 #ifndef _GB_RESULTS__
 #define _GB_RESULTS__
 
+#include <stddef.h>
+
 typedef uint32_t GB_RESULT;
 
 #define GB_OK                   0x00000000
@@ -32,11 +34,12 @@ typedef uint32_t GB_RESULT;
 #define GB_SPI_RMV_FAIL         0x80000005
 #define GB_SPI_INVALID_SIZE     0x80000006
 
-#define GB_I2C_RW_FAIL          0x80000010
-#define GB_I2C_CFG_FAIL         0x80000011
-#define GB_I2C_INS_FAIL         0x80000012
-#define GB_I2C_RMV_FAIL         0x80000013
-#define GB_I2C_CONNECT_FAIL     0x80000014
+#define GB_I2C_RW_FAIL               0x80000010
+#define GB_I2C_CFG_FAIL              0x80000011
+#define GB_I2C_INS_FAIL              0x80000012
+#define GB_I2C_RMV_FAIL              0x80000013
+#define GB_I2C_CONNECT_FAIL          0x80000014
+#define GB_I2C_MAX_DEVICE_REACHED    0x80000015
 
 #define GB_MPU_NOT_FOUND        0X80000100
 #define GB_MPU_DUMP_REG_FAIL    0X80000101
@@ -45,7 +48,8 @@ typedef uint32_t GB_RESULT;
 #define GB_MPU_AUX_NOT_ENABLE   0x80000104
 #define GB_MPU_AUX_NOT_FOUND    0x80000105
 #define GB_MPU_AUX_LOST_ARB     0x80000106
-#define GB_MPU_AUX_RW_TIMEOUT   0x80000106
+#define GB_MPU_AUX_RW_TIMEOUT   0x80000107
+#define GB_MPU_SELF_TEST_FAIL   0x80000108
 
 #define GB_COMPASS_W_SCALE      0x80000200
 #define GB_COMPASS_W_MODE       0x80000201

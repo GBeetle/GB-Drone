@@ -12,6 +12,8 @@
         "source/master/components/log_sys": true,
         "source/master/components/mpu_driver": true,
         "source/master/components/Fusion": true,
+        "source/master/components/lis3mdl": true,
+        "source/master/components/bmp280": true,
         "remote/master/components/*": true,
     },
     "search.exclude": {
@@ -24,6 +26,8 @@
         "source/master/components/log_sys": true,
         "source/master/components/mpu_driver": true,
         "source/master/components/Fusion": true,
+        "source/master/components/lis3mdl": true,
+        "source/master/components/bmp280": true,
         "remote/master/components/*": true,
     },
     "files.associations": {
@@ -39,6 +43,7 @@
         "sdkconfig.h": "c",
         "mpu_registers.h": "c",
         "mpu_math.h": "c",
-        "utility": "cpp"
+        "utility": "cpp",
+        "io_define.h": "c"
     }
 }

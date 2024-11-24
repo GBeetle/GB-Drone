@@ -75,3 +75,5 @@ source/master/components/log_sys
 source/master/components/mpu_driver
 source/master/components/spi_bus
 source/master/components/Fusion
+source/master/components/bmp280
+source/master/components/lis3mdl

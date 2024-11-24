@@ -21,12 +21,7 @@
 
 #include "mpu_driver.h"
 #include "io_define.h"
-
-#define MPU_SAMPLE_RATE 500
-
-#if defined CONFIG_AUX_BMP280
 #include "bmp280.h"
-#endif
 
 static GB_RESULT initialize(struct mpu *mpu);
 static GB_RESULT reset(struct mpu *mpu);
@@ -124,7 +119,6 @@ static GB_RESULT registerDump(struct mpu *mpu, uint8_t start, uint8_t end);
 static GB_RESULT compassReadBytes(struct mpu *mpu, uint8_t device_addr, uint8_t regAddr, uint8_t* data, uint32_t size);
 static GB_RESULT compassWriteByte(struct mpu *mpu, uint8_t device_addr, uint8_t regAddr, uint8_t data);
 
-#if defined CONFIG_AUX_LIS3MDL
 static GB_RESULT compassInit(struct mpu *mpu);
 static GB_RESULT compassWhoAmI(struct mpu *mpu);
 static GB_RESULT compassReset(struct mpu *mpu);
@@ -134,13 +128,9 @@ static GB_RESULT setMagfullScale(struct mpu *mpu, lis3mdl_scale_t scale);
 
 static GB_RESULT heading(struct mpu *mpu, raw_axes_t* mag);
 static GB_RESULT motion_mag(struct mpu *mpu, raw_axes_t* accel, raw_axes_t* gyro, raw_axes_t* mag);
-//static bool compassSelfTest(struct mpu *mpu, raw_axes_t* result);
-#endif //CONFIG_AUX_LIS3MDL
 
-#if defined CONFIG_AUX_BMP280
 static GB_RESULT bmp280Init(struct mpu *mpu, bmp280_params_t *params);
 static GB_RESULT baroGetData(struct mpu *mpu, baro_t *baro);
-#endif
 
 static GB_RESULT selfTest(struct mpu *mpu, selftest_t* result);
 static GB_RESULT accelSelfTest(struct mpu *mpu, raw_axes_t* regularBias, raw_axes_t* selfTestBias, uint8_t* result);
@@ -151,8 +141,6 @@ static GB_RESULT setOffsets(struct mpu *mpu);
 
 const accel_fs_t accel_fs = ACCEL_FS_16G;
 const gyro_fs_t gyro_fs = GYRO_FS_2000DPS;
-uint8_t compass_enabled = 0;
-
 
 /**
  * @brief Set communication bus.
@@ -220,6 +208,7 @@ void init_mpu(struct mpu *mpu) {
 #endif
     memset(mpu->buffer, 0xff, 16);
     mpu->err = GB_OK;
+    mpu->mpu_status = 0x00;
 
     mpu->initialize              = &initialize;
     mpu->reset                   = &reset;
@@ -316,22 +305,19 @@ void init_mpu(struct mpu *mpu) {
     mpu->compassReadBytes      = &compassReadBytes;
     mpu->compassWriteByte      = &compassWriteByte;
 
-#if defined CONFIG_AUX_LIS3MDL
+    // LIS3MDL
     mpu->compassInit               = &compassInit;
     mpu->compassSetSampleMode      = &compassSetSampleMode;
     mpu->compassWhoAmI             = &compassWhoAmI;
     mpu->compassReset              = &compassReset;
     mpu->compassSetMeasurementMode = &compassSetMeasurementMode;
     mpu->setMagfullScale           = &setMagfullScale;
+    mpu->heading                   = &heading;
+    mpu->motion_mag                = &motion_mag;
 
-    mpu->heading     = &heading;
-    mpu->motion_mag  = &motion_mag;
-#endif
-
-#if defined CONFIG_AUX_BMP280
+    // bmp280
     mpu->bmp280Init  = &bmp280Init;
     mpu->baroGetData = &baroGetData;
-#endif
 
     mpu->selfTest      = &selfTest;
     mpu->accelSelfTest = &accelSelfTest;
@@ -479,9 +465,8 @@ static GB_RESULT initialize(struct mpu *mpu)
     vTaskDelay(50 / portTICK_PERIOD_MS);
 
 #if defined CONFIG_AUX_LIS3MDL
-    compass_enabled = 1;
     CHK_RES(mpu->compassInit(mpu));
-    imuInit();
+    mpu->mpu_status |= MPU_AUX_LIS3MDL_STATUS_BIT;
 #endif
 
 #if defined CONFIG_AUX_BMP280
@@ -493,6 +478,7 @@ static GB_RESULT initialize(struct mpu *mpu)
 
     // waitting for bmp280 initialized done
     vTaskDelay(1000 / portTICK_PERIOD_MS);
+    mpu->mpu_status |= MPU_AUX_BMP20_STATUS_BIT;
 #endif
 
     // set gyro to 32kHz fchoice 0 | 1 & set accel to 4KHz fchoice 0
@@ -1239,9 +1225,9 @@ static GB_RESULT setAccelOffset(struct mpu *mpu, raw_axes_t bias)
 
 #if defined CONFIG_MPU6050
     CHK_RES(mpu->readBytes(mpu, XA_OFFSET_H, 6, mpu->buffer));
-    facBias.x = (mpu->buffer[0] << 8) | mpu->buffer[1];
-    facBias.y = (mpu->buffer[2] << 8) | mpu->buffer[3];
-    facBias.z = (mpu->buffer[4] << 8) | mpu->buffer[5];
+    facBias.data.x = (mpu->buffer[0] << 8) | mpu->buffer[1];
+    facBias.data.y = (mpu->buffer[2] << 8) | mpu->buffer[3];
+    facBias.data.z = (mpu->buffer[4] << 8) | mpu->buffer[5];
 
 #elif defined CONFIG_MPU6500
     CHK_RES(mpu->readBytes(mpu, XA_OFFSET_H, 8, mpu->buffer));
@@ -1258,12 +1244,12 @@ static GB_RESULT setAccelOffset(struct mpu *mpu, raw_axes_t bias)
     facBias.data.z += (bias.data.z & ~1);
 
 #if defined CONFIG_MPU6050
-    mpu->buffer[0] = (uint8_t)(facBias.x >> 8);
-    mpu->buffer[1] = (uint8_t)(facBias.x);
-    mpu->buffer[2] = (uint8_t)(facBias.y >> 8);
-    mpu->buffer[3] = (uint8_t)(facBias.y);
-    mpu->buffer[4] = (uint8_t)(facBias.z >> 8);
-    mpu->buffer[5] = (uint8_t)(facBias.z);
+    mpu->buffer[0] = (uint8_t)(facBias.data.x >> 8);
+    mpu->buffer[1] = (uint8_t)(facBias.data.x);
+    mpu->buffer[2] = (uint8_t)(facBias.data.y >> 8);
+    mpu->buffer[3] = (uint8_t)(facBias.data.y);
+    mpu->buffer[4] = (uint8_t)(facBias.data.z >> 8);
+    mpu->buffer[5] = (uint8_t)(facBias.data.z);
     CHK_RES(mpu->writeBytes(mpu, XA_OFFSET_H, 6, mpu->buffer));
 
 #elif defined CONFIG_MPU6500
@@ -1292,9 +1278,9 @@ raw_axes_t getAccelOffset(struct mpu *mpu)
 
 #if defined CONFIG_MPU6050
     CHK_VAL(mpu->readBytes(mpu, XA_OFFSET_H, 6, mpu->buffer));
-    bias.x = (mpu->buffer[0] << 8) | mpu->buffer[1];
-    bias.y = (mpu->buffer[2] << 8) | mpu->buffer[3];
-    bias.z = (mpu->buffer[4] << 8) | mpu->buffer[5];
+    bias.data.x = (mpu->buffer[0] << 8) | mpu->buffer[1];
+    bias.data.y = (mpu->buffer[2] << 8) | mpu->buffer[3];
+    bias.data.z = (mpu->buffer[4] << 8) | mpu->buffer[5];
 
 #elif defined CONFIG_MPU6500
     CHK_VAL(mpu->readBytes(mpu, XA_OFFSET_H, 8, mpu->buffer));
@@ -1773,7 +1759,7 @@ static GB_RESULT setAuxI2CSlaveConfig(struct mpu *mpu, const auxi2c_slv_config_t
     // sample_delay enable/disable
     CHK_RES(mpu->writeBit(mpu, I2C_MST_DELAY_CRTL, config->slave, config->sample_delay_en));
     /*
-    WKDEBUGE(ERROR_TAG, "EMPTY, Slave%d:: r/w: %s, addr: 0x%X, reg_addr: 0x%X, reg_dis: %d, %s: 0x%X, sample_delay_en: %d\n",
+    GBDEBUGE(ERROR_TAG, "EMPTY, Slave%d:: r/w: %s, addr: 0x%X, reg_addr: 0x%X, reg_dis: %d, %s: 0x%X, sample_delay_en: %d\n",
         config->slave, (config->rw == AUXI2C_READ ? "read" : "write"), config->addr, config->reg_addr, config->reg_dis,
         (config->rw == AUXI2C_READ ? "rxlength" : "txdata"), config->txdata, config->sample_delay_en);
     */
@@ -2162,8 +2148,6 @@ error_exit:
     return res;
 }
 
-#if defined CONFIG_AUX_BMP280
-
 static GB_RESULT mpu_read_calibration_data(struct mpu *mpu)
 {
     GB_RESULT res = GB_OK;
@@ -2329,7 +2313,7 @@ static GB_RESULT bmp280Init(struct mpu *mpu, bmp280_params_t *params)
     CHK_RES(mpu->setAuxI2CSlaveConfig(mpu, &kSlaveReadDataConfig));
     CHK_RES(mpu->setAuxI2CSlaveEnabled(mpu, BMP_SLAVE_READ_DATA, true));
 
-    //GB_DEBUGI(SENSOR_TAG, "Aux BMP280 Init done");
+    GB_DEBUGI(SENSOR_TAG, "Aux BMP280 Init done, chip id: 0x%x", mpu->bmp280_dev.id);
 error_exit:
     return res;
 }
@@ -2341,6 +2325,11 @@ static GB_RESULT baroGetData(struct mpu *mpu, baro_t *baro)
     float temperature, pressure;
     int32_t fine_temp;
 
+    if (!(mpu->mpu_status & MPU_AUX_BMP20_STATUS_BIT))
+    {
+        // BMP280 not available
+        goto error_exit;
+    }
     CHK_RES(mpu->readBytes(mpu, EXT_SENS_DATA_06, 6, mpu->buffer));
     adc_pressure = mpu->buffer[0] << 12 | mpu->buffer[1] << 4 | mpu->buffer[2] >> 4;
     adc_temp     = mpu->buffer[3] << 12 | mpu->buffer[4] << 4 | mpu->buffer[5] >> 4;
@@ -2362,12 +2351,12 @@ static GB_RESULT baroGetData(struct mpu *mpu, baro_t *baro)
     }
     baro->temperature = temperature;
     baro->pressure    = pressure;
+
+    //GB_DEBUGI(SENSOR_TAG, "DEBUG baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ] [%d, %d] \n", baro->pressure, baro->temperature, baro->altitude, adc_pressure, adc_temp);
 error_exit:
     return res;
 }
-#endif
 
-#if defined CONFIG_AUX_LIS3MDL
 /**
  * @brief Initialize Magnetometer sensor.
  *
@@ -2607,6 +2596,11 @@ error_exit:
 static GB_RESULT heading(struct mpu *mpu, raw_axes_t* mag)
 {
     GB_RESULT res = GB_OK;
+
+    if (!(mpu->mpu_status & MPU_AUX_LIS3MDL_STATUS_BIT)) {
+        // compass not available
+        goto error_exit;
+    }
     CHK_RES(mpu->readBytes(mpu, EXT_SENS_DATA_00, 6, mpu->buffer));
     mag->data.x = mpu->buffer[1] << 8 | mpu->buffer[0];
     mag->data.y = mpu->buffer[3] << 8 | mpu->buffer[2];
@@ -2635,7 +2629,6 @@ static GB_RESULT motion_mag(struct mpu *mpu, raw_axes_t* accel, raw_axes_t* gyro
 error_exit:
     return res;
 }
-#endif // CONFIG_AUX_LIS3MDL
 
 /**
  * @brief Trigger gyro and accel hardware self-test.
@@ -2675,6 +2668,11 @@ static GB_RESULT selfTest(struct mpu *mpu, selftest_t* result)
             GB_DEBUGE(ERROR_TAG, "SELF_TEST_ACCEL_FAIL\n");
         else
             GB_DEBUGE(ERROR_TAG, "SELT_TEST_FAIL 0x%x\n", (uint8_t)*result);
+        res = GB_MPU_SELF_TEST_FAIL;
+    }
+    else {
+        mpu->mpu_status |= MPU_GYRO_STATUS_BIT;
+        mpu->mpu_status |= MPU_ACCEL_STATUS_BIT;
     }
 error_exit:
     return res;
@@ -3026,8 +3024,8 @@ static GB_RESULT setOffsets(struct mpu *mpu)
     raw_axes_t accel;   // x, y, z axes as int16
     raw_axes_t gyro;    // x, y, z axes as int16
 
-    const accel_fs_t prevAccelFS       = mpu->getAccelFullScale(mpu);
-    const gyro_fs_t prevGyroFS         = mpu->getGyroFullScale(mpu);
+    const accel_fs_t prevAccelFS = mpu->getAccelFullScale(mpu);
+    const gyro_fs_t prevGyroFS   = mpu->getGyroFullScale(mpu);
 
     CHK_RES(mpu->setAccelFullScale(mpu, ACCEL_FS_16G));
     CHK_RES(mpu->setGyroFullScale(mpu, GYRO_FS_1000DPS));

@@ -30,9 +30,6 @@
 #define I2C_MASTER_ACK_EN   true    /*!< Enable ack check for master */
 #define I2C_MASTER_ACK_DIS  false   /*!< Disable ack check for master */
 
-const uint32_t kDefaultClockSpeed = 100000;  /*!< Clock speed in Hz, default: 100KHz */
-const uint32_t kDefaultTimeout = 1000;       /*!< Timeout in milliseconds, default: 1000ms */
-
 static GB_RESULT begin(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t clk_speed);
 static GB_RESULT beginPullEnable(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t sda_pullup_en,
                                  uint32_t scl_pullup_en, uint32_t clk_speed);
@@ -65,7 +62,7 @@ static void scanner(struct i2c *i2c);
  ******************************************************************************/
 struct i2c i2c0 = {
     .port = I2C_NUM_0,
-    .ticksToWait = pdMS_TO_TICKS(kDefaultTimeout),
+    .ticksToWait = pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS),
     .begin = &begin,
     .beginPullEnable = &beginPullEnable,
     .close = &close,
@@ -84,7 +81,7 @@ struct i2c i2c0 = {
 
 struct i2c i2c1 = {
     .port = I2C_NUM_1,
-    .ticksToWait = pdMS_TO_TICKS(kDefaultTimeout),
+    .ticksToWait = pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS),
     .begin = &begin,
     .beginPullEnable = &beginPullEnable,
     .close = &close,

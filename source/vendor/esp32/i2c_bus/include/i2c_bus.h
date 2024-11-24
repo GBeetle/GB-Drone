@@ -114,10 +114,5 @@ struct i2c {
 // Default Objects
 extern struct i2c i2c0;        /*!< port: I2C_NUM_0 */
 extern struct i2c i2c1;        /*!< port: I2C_NUM_1 */
-/* ^^^^^^
- * I2Cbus
- * ^^^^^^ */
-extern const uint32_t kDefaultClockSpeed;    /*!< Clock speed in Hz, default: 100KHz */
-extern const uint32_t kDefaultTimeout;       /*!< Timeout in milliseconds, default: 1000ms */
 
 #endif /* end of include guard: _I2CBUS_H_ */

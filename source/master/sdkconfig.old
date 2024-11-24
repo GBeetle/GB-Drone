@@ -2022,8 +2022,8 @@ CONFIG_USB_LOG_ENABLE=y
 #
 CONFIG_MPU6050=y
 # CONFIG_MPU6500 is not set
-# CONFIG_MPU_I2C is not set
-CONFIG_MPU_SPI=y
+CONFIG_MPU_I2C=y
+# CONFIG_MPU_SPI is not set
 # CONFIG_AUX_LIS3MDL is not set
 # CONFIG_AUX_BMP280 is not set
 # end of mpu_driver

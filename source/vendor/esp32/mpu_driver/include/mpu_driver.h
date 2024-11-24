@@ -42,20 +42,21 @@
 #include "mpu_math.h"
 #include "log_sys.h"
 #include "error_handle.h"
-
-#if defined CONFIG_AUX_BMP280
 #include "bmp280.h"
-#endif
-
-#if defined CONFIG_AUX_LIS3MDL
 #include "lis3mdl.h"
-#endif
 
 #ifdef CONFIG_MPU_I2C
 #include "i2c_bus.h"
 #elif CONFIG_MPU_SPI
 #include "spi_bus.h"
 #endif
+
+#define MPU_SAMPLE_RATE 500
+
+#define MPU_GYRO_STATUS_BIT        (1 << 0)
+#define MPU_ACCEL_STATUS_BIT       (1 << 1)
+#define MPU_AUX_BMP20_STATUS_BIT   (1 << 2)
+#define MPU_AUX_LIS3MDL_STATUS_BIT (1 << 3)
 
 /*! Motion Processing Unit */
 struct mpu
@@ -171,22 +172,17 @@ struct mpu
     //! \}
     //! \name Compass | Magnetometer
     //! \{
-#if defined CONFIG_AUX_LIS3MDL
     GB_RESULT (*compassInit)(struct mpu *mpu);
     GB_RESULT (*compassWhoAmI)(struct mpu *mpu);
     GB_RESULT (*compassReset)(struct mpu *mpu);
     GB_RESULT (*compassSetSampleMode)(struct mpu *mpu, mag_mode_t mode);
     GB_RESULT (*compassSetMeasurementMode)(struct mpu *mpu, lis3mdl_measurement_mode_t mode);
     GB_RESULT (*setMagfullScale)(struct mpu *mpu, lis3mdl_scale_t scale);
-
     GB_RESULT (*heading)(struct mpu *mpu, raw_axes_t* mag);
     GB_RESULT (*motion_mag)(struct mpu *mpu, raw_axes_t* accel, raw_axes_t* gyro, raw_axes_t* mag);
-#endif
 
-#if defined CONFIG_AUX_BMP280
     GB_RESULT (*bmp280Init)(struct mpu *mpu, bmp280_params_t *params);
     GB_RESULT (*baroGetData)(struct mpu *mpu, baro_t *baro);
-#endif
     //! \}
     //! \name Miscellaneous
     //! \{
@@ -238,16 +234,13 @@ struct mpu
     mpu_addr_handle_t addr; /*!< I2C address / SPI device handle */
     uint8_t buffer[16];     /*!< Commom buffer for temporary data */
     GB_RESULT err;          /*!< Holds last error code */
-#ifdef CONFIG_AUX_BMP280
     bmp280_t bmp280_dev;
-#endif
+    uint8_t mpu_status;
 };
 
 void init_mpu(struct mpu *mpu);
 
 extern const accel_fs_t accel_fs;
 extern const gyro_fs_t gyro_fs;
-extern uint8_t compass_enabled;
-extern uint8_t int_enabled;
 
 #endif /* end of include guard: _MPU_DRIVER_H__ */
