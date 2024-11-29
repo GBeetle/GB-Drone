@@ -305,7 +305,6 @@ void init_mpu(struct mpu *mpu) {
     mpu->compassReadBytes      = &compassReadBytes;
     mpu->compassWriteByte      = &compassWriteByte;
 
-    // LIS3MDL
     mpu->compassInit               = &compassInit;
     mpu->compassSetSampleMode      = &compassSetSampleMode;
     mpu->compassWhoAmI             = &compassWhoAmI;
@@ -462,15 +461,11 @@ static GB_RESULT initialize(struct mpu *mpu)
     CHK_RES(mpu->setGyroFullScale(mpu, gyro_fs));
     CHK_RES(mpu->setAccelFullScale(mpu, accel_fs));
 
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);   // DON'T REMOVE IT !!!
 
-#if defined CONFIG_AUX_LIS3MDL
     CHK_RES(mpu->compassInit(mpu));
-    mpu->mpu_status |= MPU_AUX_LIS3MDL_STATUS_BIT;
-#endif
 
 #if defined CONFIG_AUX_BMP280
-    //CHK_RES(mpu->compassInit(mpu));
     bmp280_params_t bmp280_params;
 
     CHK_RES(bmp280_init_default_params(&bmp280_params));
@@ -2331,6 +2326,7 @@ static GB_RESULT baroGetData(struct mpu *mpu, baro_t *baro)
         goto error_exit;
     }
     CHK_RES(mpu->readBytes(mpu, EXT_SENS_DATA_06, 6, mpu->buffer));
+    //GB_DUMMPI(SENSOR_TAG, mpu->buffer, 6);
     adc_pressure = mpu->buffer[0] << 12 | mpu->buffer[1] << 4 | mpu->buffer[2] >> 4;
     adc_temp     = mpu->buffer[3] << 12 | mpu->buffer[4] << 4 | mpu->buffer[5] >> 4;
 
@@ -2392,18 +2388,28 @@ static GB_RESULT compassInit(struct mpu *mpu)
 #endif
 
     // who am i
-    CHK_RES(mpu->compassWhoAmI(mpu));
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+    res = mpu->compassWhoAmI(mpu);
+    if (GB_OK == res && LIS3MDL_CHIP_ID == mpu->buffer[0])
+    {
+#ifdef CONFIG_AUX_LIS3MDL
+        mpu->mpu_status |= MPU_AUX_LIS3MDL_STATUS_BIT;
+        GB_DEBUGI(SENSOR_TAG, "LIS3MDL Compass Chip Selected");
 
-    // SPI MODE: In write mode, the contents of I2C_SLV0_DO (Register 99) will be written to the slave device.
-    // I2C MODE: Auxiliary Pass-Through Mode
-    /* configure the magnetometer */
-    CHK_RES(mpu->setMagfullScale(mpu, lis3mdl_scale_12_Gs));
-    //vTaskDelay(50 / portTICK_PERIOD_MS);
-    CHK_RES(mpu->compassSetSampleMode(mpu, lis3mdl_mpm_560));
-    //vTaskDelay(50 / portTICK_PERIOD_MS);
-    CHK_RES(mpu->compassSetMeasurementMode(mpu, lis3mdl_continuous_measurement));
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        // SPI MODE: In write mode, the contents of I2C_SLV0_DO (Register 99) will be written to the slave device.
+        // I2C MODE: Auxiliary Pass-Through Mode
+        /* configure the magnetometer */
+        CHK_RES(mpu->setMagfullScale(mpu, lis3mdl_scale_12_Gs));
+        //vTaskDelay(50 / portTICK_PERIOD_MS);
+        CHK_RES(mpu->compassSetSampleMode(mpu, lis3mdl_mpm_560));
+        //vTaskDelay(50 / portTICK_PERIOD_MS);
+        CHK_RES(mpu->compassSetMeasurementMode(mpu, lis3mdl_continuous_measurement));
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+#else
+        GB_DEBUGD(SENSOR_TAG, "CONFIG_AUX_LIS3MDL not enabled");
+        CHK_RES(GB_MPU_AUXDEV_NOT_ENABLE);
+#endif
+    }
 
 #ifdef CONFIG_MPU_I2C
     // finished configs, disable bypass mode
@@ -2422,12 +2428,13 @@ static GB_RESULT compassInit(struct mpu *mpu)
     CHK_RES(mpu->setAuxI2CEnabled(mpu, true));
 #endif
 
+
     // slave 0 reads from magnetometer data register
-    const auxi2c_slv_config_t kSlaveReadDataConfig = {
+    auxi2c_slv_config_t kSlaveReadDataConfig = {
         .slave           = MAG_SLAVE_READ_DATA,
         .addr            = COMPASS_I2CADDRESS,
         .rw              = AUXI2C_READ,
-        .reg_addr        = LIS3MDL_REG_OUT_X_L,
+        .reg_addr        = 0x00,
         .reg_dis         = 0,
         .sample_delay_en = 0,
         {{
@@ -2436,9 +2443,15 @@ static GB_RESULT compassInit(struct mpu *mpu)
             .rxlength    = 6
         }}
     };
+
+    if (GB_OK == res && LIS3MDL_CHIP_ID == mpu->buffer[0])
+    {
+        kSlaveReadDataConfig.reg_addr = LIS3MDL_REG_OUT_X_L;
+    }
     CHK_RES(mpu->setAuxI2CSlaveConfig(mpu, &kSlaveReadDataConfig));
     CHK_RES(mpu->setAuxI2CSlaveEnabled(mpu, MAG_SLAVE_READ_DATA, true));
 
+    res = GB_OK;
     GB_DEBUGI(SENSOR_TAG, "Aux Compass Init done");
 error_exit:
     return res;

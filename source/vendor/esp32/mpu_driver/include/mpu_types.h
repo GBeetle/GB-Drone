@@ -549,18 +549,15 @@ static const uint8_t MAG_DATA_LENGTH = 8;  // bytes
 #define COMPASS_I2CADDRESS       LIS3MDL_I2C_ADDRESS_2
 #define COMPASS_SAMPLE_RATE_MAX  1000  // 1000 Hz
 
-// Auxiliary I2C slaves that operate the Magnetometer (do not change)
-#define MAG_SLAVE_READ_DATA  AUXI2C_SLAVE_0  // read measurement data
-
 #define MAG_DATA_LENGTH  8  // bytes
 
 #else // fake data, fix build error
 
 #define COMPASS_I2CADDRESS       0x00
-#define MAG_SLAVE_READ_DATA  AUXI2C_SLAVE_0  // read measurement data
 
 #endif  // end of Magnetometer stuff
 
+#define MAG_SLAVE_READ_DATA   AUXI2C_SLAVE_0  // read measurement data
 #define BMP_SLAVE_READ_DATA   AUXI2C_SLAVE_1  // change mode to single measure
 
 /*! Self-Test results */
