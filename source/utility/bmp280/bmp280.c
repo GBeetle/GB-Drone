@@ -16,6 +16,7 @@
  */
 
 #include "bmp280.h"
+#include "gb_timer.h"
 
 bmp280_t bmp280_device;
 
@@ -469,11 +470,19 @@ void performBaroCalibrationCycle(float baroPressureSamp)
 {
     //慢慢收敛校准
     const float baroGroundPressureError = baroPressureSamp - baroGroundPressure;
+    uint64_t getTimerMs = 0;
+
     baroGroundPressure += baroGroundPressureError * 0.15f;
+
+    if (GB_OK != GB_GetTimerMs(&getTimerMs))
+    {
+        GB_DEBUGE(ERROR_TAG, "GB_GetTimerMs FAILED");
+        return;
+    }
 
     if (fabs(baroGroundPressureError) < (baroGroundPressure * 0.00005f))  // 0.005% calibration error (should give c. 10cm calibration error)
     {
-        if ((esp_timer_get_time() - baroCalibrationTimeout) > 1000)
+        if ((getTimerMs - baroCalibrationTimeout) > 1000)
         {
             baroGroundAltitude = pressureToAltitude(baroGroundPressure);
             baroCalibrationFinished = true;
@@ -481,7 +490,7 @@ void performBaroCalibrationCycle(float baroPressureSamp)
     }
     else
     {
-        baroCalibrationTimeout = esp_timer_get_time();
+        baroCalibrationTimeout = getTimerMs;
     }
 }
 

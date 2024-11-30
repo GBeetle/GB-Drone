@@ -35,7 +35,7 @@ const char* GB_INFO = "[GB_COMMON]";
 const char* LORA_TAG = "[LORA]";
 const char* FS_TAG = "[FS]";
 
-void gb_log_system_init()
+void GB_LogSystemInit()
 {
     esp_log_level_set(SENSOR_TAG, ESP_LOG_INFO);
     esp_log_level_set(ERROR_TAG, ESP_LOG_ERROR);
@@ -80,7 +80,7 @@ void gb_log_system_init()
 #endif
 }
 
-void gb_print_log(GB_LOG_LEVEL level, const char *tag, const char* format, ...)
+void GB_PrintLog(GB_LOG_LEVEL level, const char *tag, const char* format, ...)
 {
     char log_buffer[GB_LOG_BUFFER_SIZE] = {0};
     va_list list;
@@ -111,7 +111,7 @@ void gb_print_log(GB_LOG_LEVEL level, const char *tag, const char* format, ...)
     }
 }
 
-void gb_dump_log(GB_LOG_LEVEL level, const char *tag, const uint8_t *data, uint32_t size)
+void GB_DumpLog(GB_LOG_LEVEL level, const char *tag, const uint8_t *data, uint32_t size)
 {
     switch (level)
     {
@@ -135,7 +135,7 @@ void gb_dump_log(GB_LOG_LEVEL level, const char *tag, const uint8_t *data, uint3
     }
 }
 
-GB_RESULT gb_read_bytes(uint8_t *buf, size_t *rx_size)
+GB_RESULT GB_ReadBytes(uint8_t *buf, size_t *rx_size)
 {
     GB_RESULT res = GB_OK;
 
@@ -153,7 +153,7 @@ GB_RESULT gb_read_bytes(uint8_t *buf, size_t *rx_size)
     return res;
 }
 
-GB_RESULT gb_write_bytes(const uint8_t *buf, size_t tx_size)
+GB_RESULT GB_WriteBytes(const uint8_t *buf, size_t tx_size)
 {
     GB_RESULT res = GB_OK;
 

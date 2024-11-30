@@ -14,6 +14,7 @@
         "source/master/components/Fusion": true,
         "source/master/components/lis3mdl": true,
         "source/master/components/bmp280": true,
+        "source/master/components/gb_timer": true,
         "remote/master/components/*": true,
     },
     "search.exclude": {
@@ -28,6 +29,7 @@
         "source/master/components/Fusion": true,
         "source/master/components/lis3mdl": true,
         "source/master/components/bmp280": true,
+        "source/master/components/gb_timer": true,
         "remote/master/components/*": true,
     },
     "files.associations": {

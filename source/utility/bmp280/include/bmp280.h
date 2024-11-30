@@ -24,7 +24,6 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <esp_timer.h>
 #include "io_define.h"
 
 typedef enum {  //

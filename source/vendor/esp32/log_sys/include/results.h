@@ -19,6 +19,7 @@
 #define _GB_RESULTS__
 
 #include <stddef.h>
+#include <inttypes.h>
 
 typedef uint32_t GB_RESULT;
 

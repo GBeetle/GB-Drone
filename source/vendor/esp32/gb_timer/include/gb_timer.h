@@ -14,23 +14,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <stdio.h>
-#include "log_sys.h"
-#include "mpu_driver.h"
-#include "task_manager.h"
+#ifndef _GB_TIMER__
+#define _GB_TIMER__
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/portmacro.h"
 #include "freertos/task.h"
+#include "log_sys.h"
 
-void app_main(void)
-{
-    GB_LogSystemInit();
+typedef TickType_t GB_TickType;
 
-    xTaskCreatePinnedToCore( mpu_get_sensor_data, "mpu_get_sensor_data", 4096, NULL, configMAX_PRIORITIES - 1, &mpu_isr_handle, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
+GB_RESULT GB_GetTimerMs(uint64_t *timer);
+GB_RESULT GB_SleepMs(uint64_t time);
+GB_RESULT GB_GetTicks(GB_TickType *ticks);
+GB_RESULT GB_MsToTick(uint64_t timeMs, GB_TickType *ticks);
 
-    GB_DEBUGI(GB_INFO, "Taks Create DONE");
-
-    return;
-}
+#endif /* end of include guard: _GB_TIMER__ */

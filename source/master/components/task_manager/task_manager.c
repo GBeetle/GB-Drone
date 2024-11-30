@@ -65,7 +65,7 @@ void mpu_get_sensor_data(void* arg)
     baro_t       baro_data        = {0};
 
     // mpu initialization
-    init_mpu(&mpu);
+    GB_MpuInit(&mpu);
     CHK_EXIT(mpu.testConnection(&mpu));
     CHK_EXIT(mpu.initialize(&mpu));
 
@@ -178,7 +178,7 @@ void mpu_get_sensor_data(void* arg)
             }
             if (anotic_debug_id >= 0x01 && anotic_debug_id <= 0x03)
             {
-                gb_write_bytes((const uint8_t *)send_buffer, send_buffer[3] + 6);
+                GB_WriteBytes((const uint8_t *)send_buffer, send_buffer[3] + 6);
             }
 
             // Debug
@@ -219,7 +219,7 @@ void uart_rx_task(void *arg)
 
     while (1) {
 
-        gb_read_bytes(data, (size_t*)&rxBytes);
+        GB_ReadBytes(data, (size_t*)&rxBytes);
 
         if (rxBytes <= 0)
             continue;
@@ -236,7 +236,7 @@ void uart_rx_task(void *arg)
 
             GB_DUMMPI(CHK_TAG, data, rxBytes);
             GB_DUMMPI(CHK_TAG, ack, sizeof(ack));
-            gb_write_bytes((const uint8_t *)ack, sizeof(ack));
+            GB_WriteBytes((const uint8_t *)ack, sizeof(ack));
 
             // CID: 0x01  CMD0: 0x00  CMD1: 0x04 ======= MAG_CALIBRATION
             if (data[4] == 0x01 && data[5] == 0x00 && data[6] == 0x04)

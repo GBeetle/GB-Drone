@@ -5,8 +5,8 @@ rem set source dir and target dir
 set "vendorSourceDir=%cd%\..\vendor\esp32"
 set "utilitySourceDir=%cd%\..\utility"
 set "targetDir=%cd%\components"
-set "vendorSourceFolders=i2c_bus error_handle log_sys spi_bus mpu_driver lis3mdl bmp280"
-set "utilitySourceFolders=Fusion"
+set "vendorSourceFolders=i2c_bus log_sys spi_bus gb_timer"
+set "utilitySourceFolders=Fusion error_handle mpu_driver lis3mdl bmp280"
 
 rem create target dir
 if not exist "%targetDir%" (

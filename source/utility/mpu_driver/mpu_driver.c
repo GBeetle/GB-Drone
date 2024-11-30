@@ -15,13 +15,10 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/portmacro.h"
-#include "freertos/task.h"
-
 #include "mpu_driver.h"
 #include "io_define.h"
 #include "bmp280.h"
+#include "gb_timer.h"
 
 static GB_RESULT initialize(struct mpu *mpu);
 static GB_RESULT reset(struct mpu *mpu);
@@ -188,7 +185,7 @@ static GB_RESULT writeBytes(struct mpu *mpu, uint8_t regAddr, size_t length, con
  * @param bus Bus protocol object of type `I2Cbus` or `SPIbus`.
  * @param addr I2C address (`mpu_i2caddr_t`) or SPI device handle (`spi_device_handle_t`).
  */
-void init_mpu(struct mpu *mpu) {
+void GB_MpuInit(struct mpu *mpu) {
 
 #if defined CONFIG_MPU_SPI
     // disable SPI DMA in begin
@@ -441,7 +438,7 @@ static GB_RESULT initialize(struct mpu *mpu)
     GB_RESULT res = GB_OK;
     // reset device (wait a little to clear all registers)
     CHK_RES(mpu->reset(mpu));
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    GB_SleepMs(100);
     // wake-up the device (power on-reset state is asleep for some models)
     CHK_RES(mpu->setSleep(mpu, false));
     // disable mpu's I2C slave module when using SPI
@@ -461,7 +458,7 @@ static GB_RESULT initialize(struct mpu *mpu)
     CHK_RES(mpu->setGyroFullScale(mpu, gyro_fs));
     CHK_RES(mpu->setAccelFullScale(mpu, accel_fs));
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);   // DON'T REMOVE IT !!!
+    GB_SleepMs(1000);   // DON'T REMOVE IT !!!
 
     CHK_RES(mpu->compassInit(mpu));
 
@@ -472,7 +469,7 @@ static GB_RESULT initialize(struct mpu *mpu)
     CHK_RES(mpu->bmp280Init(mpu, &bmp280_params));
 
     // waitting for bmp280 initialized done
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    GB_SleepMs(1000);
     mpu->mpu_status |= MPU_AUX_BMP20_STATUS_BIT;
 #endif
 
@@ -499,7 +496,7 @@ static GB_RESULT initialize(struct mpu *mpu)
     int_en_t mask = INT_EN_RAWDATA_READY;
     CHK_RES(mpu->setInterruptEnabled(mpu, mask));
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    GB_SleepMs(1000);
     //GB_DEBUGI(SENSOR_TAG, "MPU Init Done");
 error_exit:
     return res;
@@ -516,7 +513,7 @@ static GB_RESULT reset(struct mpu *mpu)
     GB_RESULT res = GB_OK;
 
     CHK_RES(mpu->writeBit(mpu, PWR_MGMT1, PWR1_DEVICE_RESET_BIT, 1));
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    GB_SleepMs(100);
 #ifdef CONFIG_MPU_SPI
     CHK_RES(mpu->resetSignalPath(mpu));
 #endif
@@ -721,7 +718,7 @@ static GB_RESULT resetSignalPath(struct mpu *mpu)
     GB_RESULT res = GB_OK;
 
     CHK_RES(mpu->writeBit(mpu, USER_CTRL, USERCTRL_SIG_COND_RESET_BIT, 1));
-    vTaskDelay(100 / portTICK_PERIOD_MS);
+    GB_SleepMs(100);
 error_exit:
     return res;
 }
@@ -881,7 +878,7 @@ static GB_RESULT setMotionFeatureEnabled(struct mpu *mpu, bool enable)
         CHK_RES(mpu->setDigitalLowPassFilter(mpu, kDLPF));
 #if defined CONFIG_MPU6050
         // give a time for accumulation of samples
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        GB_SleepMs(10);
         CHK_RES(mpu->writeBits(mpu, ACCEL_CONFIG, ACONFIG_HPF_BIT, ACONFIG_HPF_LENGTH, ACCEL_DHPF_HOLD));
 #elif defined CONFIG_MPU6500
         CHK_RES(mpu->writeByte(mpu, ACCEL_INTEL_CTRL, (1 << ACCEL_INTEL_EN_BIT) | (1 << ACCEL_INTEL_MODE_BIT)));
@@ -1937,9 +1934,13 @@ static GB_RESULT auxI2CWriteByte(struct mpu *mpu, uint8_t devAddr, uint8_t regAd
     // enable transfer in slave 4
     CHK_RES(mpu->writeBit(mpu, I2C_SLV4_CTRL, I2C_SLV4_EN_BIT, 1));
     // check status until transfer is done
-    TickType_t startTick = xTaskGetTickCount();
-    TickType_t endTick   = startTick + pdMS_TO_TICKS(1000);
+    GB_TickType startTick = 0, offsetTick = 0;
+    CHK_RES(GB_GetTicks(&startTick));
+    CHK_RES(GB_MsToTick(1000, &offsetTick));
+
+    GB_TickType endTick  = startTick + offsetTick;
     auxi2c_stat_t status = 0x00;
+
     do {
         CHK_RES(mpu->readByte(mpu, I2C_MST_STATUS, &status));
         if (status & (1 << I2CMST_STAT_SLV4_NACK_BIT)) {
@@ -1950,7 +1951,7 @@ static GB_RESULT auxI2CWriteByte(struct mpu *mpu, uint8_t devAddr, uint8_t regAd
             GB_DEBUGE(ERROR_TAG, "AUX_I2C_LOST_ARB, ");
             return mpu->err = GB_MPU_AUX_LOST_ARB;
         }
-        if (xTaskGetTickCount() >= endTick) {
+        if (startTick >= endTick) {
             GB_DEBUGE(ERROR_TAG, "TIMEOUT, . Aux I2C might've hung. Restart it.");
             return mpu->err = GB_MPU_AUX_RW_TIMEOUT;
         }
@@ -1995,9 +1996,13 @@ static GB_RESULT auxI2CReadByte(struct mpu *mpu, uint8_t devAddr, uint8_t regAdd
     // enable transfer in slave 4
     CHK_RES(mpu->writeBit(mpu, I2C_SLV4_CTRL, I2C_SLV4_EN_BIT, 1));
     // check status until transfer is done
-    TickType_t startTick = xTaskGetTickCount();
-    TickType_t endTick   = startTick + pdMS_TO_TICKS(1000);
+    GB_TickType startTick = 0, offsetTick = 0;
+    CHK_RES(GB_GetTicks(&startTick));
+    CHK_RES(GB_MsToTick(1000, &offsetTick));
+
+    GB_TickType endTick  = startTick + offsetTick;
     auxi2c_stat_t status = 0x00;
+
     do {
         CHK_RES(mpu->readByte(mpu, I2C_MST_STATUS, &status));
         if (status & (1 << I2CMST_STAT_SLV4_NACK_BIT)) {
@@ -2008,7 +2013,7 @@ static GB_RESULT auxI2CReadByte(struct mpu *mpu, uint8_t devAddr, uint8_t regAdd
             GB_DEBUGE(ERROR_TAG, "AUX_I2C_LOST_ARB, ");
             return mpu->err = GB_MPU_AUX_LOST_ARB;
         }
-        if (xTaskGetTickCount() >= endTick) {
+        if (startTick >= endTick) {
             GB_DEBUGE(ERROR_TAG, "TIMEOUT, . Aux I2C might've hung. Restart it.");
             return mpu->err = GB_MPU_AUX_RW_TIMEOUT;
         }
@@ -2210,7 +2215,7 @@ static GB_RESULT bmp280Init(struct mpu *mpu, bmp280_params_t *params)
 
     CHK_RES(mpu->setAuxI2CReset(mpu));
     // must delay, or compass may not be initialized
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+    GB_SleepMs(50);
     // I2C => bypass mode
 #ifdef CONFIG_MPU_I2C
     CHK_RES(mpu->setAuxI2CBypass(mpu, true));
@@ -2367,7 +2372,7 @@ static GB_RESULT compassInit(struct mpu *mpu)
     GB_RESULT res = GB_OK;
     CHK_RES(mpu->setAuxI2CReset(mpu));
     // must delay, or compass may not be initialized
-    vTaskDelay(50 / portTICK_PERIOD_MS);
+    GB_SleepMs(50);
     // I2C => bypass mode
 #ifdef CONFIG_MPU_I2C
     CHK_RES(mpu->setAuxI2CBypass(mpu, true));
@@ -2382,9 +2387,9 @@ static GB_RESULT compassInit(struct mpu *mpu)
         .transition      = AUXI2C_TRANS_RESTART
     };
     CHK_RES(mpu->setAuxI2CConfig(mpu, &kAuxI2CConfig));
-    //vTaskDelay(50 / portTICK_PERIOD_MS);
+    //GB_SleepMs(50);
     CHK_RES(mpu->setAuxI2CEnabled(mpu, true));
-    //vTaskDelay(50 / portTICK_PERIOD_MS);
+    //GB_SleepMs(50);
 #endif
 
     // who am i
@@ -2395,16 +2400,16 @@ static GB_RESULT compassInit(struct mpu *mpu)
         mpu->mpu_status |= MPU_AUX_LIS3MDL_STATUS_BIT;
         GB_DEBUGI(SENSOR_TAG, "LIS3MDL Compass Chip Selected");
 
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+        GB_SleepMs(50);
         // SPI MODE: In write mode, the contents of I2C_SLV0_DO (Register 99) will be written to the slave device.
         // I2C MODE: Auxiliary Pass-Through Mode
         /* configure the magnetometer */
         CHK_RES(mpu->setMagfullScale(mpu, lis3mdl_scale_12_Gs));
-        //vTaskDelay(50 / portTICK_PERIOD_MS);
+        //GB_SleepMs(50);
         CHK_RES(mpu->compassSetSampleMode(mpu, lis3mdl_mpm_560));
-        //vTaskDelay(50 / portTICK_PERIOD_MS);
+        //GB_SleepMs(50);
         CHK_RES(mpu->compassSetMeasurementMode(mpu, lis3mdl_continuous_measurement));
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+        GB_SleepMs(50);
 #else
         GB_DEBUGD(SENSOR_TAG, "CONFIG_AUX_LIS3MDL not enabled");
         CHK_RES(GB_MPU_AUXDEV_NOT_ENABLE);
@@ -2951,14 +2956,14 @@ static GB_RESULT getBiases(struct mpu *mpu, accel_fs_t accelFS, gyro_fs_t gyroFS
         CHK_RES(mpu->writeBits(mpu, GYRO_CONFIG, GCONFIG_XG_ST_BIT, 3, 0x7));
     }
     // wait for 200ms for sensors to stabilize
-    vTaskDelay(200 / portTICK_PERIOD_MS);
+    GB_SleepMs(200);
 
     raw_axes_t accelRaw;   // x, y, z axes as int16
     raw_axes_t gyroRaw;    // x, y, z axes as int16
     const int packetCount = 100;
 
     for (int i = 0; i < packetCount; i++) {
-        vTaskDelay(4 / portTICK_PERIOD_MS);
+        GB_SleepMs(4);
         mpu->acceleration(mpu, &accelRaw);  // fetch raw data from the registers
         mpu->rotation(mpu, &gyroRaw);       // fetch raw data from the registers
         // add up

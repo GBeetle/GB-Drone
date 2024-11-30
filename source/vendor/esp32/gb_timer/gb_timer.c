@@ -15,22 +15,29 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include "log_sys.h"
-#include "mpu_driver.h"
-#include "task_manager.h"
+#include <esp_timer.h>
+#include "gb_timer.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
-void app_main(void)
+GB_RESULT GB_GetTimerMs(uint64_t *timer)
 {
-    GB_LogSystemInit();
+    *timer = esp_timer_get_time();
+    return GB_OK;
+}
 
-    xTaskCreatePinnedToCore( mpu_get_sensor_data, "mpu_get_sensor_data", 4096, NULL, configMAX_PRIORITIES - 1, &mpu_isr_handle, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
+GB_RESULT GB_SleepMs(uint64_t time)
+{
+    vTaskDelay(pdMS_TO_TICKS(time));
+    return GB_OK;
+}
 
-    GB_DEBUGI(GB_INFO, "Taks Create DONE");
+GB_RESULT GB_GetTicks(GB_TickType *ticks)
+{
+    *ticks = xTaskGetTickCount();
+    return GB_OK;
+}
 
-    return;
+GB_RESULT GB_MsToTick(uint64_t timeMs, GB_TickType *ticks)
+{
+    *ticks = pdMS_TO_TICKS(timeMs);
+    return GB_OK;
 }
