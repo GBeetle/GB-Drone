@@ -25,6 +25,7 @@
 typedef TickType_t GB_TickType;
 
 GB_RESULT GB_GetTimerMs(uint64_t *timer);
+GB_RESULT GB_GetTimerUs(uint64_t *timer);
 GB_RESULT GB_SleepMs(uint64_t time);
 GB_RESULT GB_GetTicks(GB_TickType *ticks);
 GB_RESULT GB_MsToTick(uint64_t timeMs, GB_TickType *ticks);

@@ -20,6 +20,12 @@
 
 GB_RESULT GB_GetTimerMs(uint64_t *timer)
 {
+    *timer = esp_timer_get_time() / 1000;
+    return GB_OK;
+}
+
+GB_RESULT GB_GetTimerUs(uint64_t *timer)
+{
     *timer = esp_timer_get_time();
     return GB_OK;
 }

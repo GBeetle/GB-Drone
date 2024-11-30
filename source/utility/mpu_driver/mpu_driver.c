@@ -19,6 +19,7 @@
 #include "io_define.h"
 #include "bmp280.h"
 #include "gb_timer.h"
+#include "isr_manager.h"
 
 static GB_RESULT initialize(struct mpu *mpu);
 static GB_RESULT reset(struct mpu *mpu);
@@ -203,6 +204,9 @@ void GB_MpuInit(struct mpu *mpu) {
     mpu->bus  = &i2c0;
     mpu->addr = MPU_DEFAULT_I2CADDRESS;
 #endif
+
+    CHK_EXIT(mpu_isr_register());
+
     memset(mpu->buffer, 0xff, 16);
     mpu->err = GB_OK;
     mpu->mpu_status = 0x00;

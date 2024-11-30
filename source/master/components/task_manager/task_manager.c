@@ -17,10 +17,9 @@
 #include "driver/uart.h"
 #include "soc/uart_struct.h"
 #include "hal/uart_ll.h"
-#include "driver/gpio.h"
-#include "esp_timer.h"
 #include "sdkconfig.h"
 #include "Fusion.h"
+#include "gb_timer.h"
 
 #include "task_manager.h"
 
@@ -36,8 +35,8 @@ static void get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRaw, raw_axes_
 
     mpu.acceleration(&mpu, accelRaw);  // fetch raw data from the registers
     mpu.rotation(&mpu, gyroRaw);       // fetch raw data from the registers
-    mpu.heading(&mpu, magRaw);
-    mpu.baroGetData(&mpu, baro_data);
+    //mpu.heading(&mpu, magRaw);
+    //mpu.baroGetData(&mpu, baro_data);
 
     // compass data calibration
     //mag_calibration(magRaw, magZerof);
@@ -76,18 +75,6 @@ void mpu_get_sensor_data(void* arg)
 
     GB_DEBUGI(SENSOR_TAG, "mpu status: %02x", mpu.mpu_status);
 
-    // mpu interrupt configuration
-    gpio_config_t mpu_io_conf;
-    mpu_io_conf.intr_type    = GPIO_INTR_POSEDGE;
-    mpu_io_conf.pin_bit_mask = MPU_GPIO_INPUT_PIN_SEL;
-    mpu_io_conf.mode         = GPIO_MODE_INPUT;
-    mpu_io_conf.pull_up_en   = 0;
-    mpu_io_conf.pull_down_en = 1;
-    gpio_config(&mpu_io_conf);
-
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add(MPU_DMP_INT, mpu_dmp_isr_handler, (void*) MPU_DMP_INT);
-
     // Fusion initialization
     const FusionMatrix gyroscopeMisalignment = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     const FusionVector gyroscopeSensitivity = {{1.0f, 1.0f, 1.0f}};
@@ -122,7 +109,9 @@ void mpu_get_sensor_data(void* arg)
             get_sensor_data(&accelRaw, &gyroRaw, &magRaw, &accelG, &gyroDPS, &magDPS, &baro_data);
 
             // Acquire latest sensor data
-            const int64_t timestamp = esp_timer_get_time(); // replace this with actual gyroscope timestamp
+            int64_t timestamp = 0;
+
+            GB_GetTimerMs((uint64_t*)&timestamp); // replace this with actual gyroscope timestamp
             FusionVector gyroscope = {{gyroDPS.data.x, gyroDPS.data.y, gyroDPS.data.z}};  // replace this with actual gyroscope data in degrees/s
             FusionVector accelerometer = {{accelG.data.x, accelG.data.y, accelG.data.z}}; // replace this with actual accelerometer data in g
             FusionVector magnetometer = {{magDPS.data.x, magDPS.data.y, magDPS.data.z}};  // replace this with actual magnetometer data in arbitrary units
@@ -137,7 +126,7 @@ void mpu_get_sensor_data(void* arg)
 
             // Calculate delta time (in seconds) to account for gyroscope sample clock error
             static int64_t previousTimestamp;
-            const float deltaTime = (float) (timestamp - previousTimestamp) / (float) (1000 * 1000);  // us to seconds
+            const float deltaTime = (float) (timestamp - previousTimestamp) / (float) (1000);  // ms to seconds
             previousTimestamp = timestamp;
 
             // Update gyroscope AHRS algorithm
@@ -241,7 +230,7 @@ void uart_rx_task(void *arg)
             // CID: 0x01  CMD0: 0x00  CMD1: 0x04 ======= MAG_CALIBRATION
             if (data[4] == 0x01 && data[5] == 0x00 && data[6] == 0x04)
             {
-                mag_calibration_start_time = esp_timer_get_time();
+                GB_GetTimerMs(&mag_calibration_start_time);
             }
         }
         else

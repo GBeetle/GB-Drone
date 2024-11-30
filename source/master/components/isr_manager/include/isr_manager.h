@@ -22,6 +22,7 @@
 #include <esp_attr.h>
 #include "mpu_driver.h"
 #include "io_define.h"
+#include "log_sys.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -38,6 +39,7 @@ typedef struct isr_manager {
 
 void mpu_dmp_isr_handler(void* arg);
 void nrf24_interrupt_handler(void* arg);
+GB_RESULT mpu_isr_register();
 
 extern uint32_t isr_counter;
 extern TaskHandle_t mpu_isr_handle;

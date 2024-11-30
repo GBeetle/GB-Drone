@@ -53,3 +53,20 @@ void IRAM_ATTR nrf24_interrupt_handler(void* arg)
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 }
+
+GB_RESULT mpu_isr_register()
+{
+    // mpu interrupt configuration for ESP32
+    gpio_config_t mpu_io_conf;
+    mpu_io_conf.intr_type    = GPIO_INTR_POSEDGE;
+    mpu_io_conf.pin_bit_mask = MPU_GPIO_INPUT_PIN_SEL;
+    mpu_io_conf.mode         = GPIO_MODE_INPUT;
+    mpu_io_conf.pull_up_en   = 0;
+    mpu_io_conf.pull_down_en = 1;
+    gpio_config(&mpu_io_conf);
+
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(MPU_DMP_INT, mpu_dmp_isr_handler, (void*) MPU_DMP_INT);
+
+    return GB_OK;
+}

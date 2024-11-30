@@ -39,6 +39,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <string.h>
+#include "driver/gpio.h"
 #include "mpu_math.h"
 #include "log_sys.h"
 #include "error_handle.h"
