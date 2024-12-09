@@ -17,34 +17,51 @@
 
 #include "anotic_debug.h"
 
+#define ANOTIC_DEBUG_V2 0
+
 uint8_t __bswap_8(uint8_t value)
 {
     return (value>>4) | (value<<4);
 }
 
-uint16_t float2int16(float value)
+uint16_t float2int16(float value, int scale)
 {
-    uint32_t num = value * 100;
+    uint32_t num = value * scale;
     return num & 0xffffffff;
 }
 
-int anotc_init_data(uint8_t *send_buffer, uint8_t command_id, uint32_t arg_nums, ...)
+int anotc_init_data(uint8_t *send_buffer, uint32_t *realLen, uint8_t command_id, uint32_t arg_nums, ...)
 {
     va_list args;
     uint32_t idx = 0;
     uint8_t checksum = 0;
     uint8_t addcheck = 0;
+#if ANOTIC_DEBUG_V2
+    uint8_t extraFrame = 6;
+    uint16_t *dataLen = &send_buffer[4];
+#else
+    uint8_t extraFrame = 4;
+    uint8_t *dataLen = &send_buffer[3];
+#endif
 
     va_start(args, arg_nums);
+#if ANOTIC_DEBUG_V2
+    send_buffer[idx++] = 0xAB;
+    send_buffer[idx++] = 0xFF;
+#else
     send_buffer[idx++] = 0xAA;
+#endif
     send_buffer[idx++] = 0xFF;
     send_buffer[idx++] = command_id;
     send_buffer[idx++] = 0x00;
+#if ANOTIC_DEBUG_V2
+    send_buffer[idx++] = 0x00;
+#endif
 
     for (uint32_t i = 0; i < arg_nums; i++) {
         uint32_t size = va_arg(args, uint32_t);
 
-        send_buffer[3] += size;
+        *dataLen += size;
         switch (size) {
             case 4: {
                 uint32_t num = va_arg(args, uint32_t);
@@ -69,7 +86,7 @@ int anotc_init_data(uint8_t *send_buffer, uint8_t command_id, uint32_t arg_nums,
         idx += size;
     }
 
-    for (int i = 0; i < send_buffer[3] + 4; i++) {
+    for (int i = 0; i < *dataLen + extraFrame; i++) {
         checksum += send_buffer[i];
         addcheck += checksum;
     }
@@ -77,6 +94,8 @@ int anotc_init_data(uint8_t *send_buffer, uint8_t command_id, uint32_t arg_nums,
     send_buffer[idx++] = addcheck;
 
     va_end(args);
+
+    *realLen = *dataLen + extraFrame + 2;
     return 0;
 }
 

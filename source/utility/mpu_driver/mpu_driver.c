@@ -137,8 +137,8 @@ static GB_RESULT getBiases(struct mpu *mpu, accel_fs_t accelFS, gyro_fs_t gyroFS
                          bool selftest);
 static GB_RESULT setOffsets(struct mpu *mpu);
 
-const accel_fs_t accel_fs = ACCEL_FS_16G;
-const gyro_fs_t gyro_fs = GYRO_FS_2000DPS;
+const accel_fs_t g_accel_fs = ACCEL_FS_16G;
+const gyro_fs_t g_gyro_fs = GYRO_FS_2000DPS;
 
 /**
  * @brief Set communication bus.
@@ -459,8 +459,8 @@ static GB_RESULT initialize(struct mpu *mpu)
 #endif
 
     // set Full Scale range
-    CHK_RES(mpu->setGyroFullScale(mpu, gyro_fs));
-    CHK_RES(mpu->setAccelFullScale(mpu, accel_fs));
+    CHK_RES(mpu->setGyroFullScale(mpu, g_gyro_fs));
+    CHK_RES(mpu->setAccelFullScale(mpu, g_accel_fs));
 
     GB_SleepMs(1000);   // DON'T REMOVE IT !!!
 

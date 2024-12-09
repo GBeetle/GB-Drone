@@ -11,6 +11,7 @@
 #include <float.h> // FLT_MAX
 #include "FusionAhrs.h"
 #include <math.h> // atan2f, cosf, fabsf, powf, sinf
+#include "log_sys.h"
 
 //------------------------------------------------------------------------------
 // Definitions

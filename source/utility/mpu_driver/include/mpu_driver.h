@@ -241,7 +241,7 @@ struct mpu
 
 void GB_MpuInit(struct mpu *mpu);
 
-extern const accel_fs_t accel_fs;
-extern const gyro_fs_t gyro_fs;
+extern const accel_fs_t g_accel_fs;
+extern const gyro_fs_t g_gyro_fs;
 
 #endif /* end of include guard: _MPU_DRIVER_H__ */

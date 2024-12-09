@@ -26,28 +26,20 @@
 struct mpu mpu;  // create a default MPU object
 
 static uint8_t anotic_debug_id = 0x00;
-static uint64_t mag_calibration_start_time = 0;
 
 static void get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRaw, raw_axes_t *magRaw,
     float_axes_t *accelG, float_axes_t *gyroDPS, float_axes_t *magDPS, baro_t *baro_data)
 {
-    static float magZerof[3] = { 255.000000, 1393.000000, 1324.000000};
-
     mpu.acceleration(&mpu, accelRaw);  // fetch raw data from the registers
     mpu.rotation(&mpu, gyroRaw);       // fetch raw data from the registers
-    //mpu.heading(&mpu, magRaw);
-    //mpu.baroGetData(&mpu, baro_data);
-
-    // compass data calibration
-    //mag_calibration(magRaw, magZerof);
+    mpu.heading(&mpu, magRaw);
+    mpu.baroGetData(&mpu, baro_data);
 
     // Convert
-    *accelG  = accelGravity_raw(accelRaw, accel_fs);
-    *gyroDPS = gyroDegPerSec_raw(gyroRaw, gyro_fs);
+    *accelG  = accelGravity_raw(accelRaw, g_accel_fs);
+    *gyroDPS = gyroDegPerSec_raw(gyroRaw, g_gyro_fs);
     if (magRaw->data.x != 0 || magRaw->data.y != 0 || magRaw->data.z != 0)
     {
-        magRaw->data.x -= magZerof[0]; magRaw->data.y -= magZerof[1]; magRaw->data.z -= magZerof[2];
-        //magRaw->x = magRaw->y = magRaw->z = 0;
         *magDPS  = magGauss_raw(magRaw, lis3mdl_scale_12_Gs);
     }
 }
@@ -61,6 +53,7 @@ void mpu_get_sensor_data(void* arg)
     float_axes_t gyroDPS          = {{0.0f, 0.0f, 0.0f}};  // gyro axes in (DPS) º/s format
     float_axes_t magDPS           = {{0.0f, 0.0f, 0.0f}};  // gyro axes in (Gauss) format
     uint8_t      send_buffer[100] = {0};
+    uint32_t     realDataLen      = 0;
     baro_t       baro_data        = {0};
 
     // mpu initialization
@@ -69,19 +62,33 @@ void mpu_get_sensor_data(void* arg)
     CHK_EXIT(mpu.initialize(&mpu));
 
     // test for sensor is good & horizontal
-    selftest_t st_result;
-    CHK_EXIT(mpu.selfTest(&mpu, &st_result));
-    CHK_EXIT(mpu.setOffsets(&mpu));
+    //selftest_t st_result;
+    //CHK_EXIT(mpu.selfTest(&mpu, &st_result));
+    //CHK_EXIT(mpu.setOffsets(&mpu));
 
     GB_DEBUGI(SENSOR_TAG, "mpu status: %02x", mpu.mpu_status);
 
     // Fusion initialization
     const FusionMatrix gyroscopeMisalignment = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     const FusionVector gyroscopeSensitivity = {{1.0f, 1.0f, 1.0f}};
-    const FusionVector gyroscopeOffset = {{0.0f, 0.0f, 0.0f}};
+    const FusionVector gyroscopeOffset = {
+        .axis.x = 597.80f * gyroResolution(g_gyro_fs),
+        .axis.y = -33.02f * gyroResolution(g_gyro_fs),
+        .axis.z = 4.01f * gyroResolution(g_gyro_fs)
+    };
+
     const FusionMatrix accelerometerMisalignment = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
-    const FusionVector accelerometerSensitivity = {{1.0f, 1.0f, 1.0f}};
-    const FusionVector accelerometerOffset = {{0.0f, 0.0f, 0.0f}};
+    const FusionVector accelerometerSensitivity = {
+        .axis.x = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2074.63 - 42.91),
+        .axis.y = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2047.97 - 8.0),
+        .axis.z = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (1920.39 + 156.37)
+    };
+    const FusionVector accelerometerOffset = {
+        .axis.x = 42.91f * accelResolution(g_accel_fs),
+        .axis.y = 8.0f * accelResolution(g_accel_fs),
+        .axis.z = -156.37f * accelResolution(g_accel_fs)
+    };
+
     const FusionMatrix softIronMatrix = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     const FusionVector hardIronOffset = {{0.0f, 0.0f, 0.0f}};
 
@@ -112,9 +119,9 @@ void mpu_get_sensor_data(void* arg)
             int64_t timestamp = 0;
 
             GB_GetTimerMs((uint64_t*)&timestamp); // replace this with actual gyroscope timestamp
-            FusionVector gyroscope = {{gyroDPS.data.x, gyroDPS.data.y, gyroDPS.data.z}};  // replace this with actual gyroscope data in degrees/s
-            FusionVector accelerometer = {{accelG.data.x, accelG.data.y, accelG.data.z}}; // replace this with actual accelerometer data in g
-            FusionVector magnetometer = {{magDPS.data.x, magDPS.data.y, magDPS.data.z}};  // replace this with actual magnetometer data in arbitrary units
+            FusionVector gyroscope = {{gyroDPS.data.x, gyroDPS.data.y, gyroDPS.data.z}};  // degrees/s
+            FusionVector accelerometer = {{accelG.data.x, accelG.data.y, accelG.data.z}}; // g
+            FusionVector magnetometer = {{magDPS.data.x, magDPS.data.y, magDPS.data.z}};  // arbitrary units
 
             // Apply calibration
             gyroscope = FusionCalibrationInertial(gyroscope, gyroscopeMisalignment, gyroscopeSensitivity, gyroscopeOffset);
@@ -125,17 +132,21 @@ void mpu_get_sensor_data(void* arg)
             gyroscope = FusionOffsetUpdate(&offset, gyroscope);
 
             // Calculate delta time (in seconds) to account for gyroscope sample clock error
-            static int64_t previousTimestamp;
-            const float deltaTime = (float) (timestamp - previousTimestamp) / (float) (1000);  // ms to seconds
+            static int64_t previousTimestamp = 0;
+            const float deltaTime = (previousTimestamp == 0) ? 0 : (float) (timestamp - previousTimestamp) / (float) (1000);  // ms to seconds
             previousTimestamp = timestamp;
 
             // Update gyroscope AHRS algorithm
             FusionAhrsUpdate(&ahrs, gyroscope, accelerometer, magnetometer, deltaTime);
 
             // Print algorithm outputs
-            const FusionEuler euler = FusionQuaternionToEuler(FusionAhrsGetQuaternion(&ahrs));
+            const FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
+            const FusionEuler euler = FusionQuaternionToEuler(quat);
             const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
 
+            GB_DEBUGD(SENSOR_TAG, "Gyro.x %0.1f, Gyro.y %0.1f, Gyro.z %0.1f\n", gyroscope.axis.x, gyroscope.axis.y, gyroscope.axis.z);
+            GB_DEBUGD(SENSOR_TAG, "Accel.x %0.1f, Accel.y %0.1f, Accel.z %0.1f\n", accelerometer.axis.x, accelerometer.axis.y, accelerometer.axis.z);
+            GB_DEBUGD(SENSOR_TAG, "Mag.x %0.1f, Mag.y %0.1f, Mag.z %0.1f\n", magnetometer.axis.x, magnetometer.axis.y, magnetometer.axis.z);
             GB_DEBUGD(SENSOR_TAG, "Roll %0.1f, Pitch %0.1f, Yaw %0.1f, X %0.1f, Y %0.1f, Z %0.1f\n",
                                     euler.angle.roll, euler.angle.pitch, euler.angle.yaw,
                                     earth.axis.x, earth.axis.y, earth.axis.z);
@@ -146,28 +157,38 @@ void mpu_get_sensor_data(void* arg)
                 case 0x00:
                     break;
                 case 0x01:
-                    anotc_init_data(send_buffer, 0x01, 6, sizeof(uint16_t), accelRaw.data.x, sizeof(uint16_t), accelRaw.data.y, sizeof(uint16_t), accelRaw.data.z,
-                        sizeof(uint16_t), gyroRaw.data.x, sizeof(uint16_t), gyroRaw.data.y, sizeof(uint16_t), gyroRaw.data.z, sizeof(uint8_t), 0x00);
+                    anotc_init_data(send_buffer, &realDataLen, 0x01, 6,
+                                    sizeof(uint16_t), float2int16(accelerometer.axis.x / accelResolution(g_accel_fs), 1),
+                                    sizeof(uint16_t), float2int16(accelerometer.axis.y / accelResolution(g_accel_fs), 1),
+                                    sizeof(uint16_t), float2int16(accelerometer.axis.z / accelResolution(g_accel_fs), 1),
+                                    sizeof(uint16_t), float2int16(gyroscope.axis.x / gyroResolution(g_gyro_fs), 1),
+                                    sizeof(uint16_t), float2int16(gyroscope.axis.y / gyroResolution(g_gyro_fs), 1),
+                                    sizeof(uint16_t), float2int16(gyroscope.axis.z / gyroResolution(g_gyro_fs), 1), sizeof(uint8_t), 0x00);
                     break;
                 case 0x02:
-                    anotc_init_data(send_buffer, 0x02, 6, sizeof(uint16_t), magRaw.data.x, sizeof(uint16_t), magRaw.data.y, sizeof(uint16_t), magRaw.data.z,
-                        sizeof(uint32_t), (uint32_t)baro_data.altitude, sizeof(uint16_t), float2int16(baro_data.temperature), sizeof(uint8_t), 0x00, sizeof(uint8_t), 0x00);
+                    anotc_init_data(send_buffer, &realDataLen, 0x02, 6, sizeof(uint16_t), magRaw.data.x, sizeof(uint16_t), magRaw.data.y, sizeof(uint16_t), magRaw.data.z,
+                        sizeof(uint32_t), (uint32_t)baro_data.altitude, sizeof(uint16_t), float2int16(baro_data.temperature, 100), sizeof(uint8_t), 0x00, sizeof(uint8_t), 0x00);
                     break;
                 case 0x03:
                     // East(X)Nouth(Y)Up(Z) [MPU R.P.Y] to Anotic UI [Quadrotor R.P.Y]
                     // roll -> pitch
                     // pitch -> roll
                     // yaw -> -yaw
-                    anotc_init_data(send_buffer, 0x03, 4, sizeof(uint16_t), float2int16(euler.angle.pitch), sizeof(uint16_t), float2int16(euler.angle.roll),
-                        sizeof(uint16_t), float2int16(-euler.angle.yaw), sizeof(uint8_t), 0x01);
+                    anotc_init_data(send_buffer, &realDataLen, 0x03, 4, sizeof(uint16_t), float2int16(euler.angle.pitch, 100), sizeof(uint16_t), float2int16(euler.angle.roll, 100),
+                        sizeof(uint16_t), float2int16(-euler.angle.yaw, 100), sizeof(uint8_t), 0x01);
+                    break;
+                case 0x04:
+                    // Quaternion
+                    anotc_init_data(send_buffer, &realDataLen, 0x04, 5, sizeof(uint16_t), float2int16(quat.element.w, 10000), sizeof(uint16_t), float2int16(quat.element.x, 10000),
+                        sizeof(uint16_t), float2int16(quat.element.y, 10000), sizeof(uint16_t), float2int16(quat.element.z, 10000), sizeof(uint8_t), 0x01);
                     break;
                 default:
                     GB_DEBUGE(ERROR_TAG, "wrong command id from uart: %02x\n", anotic_debug_id);
                     anotic_debug_id = 0x00;
             }
-            if (anotic_debug_id >= 0x01 && anotic_debug_id <= 0x03)
+            if (anotic_debug_id >= 0x01 && anotic_debug_id <= 0x04)
             {
-                GB_WriteBytes((const uint8_t *)send_buffer, send_buffer[3] + 6);
+                GB_WriteBytes((const uint8_t *)send_buffer, realDataLen);
             }
 
             // Debug
@@ -226,12 +247,6 @@ void uart_rx_task(void *arg)
             GB_DUMMPI(CHK_TAG, data, rxBytes);
             GB_DUMMPI(CHK_TAG, ack, sizeof(ack));
             GB_WriteBytes((const uint8_t *)ack, sizeof(ack));
-
-            // CID: 0x01  CMD0: 0x00  CMD1: 0x04 ======= MAG_CALIBRATION
-            if (data[4] == 0x01 && data[5] == 0x00 && data[6] == 0x04)
-            {
-                GB_GetTimerMs(&mag_calibration_start_time);
-            }
         }
         else
         {

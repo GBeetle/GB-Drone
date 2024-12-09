@@ -11,6 +11,7 @@
 // Includes
 
 #include "FusionMath.h"
+#include "log_sys.h"
 
 //------------------------------------------------------------------------------
 // Inline functions
