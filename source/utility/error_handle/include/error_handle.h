@@ -78,4 +78,12 @@
         }                                     \
     } while(0)
 
+#define CHK_FUNC_EXIT(val) do {               \
+        GB_RESULT __res = val;                \
+        if (__res != ESP_OK) {                \
+            GB_DEBUGE(CHK_TAG, "[CHK_FUNC_EXIT_ERROR] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, __res); \
+            goto error_exit;                  \
+        }                                     \
+    } while(0)
+
 #endif /* end of include guard: _ERROR_HANDLE__ */

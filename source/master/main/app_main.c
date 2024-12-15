@@ -27,7 +27,7 @@ void app_main(void)
 {
     GB_LogSystemInit();
 
-    xTaskCreatePinnedToCore( mpu_get_sensor_data, "mpu_get_sensor_data", 4096, NULL, configMAX_PRIORITIES - 1, &mpu_isr_handle, tskNO_AFFINITY );
+    xTaskCreatePinnedToCore( mpu_get_sensor_data, "mpu_get_sensor_data", 5120, NULL, configMAX_PRIORITIES - 1, &mpu_isr_handle, tskNO_AFFINITY );
     xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
 
     GB_DEBUGI(GB_INFO, "Taks Create DONE");

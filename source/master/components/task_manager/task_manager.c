@@ -27,13 +27,15 @@ struct mpu mpu;  // create a default MPU object
 
 static uint8_t anotic_debug_id = 0x00;
 
-static void get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRaw, raw_axes_t *magRaw,
+static inline GB_RESULT get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRaw, raw_axes_t *magRaw,
     float_axes_t *accelG, float_axes_t *gyroDPS, float_axes_t *magDPS, baro_t *baro_data)
 {
-    mpu.acceleration(&mpu, accelRaw);  // fetch raw data from the registers
-    mpu.rotation(&mpu, gyroRaw);       // fetch raw data from the registers
-    mpu.heading(&mpu, magRaw);
-    mpu.baroGetData(&mpu, baro_data);
+    GB_RESULT res = GB_OK;
+
+    CHK_RES(mpu.acceleration(&mpu, accelRaw));  // fetch raw data from the registers
+    CHK_RES(mpu.rotation(&mpu, gyroRaw));       // fetch raw data from the registers
+    CHK_RES(mpu.heading(&mpu, magRaw));
+    CHK_RES(mpu.baroGetData(&mpu, baro_data));
 
     // Convert
     *accelG  = accelGravity_raw(accelRaw, g_accel_fs);
@@ -41,6 +43,27 @@ static void get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRaw, raw_axes_
     if (magRaw->data.x != 0 || magRaw->data.y != 0 || magRaw->data.z != 0)
     {
         *magDPS  = magGauss_raw(magRaw, lis3mdl_scale_12_Gs);
+    }
+
+error_exit:
+    return res;
+}
+
+static inline FusionVector FusionMagneticApplyOffset(const FusionVector calibrated)
+{
+    static uint8_t originMagInitailized = 0;
+    static FusionVector originMag = {{0.0f, 0.0f, 0.0f}};
+
+    if (0 == originMagInitailized)
+    {
+        originMag.axis.x = calibrated.axis.x;
+        originMag.axis.y = calibrated.axis.y;
+        originMag.axis.z = calibrated.axis.z;
+        return FUSION_VECTOR_ZERO;
+    }
+    else
+    {
+        return FusionVectorSubtract(calibrated, originMag);
     }
 }
 
@@ -52,7 +75,7 @@ void mpu_get_sensor_data(void* arg)
     float_axes_t accelG           = {{0.0f, 0.0f, 0.0f}};  // accel axes in (g) gravity format
     float_axes_t gyroDPS          = {{0.0f, 0.0f, 0.0f}};  // gyro axes in (DPS) º/s format
     float_axes_t magDPS           = {{0.0f, 0.0f, 0.0f}};  // gyro axes in (Gauss) format
-    uint8_t      send_buffer[100] = {0};
+    uint8_t      send_buffer[64]  = {0};
     uint32_t     realDataLen      = 0;
     baro_t       baro_data        = {0};
 
@@ -89,12 +112,13 @@ void mpu_get_sensor_data(void* arg)
         .axis.z = -156.37f * accelResolution(g_accel_fs)
     };
 
-    const FusionMatrix softIronMatrix = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
-    const FusionVector hardIronOffset = {{0.0f, 0.0f, 0.0f}};
+    const FusionMatrix softIronMatrix = {{{2.55f, 0.08f, -0.05f}, {0.08f, 2.60f, -0.10f}, {-0.05f, -0.10f, 2.74f}}};
+    const FusionVector hardIronOffset = {{0.36f, -0.61f, 0.83f}};
 
     FusionOffset offset;
     FusionAhrs ahrs;
 
+    memset(&ahrs, 0x00, sizeof(ahrs));
     FusionOffsetInitialise(&offset, MPU_SAMPLE_RATE);
     FusionAhrsInitialise(&ahrs);
 
@@ -113,7 +137,7 @@ void mpu_get_sensor_data(void* arg)
         //gpio_set_level( TEST_IMU_IO, 1 );
         if(mpu_isr_manager.mpu_isr_status) {
 
-            get_sensor_data(&accelRaw, &gyroRaw, &magRaw, &accelG, &gyroDPS, &magDPS, &baro_data);
+            CHK_FUNC_EXIT(get_sensor_data(&accelRaw, &gyroRaw, &magRaw, &accelG, &gyroDPS, &magDPS, &baro_data));
 
             // Acquire latest sensor data
             int64_t timestamp = 0;
@@ -127,6 +151,7 @@ void mpu_get_sensor_data(void* arg)
             gyroscope = FusionCalibrationInertial(gyroscope, gyroscopeMisalignment, gyroscopeSensitivity, gyroscopeOffset);
             accelerometer = FusionCalibrationInertial(accelerometer, accelerometerMisalignment, accelerometerSensitivity, accelerometerOffset);
             magnetometer = FusionCalibrationMagnetic(magnetometer, softIronMatrix, hardIronOffset);
+            magnetometer = FusionMagneticApplyOffset(magnetometer);
 
             // Update gyroscope offset correction algorithm
             gyroscope = FusionOffsetUpdate(&offset, gyroscope);
@@ -214,6 +239,10 @@ void mpu_get_sensor_data(void* arg)
             /* The call to ulTaskNotifyTake() timed out. */
         }
     }
+
+error_exit:
+    GB_DEBUGE(ERROR_TAG, "Sensor data get error");
+    return;
 }
 
 // receive frame format 0xAA_ID_AA

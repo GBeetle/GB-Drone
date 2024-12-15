@@ -74,4 +74,10 @@
 #define LIS3MDL_REG_INT_THS_L     0x32
 #define LIS3MDL_REG_INT_THS_H     0x33
 
+/* Magnetometer_Sensitivity */
+#define LIS3MDL_MAG_SENSITIVITY_FOR_FS_4GA   ((float)0.00014f)  /**< Sensitivity value for 4 gauss full scale  [gauss/LSB] */
+#define LIS3MDL_MAG_SENSITIVITY_FOR_FS_8GA   ((float)0.00029f)  /**< Sensitivity value for 8 gauss full scale  [gauss/LSB] */
+#define LIS3MDL_MAG_SENSITIVITY_FOR_FS_12GA  ((float)0.00043f)  /**< Sensitivity value for 12 gauss full scale [gauss/LSB] */
+#define LIS3MDL_MAG_SENSITIVITY_FOR_FS_16GA  ((float)0.00058f)  /**< Sensitivity value for 16 gauss full scale [gauss/LSB] */
+
 #endif /* __LIS3MDL_H__ */

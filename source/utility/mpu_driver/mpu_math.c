@@ -89,18 +89,19 @@ inline float_axes_t gyroRadPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_
     return axes;
 }
 
-// 量程 1-±4  return  4
-//      2-±8  return 8
-//      3-±12 return 12
-//      4-±16 return 16
-inline uint8_t magFSRvalue(const lis3mdl_scale_t fs)
-{
-    return 4 * fs;
-}
-// 每个采样电压值对应多少Gauss
 inline float magResolution(const lis3mdl_scale_t fs)
 {
-    return (float)(magFSRvalue(fs)) / INT16_MAX;
+    switch (fs) {
+        case lis3mdl_scale_4_Gs:
+            return LIS3MDL_MAG_SENSITIVITY_FOR_FS_4GA;
+        case lis3mdl_scale_8_Gs:
+            return LIS3MDL_MAG_SENSITIVITY_FOR_FS_8GA;
+        case lis3mdl_scale_12_Gs:
+            return LIS3MDL_MAG_SENSITIVITY_FOR_FS_12GA;
+        case lis3mdl_scale_16_Gs:
+            return LIS3MDL_MAG_SENSITIVITY_FOR_FS_16GA;
+    }
+    return 0;
 }
 
 inline float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const lis3mdl_scale_t fs)

@@ -462,7 +462,7 @@ static GB_RESULT initialize(struct mpu *mpu)
     CHK_RES(mpu->setGyroFullScale(mpu, g_gyro_fs));
     CHK_RES(mpu->setAccelFullScale(mpu, g_accel_fs));
 
-    GB_SleepMs(1000);   // DON'T REMOVE IT !!!
+    GB_SleepMs(4000);   // DON'T REMOVE IT !!!
 
     CHK_RES(mpu->compassInit(mpu));
 
@@ -502,6 +502,9 @@ static GB_RESULT initialize(struct mpu *mpu)
 
     GB_SleepMs(1000);
     //GB_DEBUGI(SENSOR_TAG, "MPU Init Done");
+    mpu->mpu_status |= MPU_GYRO_STATUS_BIT;
+    mpu->mpu_status |= MPU_ACCEL_STATUS_BIT;
+
 error_exit:
     return res;
 }
@@ -2408,7 +2411,7 @@ static GB_RESULT compassInit(struct mpu *mpu)
         // SPI MODE: In write mode, the contents of I2C_SLV0_DO (Register 99) will be written to the slave device.
         // I2C MODE: Auxiliary Pass-Through Mode
         /* configure the magnetometer */
-        CHK_RES(mpu->setMagfullScale(mpu, lis3mdl_scale_12_Gs));
+        CHK_RES(mpu->setMagfullScale(mpu, lis3mdl_scale_4_Gs));
         //GB_SleepMs(50);
         CHK_RES(mpu->compassSetSampleMode(mpu, lis3mdl_mpm_560));
         //GB_SleepMs(50);
@@ -2453,7 +2456,7 @@ static GB_RESULT compassInit(struct mpu *mpu)
         }}
     };
 
-    if (GB_OK == res && LIS3MDL_CHIP_ID == mpu->buffer[0])
+    if (GB_OK == res && (mpu->mpu_status & MPU_AUX_LIS3MDL_STATUS_BIT))
     {
         kSlaveReadDataConfig.reg_addr = LIS3MDL_REG_OUT_X_L;
     }
@@ -2692,10 +2695,7 @@ static GB_RESULT selfTest(struct mpu *mpu, selftest_t* result)
             GB_DEBUGE(ERROR_TAG, "SELT_TEST_FAIL 0x%x\n", (uint8_t)*result);
         res = GB_MPU_SELF_TEST_FAIL;
     }
-    else {
-        mpu->mpu_status |= MPU_GYRO_STATUS_BIT;
-        mpu->mpu_status |= MPU_ACCEL_STATUS_BIT;
-    }
+
 error_exit:
     return res;
 }
