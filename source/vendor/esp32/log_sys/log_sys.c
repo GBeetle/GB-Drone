@@ -82,6 +82,9 @@ void GB_LogSystemInit()
 
 void GB_PrintLog(GB_LOG_LEVEL level, const char *tag, const char* format, ...)
 {
+    if (level > (GB_LOG_LEVEL)esp_log_level_get(tag))
+        return;
+
     char log_buffer[GB_LOG_BUFFER_SIZE] = {0};
     va_list list;
 

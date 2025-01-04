@@ -500,7 +500,7 @@ static GB_RESULT initialize(struct mpu *mpu)
     int_en_t mask = INT_EN_RAWDATA_READY;
     CHK_RES(mpu->setInterruptEnabled(mpu, mask));
 
-    GB_SleepMs(1000);
+    GB_SleepMs(3000);
     //GB_DEBUGI(SENSOR_TAG, "MPU Init Done");
     mpu->mpu_status |= MPU_GYRO_STATUS_BIT;
     mpu->mpu_status |= MPU_ACCEL_STATUS_BIT;

@@ -20,10 +20,11 @@
 #include "results.h"
 #include "log_sys.h"
 
-#define CHK_RES(val) do {           \
-        if (val != GB_OK) {         \
-            res = val;              \
-            GB_DEBUGE(CHK_TAG, "[CHK_RES] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, val); \
+#define CHK_RES(val) do {            \
+        GB_RESULT _val = (val);      \
+        if (_val != GB_OK) {         \
+            res = _val;              \
+            GB_DEBUGE(CHK_TAG, "[CHK_RES] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, _val); \
             goto error_exit;        \
         }                           \
     } while(0)

@@ -22,6 +22,7 @@
 
 typedef enum
 {
+    GB_LOG_LEVEL_NONE,
     GB_LOG_LEVEL_ERROR,
     GB_LOG_LEVEL_WARNING,
     GB_LOG_LEVEL_INFO,

@@ -493,6 +493,8 @@ typedef struct
     float altitude;
 } baro_t;
 
+#define GB_RAW_DATA_ZERO ((raw_axes_t){ .xyz = {0.0f, 0.0f, 0.0f} })
+#define GB_BARO_DATA_ZERO ((baro_t){ .pressure = 0.0f, .temperature = 0.0f, .altitude = 0.0f})
 
 // ============
 // MAGNETOMETER

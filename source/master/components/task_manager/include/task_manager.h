@@ -22,10 +22,15 @@
 #include "mpu_driver.h"
 #include "anotic_debug.h"
 
-void mpu_get_sensor_data(void* arg);
+#define MPU_DATA_QUEUE_SIZE 10
+
+void gb_sensor_fusion(void* arg);
+void gb_read_sensor_data(void* arg);
 void uart_rx_task(void *arg);
 void nrf24_interrupt_func(void *arg);
 
 extern struct mpu mpu;
+extern QueueHandle_t gyroQueue, accelQueue, magQueue, baroQueue;
+extern SemaphoreHandle_t mpuDataReady;
 
 #endif /* end of include guard: _TASK_MANAGER__ */
