@@ -85,11 +85,12 @@ void gb_read_sensor_data(void* arg)
 {
     GB_TickType ticks = 0;
     GB_RESULT res = GB_OK;
+    //selftest_t st_result;
 
     (void) res;
     // mpu initialization
     GB_MpuInit(&mpu);
-    CHK_EXIT(mpu.testConnection(&mpu));
+    //CHK_FUNC_EXIT(mpu.testConnection(&mpu));
     CHK_EXIT(mpu.initialize(&mpu));
 
     // test for sensor is good & horizontal
@@ -108,10 +109,10 @@ void gb_read_sensor_data(void* arg)
             raw_axes_t magRaw    = GB_RAW_DATA_ZERO;
             baro_t     baro_data = GB_BARO_DATA_ZERO;
 
-            CHK_RES(mpu.rotation(&mpu, &gyroRaw));
-            CHK_RES(mpu.acceleration(&mpu, &accelRaw));
-            CHK_RES(mpu.heading(&mpu, &magRaw));
-            CHK_RES(mpu.baroGetData(&mpu, &baro_data));
+            CHK_FUNC_EXIT(mpu.rotation(&mpu, &gyroRaw));
+            CHK_FUNC_EXIT(mpu.acceleration(&mpu, &accelRaw));
+            CHK_FUNC_EXIT(mpu.heading(&mpu, &magRaw));
+            CHK_FUNC_EXIT(mpu.baroGetData(&mpu, &baro_data));
 
             if (gyroRaw.data.x != 0 && gyroRaw.data.y != 0 && gyroRaw.data.z != 0)
                 xQueueSend(gyroQueue, &gyroRaw, portMAX_DELAY);
@@ -164,21 +165,21 @@ void gb_sensor_fusion(void* arg)
     const FusionMatrix gyroscopeMisalignment = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     const FusionVector gyroscopeSensitivity = {{1.0f, 1.0f, 1.0f}};
     const FusionVector gyroscopeOffset = {
-        .axis.x = 597.80f * gyroResolution(g_gyro_fs),
-        .axis.y = -33.02f * gyroResolution(g_gyro_fs),
-        .axis.z = 4.01f * gyroResolution(g_gyro_fs)
+        .axis.x = -11.16f * gyroResolution(g_gyro_fs),
+        .axis.y = 17.22f * gyroResolution(g_gyro_fs),
+        .axis.z = -53.13f * gyroResolution(g_gyro_fs)
     };
 
     const FusionMatrix accelerometerMisalignment = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     const FusionVector accelerometerSensitivity = {
-        .axis.x = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2074.63 - 42.91),
-        .axis.y = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2047.97 - 8.0),
-        .axis.z = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (1920.39 + 156.37)
+        .axis.x = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2115.91 - 63.46),
+        .axis.y = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2037.26 + 4.16),
+        .axis.z = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2295.11 - 213.19)
     };
     const FusionVector accelerometerOffset = {
-        .axis.x = 42.91f * accelResolution(g_accel_fs),
-        .axis.y = 8.0f * accelResolution(g_accel_fs),
-        .axis.z = -156.37f * accelResolution(g_accel_fs)
+        .axis.x = 63.46f * accelResolution(g_accel_fs),
+        .axis.y = -4.16f * accelResolution(g_accel_fs),
+        .axis.z = 213.19f * accelResolution(g_accel_fs)
     };
 
     const FusionMatrix softIronMatrix = {{{2.55f, 0.08f, -0.05f}, {0.08f, 2.60f, -0.10f}, {-0.05f, -0.10f, 2.74f}}};
@@ -205,7 +206,7 @@ void gb_sensor_fusion(void* arg)
     while (1) {
         if (xSemaphoreTake(mpuDataReady, portMAX_DELAY) == pdTRUE) {}
 
-        gpio_set_level( TEST_IMU_IO, 1 );
+        //gpio_set_level( TEST_IMU_IO, 1 );
 
         // 0.3ms start
         CHK_FUNC_EXIT(get_sensor_data(&accelRaw, &gyroRaw, &magRaw, &accelG, &gyroDPS, &magDPS, &baro_data));
@@ -255,12 +256,12 @@ void gb_sensor_fusion(void* arg)
                 break;
             case 0x01:
                 anotc_init_data(send_buffer, &realDataLen, 0x01, 6,
-                                sizeof(uint16_t), float2int16(accelerometer.axis.x / accelResolution(g_accel_fs), 1),
-                                sizeof(uint16_t), float2int16(accelerometer.axis.y / accelResolution(g_accel_fs), 1),
-                                sizeof(uint16_t), float2int16(accelerometer.axis.z / accelResolution(g_accel_fs), 1),
-                                sizeof(uint16_t), float2int16(gyroscope.axis.x / gyroResolution(g_gyro_fs), 1),
-                                sizeof(uint16_t), float2int16(gyroscope.axis.y / gyroResolution(g_gyro_fs), 1),
-                                sizeof(uint16_t), float2int16(gyroscope.axis.z / gyroResolution(g_gyro_fs), 1), sizeof(uint8_t), 0x00);
+                                sizeof(uint16_t), float2int16(accelG.data.x / accelResolution(g_accel_fs), 1),
+                                sizeof(uint16_t), float2int16(accelG.data.y / accelResolution(g_accel_fs), 1),
+                                sizeof(uint16_t), float2int16(accelG.data.z / accelResolution(g_accel_fs), 1),
+                                sizeof(uint16_t), float2int16(gyroDPS.data.x / gyroResolution(g_gyro_fs), 1),
+                                sizeof(uint16_t), float2int16(gyroDPS.data.y / gyroResolution(g_gyro_fs), 1),
+                                sizeof(uint16_t), float2int16(gyroDPS.data.z / gyroResolution(g_gyro_fs), 1), sizeof(uint8_t), 0x00);
                 break;
             case 0x02:
                 anotc_init_data(send_buffer, &realDataLen, 0x02, 6, sizeof(uint16_t), magRaw.data.x, sizeof(uint16_t), magRaw.data.y, sizeof(uint16_t), magRaw.data.z,
@@ -292,7 +293,7 @@ void gb_sensor_fusion(void* arg)
         GB_DEBUGD(SENSOR_TAG, "gyro: [%+7.2f %+7.2f %+7.2f ] (º/s) \t", gyroDPS.xyz[0], gyroDPS.xyz[1], gyroDPS.xyz[2]);
         GB_DEBUGD(SENSOR_TAG, "accel: [%+6.2f %+6.2f %+6.2f ] (G) \t", accelG.data.x, accelG.data.y, accelG.data.z);
         GB_DEBUGD(SENSOR_TAG, "mag: [%+6.2f %+6.2f %+6.2f ] (Gauss) \n", magDPS.data.x, magDPS.data.y, magDPS.data.z);
-        gpio_set_level( TEST_IMU_IO, 0 );
+        //gpio_set_level( TEST_IMU_IO, 0 );
     }
 
 error_exit:

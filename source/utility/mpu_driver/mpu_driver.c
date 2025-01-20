@@ -559,6 +559,8 @@ bool getSleep(struct mpu *mpu)
 static GB_RESULT testConnection(struct mpu *mpu)
 {
     GB_RESULT res = GB_OK;
+
+    GB_SleepMs(1000);
     const uint8_t wai = mpu->whoAmI(mpu);
 
     CHK_RES(mpu->lastError(mpu));

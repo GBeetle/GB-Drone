@@ -16,6 +16,7 @@
  */
 
 #include "isr_manager.h"
+#include "rom/ets_sys.h"
 
 TaskHandle_t mpu_isr_handle = NULL;
 TaskHandle_t nrf24_isr_handle = NULL;
@@ -31,7 +32,7 @@ void IRAM_ATTR mpu_dmp_isr_handler(void* arg)
 {
     //gpio_set_level( TEST_NRF24_IO, 1 );
     mpu_isr_manager.mpu_isr_status = DATA_READY;
-    //ets_printf("isr before:[%s] stat:[%d] prid:[%d]\n", pcTaskGetTaskName(mpu_isr_handle), eTaskGetState(mpu_isr_handle), uxTaskPriorityGetFromISR(mpu_isr_handle));
+    //ets_printf("isr before:[%s] stat:[%d] prid:[%d]\n", pcTaskGetName(mpu_isr_handle), eTaskGetState(mpu_isr_handle), uxTaskPriorityGetFromISR(mpu_isr_handle));
     /* Notify the task that the transmission is complete. */
     if(mpu_isr_handle)
     {
