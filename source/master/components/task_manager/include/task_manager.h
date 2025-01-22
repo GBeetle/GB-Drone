@@ -31,6 +31,7 @@ void nrf24_interrupt_func(void *arg);
 
 extern struct mpu mpu;
 extern QueueHandle_t gyroQueue, accelQueue, magQueue, baroQueue;
-extern SemaphoreHandle_t mpuDataReady;
+extern SemaphoreHandle_t mpuDataQueueReady;
+extern SemaphoreHandle_t mpuSensorReady;
 
 #endif /* end of include guard: _TASK_MANAGER__ */

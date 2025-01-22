@@ -462,7 +462,7 @@ static GB_RESULT initialize(struct mpu *mpu)
     CHK_RES(mpu->setGyroFullScale(mpu, g_gyro_fs));
     CHK_RES(mpu->setAccelFullScale(mpu, g_accel_fs));
 
-    GB_SleepMs(4000);   // DON'T REMOVE IT !!!
+    GB_SleepMs(5000);   // DON'T REMOVE IT !!!
 
     CHK_RES(mpu->compassInit(mpu));
 

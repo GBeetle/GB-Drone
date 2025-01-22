@@ -27,7 +27,8 @@ void app_main(void)
 {
     GB_LogSystemInit();
 
-    mpuDataReady = xSemaphoreCreateBinary();
+    mpuDataQueueReady = xSemaphoreCreateBinary();
+    mpuSensorReady = xSemaphoreCreateBinary();
     gyroQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
     accelQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
     magQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));

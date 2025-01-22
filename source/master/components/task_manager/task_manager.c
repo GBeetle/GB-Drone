@@ -27,7 +27,8 @@ struct mpu mpu;  // create a default MPU object
 
 static uint8_t anotic_debug_id = 0x00;
 QueueHandle_t gyroQueue, accelQueue, magQueue, baroQueue;
-SemaphoreHandle_t mpuDataReady;
+SemaphoreHandle_t mpuDataQueueReady;
+SemaphoreHandle_t mpuSensorReady;
 
 static inline GB_RESULT get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRaw, raw_axes_t *magRaw,
     float_axes_t *accelG, float_axes_t *gyroDPS, float_axes_t *magDPS, baro_t *baro_data)
@@ -102,49 +103,37 @@ void gb_read_sensor_data(void* arg)
 
     GB_MsToTick(2, &ticks);
     while (1) {
+        if (xSemaphoreTake(mpuSensorReady, portMAX_DELAY) == pdTRUE) {}
+
         //gpio_set_level( TEST_IMU_IO, 1 );
-        if(mpu_isr_manager.mpu_isr_status) {
-            raw_axes_t gyroRaw  = GB_RAW_DATA_ZERO;
-            raw_axes_t accelRaw  = GB_RAW_DATA_ZERO;
-            raw_axes_t magRaw    = GB_RAW_DATA_ZERO;
-            baro_t     baro_data = GB_BARO_DATA_ZERO;
+        raw_axes_t gyroRaw  = GB_RAW_DATA_ZERO;
+        raw_axes_t accelRaw  = GB_RAW_DATA_ZERO;
+        raw_axes_t magRaw    = GB_RAW_DATA_ZERO;
+        baro_t     baro_data = GB_BARO_DATA_ZERO;
 
-            CHK_FUNC_EXIT(mpu.rotation(&mpu, &gyroRaw));
-            CHK_FUNC_EXIT(mpu.acceleration(&mpu, &accelRaw));
-            CHK_FUNC_EXIT(mpu.heading(&mpu, &magRaw));
-            CHK_FUNC_EXIT(mpu.baroGetData(&mpu, &baro_data));
+        //CHK_FUNC_EXIT(mpu.rotation(&mpu, &gyroRaw));
+        //CHK_FUNC_EXIT(mpu.acceleration(&mpu, &accelRaw));
+        //CHK_FUNC_EXIT(mpu.heading(&mpu, &magRaw));
+        //CHK_FUNC_EXIT(mpu.baroGetData(&mpu, &baro_data));
+        mpu.rotation(&mpu, &gyroRaw);
+        mpu.acceleration(&mpu, &accelRaw);
+        mpu.heading(&mpu, &magRaw);
+        mpu.baroGetData(&mpu, &baro_data);
 
-            if (gyroRaw.data.x != 0 && gyroRaw.data.y != 0 && gyroRaw.data.z != 0)
-                xQueueSend(gyroQueue, &gyroRaw, portMAX_DELAY);
-            if (accelRaw.data.x != 0 && accelRaw.data.y != 0 && accelRaw.data.z != 0)
-                xQueueSend(accelQueue, &accelRaw, portMAX_DELAY);
-            if (magRaw.data.x != 0 && magRaw.data.y != 0 && magRaw.data.z != 0)
-                xQueueSend(magQueue, &magRaw, portMAX_DELAY);
-            if (baro_data.altitude != 0)
-                xQueueSend(baroQueue, &baro_data, portMAX_DELAY);
+        if (gyroRaw.data.x != 0 && gyroRaw.data.y != 0 && gyroRaw.data.z != 0)
+            xQueueSend(gyroQueue, &gyroRaw, portMAX_DELAY);
+        if (accelRaw.data.x != 0 && accelRaw.data.y != 0 && accelRaw.data.z != 0)
+            xQueueSend(accelQueue, &accelRaw, portMAX_DELAY);
+        if (magRaw.data.x != 0 && magRaw.data.y != 0 && magRaw.data.z != 0)
+            xQueueSend(magQueue, &magRaw, portMAX_DELAY);
+        if (baro_data.altitude != 0)
+            xQueueSend(baroQueue, &baro_data, portMAX_DELAY);
 
-            xSemaphoreGive(mpuDataReady);
-            mpu_isr_manager.mpu_isr_status = DATA_NOT_READY;
-        }
+        xSemaphoreGive(mpuDataQueueReady);
         //gpio_set_level( TEST_IMU_IO, 0 );
-        //vTaskSuspend(mpu_isr_handle);
-        /* Wait to be notified that the transmission is complete.  Note
-        the first parameter is pdTRUE, which has the effect of clearing
-        the task's notification value back to 0, making the notification
-        value act like a binary (rather than a counting) semaphore.  */
-        uint32_t ul_notification_value;
-        const TickType_t max_block_time = pdMS_TO_TICKS( 200 );
-        ul_notification_value = ulTaskNotifyTake(pdTRUE, max_block_time );
-
-        if( ul_notification_value == 1 ) {
-            /* The transmission ended as expected. */
-        }
-        else {
-            /* The call to ulTaskNotifyTake() timed out. */
-        }
     }
 
-error_exit:
+//error_exit:
     GB_DEBUGE(ERROR_TAG, "Sensor data read error");
     return;
 }
@@ -204,7 +193,7 @@ void gb_sensor_fusion(void* arg)
     FusionAhrsSetSettings(&ahrs, &settings);
 
     while (1) {
-        if (xSemaphoreTake(mpuDataReady, portMAX_DELAY) == pdTRUE) {}
+        if (xSemaphoreTake(mpuDataQueueReady, portMAX_DELAY) == pdTRUE) {}
 
         //gpio_set_level( TEST_IMU_IO, 1 );
 

@@ -21,24 +21,16 @@
 TaskHandle_t mpu_isr_handle = NULL;
 TaskHandle_t nrf24_isr_handle = NULL;
 
-isr_manager_t mpu_isr_manager = {
-    .mpu_isr_status = DATA_NOT_READY,
-    .mpu_gyro_data_status = DATA_NOT_READY,
-    .mpu_accel_data_status = DATA_NOT_READY,
-    .mpu_mag_data_status = DATA_NOT_READY
-};
+extern SemaphoreHandle_t mpuSensorReady;
 
 void IRAM_ATTR mpu_dmp_isr_handler(void* arg)
 {
     //gpio_set_level( TEST_NRF24_IO, 1 );
-    mpu_isr_manager.mpu_isr_status = DATA_READY;
     //ets_printf("isr before:[%s] stat:[%d] prid:[%d]\n", pcTaskGetName(mpu_isr_handle), eTaskGetState(mpu_isr_handle), uxTaskPriorityGetFromISR(mpu_isr_handle));
     /* Notify the task that the transmission is complete. */
     if(mpu_isr_handle)
     {
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        vTaskNotifyGiveFromISR(mpu_isr_handle, &xHigherPriorityTaskWoken);
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+        xSemaphoreGiveFromISR(mpuSensorReady, NULL);
     }
     //gpio_set_level( TEST_NRF24_IO, 0 );
 }
