@@ -65,11 +65,12 @@
         }                           \
     } while(0)
 
-#define CHK_ESP_ERROR(val, res) do {          \
-        if (val != ESP_OK) {                  \
-            GB_DEBUGE(CHK_TAG, "[CHK_ESP_ERROR] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, val); \
-            goto error_exit;                  \
-        }                                     \
+#define CHK_ESP_ERROR(val, gb_error) do {          \
+        if (val != ESP_OK) {                       \
+            res = gb_error;                        \
+            GB_DEBUGE(CHK_TAG, "[CHK_ESP_ERROR] failed at file: %s, func: %s, line: %d, err = %08x", __FILE__, __FUNCTION__, __LINE__, val); \
+            goto error_exit;                       \
+        }                                          \
     } while(0)
 
 #define CHK_GB_ERROR(val) do {                \

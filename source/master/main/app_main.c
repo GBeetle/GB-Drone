@@ -27,12 +27,15 @@ void app_main(void)
 {
     GB_LogSystemInit();
 
+#if 0
     mpuDataQueueReady = xSemaphoreCreateBinary();
     mpuSensorReady = xSemaphoreCreateBinary();
     gyroQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
     accelQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
     magQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
     baroQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(baro_t));
+
+    GB_DEBUGI(GB_INFO, "Taks Create Start");
 
     // TEST IO
     //gpio_reset_pin( TEST_IMU_IO );
@@ -43,6 +46,6 @@ void app_main(void)
     xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
 
     GB_DEBUGI(GB_INFO, "Taks Create DONE");
-
+#endif
     return;
 }

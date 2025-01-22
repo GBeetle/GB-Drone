@@ -17,11 +17,11 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include "driver/i2c.h"
+#include "i2c_bus.h"
 #include "driver/gpio.h"
 #include "esp_err.h"
 
-#include "i2c_bus.h"
+#include "driver/i2c_master.h"
 #include "sdkconfig.h"
 #include "log_sys.h"
 
@@ -31,10 +31,8 @@
 #define I2C_MASTER_ACK_DIS  false   /*!< Disable ack check for master */
 
 static GB_RESULT begin(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t clk_speed);
-static GB_RESULT beginPullEnable(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t sda_pullup_en,
-                                 uint32_t scl_pullup_en, uint32_t clk_speed);
+static GB_RESULT addDevice(struct i2c *i2c, uint8_t devAddr, uint32_t clk_speed);
 static GB_RESULT close(struct i2c *i2c);
-static void setTimeout(struct i2c *i2c, uint32_t ms);
 /*******************************************************************************
  * WRITING
  ******************************************************************************/
@@ -52,21 +50,13 @@ static GB_RESULT readByte(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uin
 static GB_RESULT readBytes(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data);
 
 /*******************************************************************************
- * UTILS
- ******************************************************************************/
-static GB_RESULT testConnection(struct i2c *i2c, uint8_t devAddr, int32_t timeout);
-static void scanner(struct i2c *i2c);
-
-/*******************************************************************************
  * OBJECTS
  ******************************************************************************/
 struct i2c i2c0 = {
     .port = I2C_NUM_0,
-    .ticksToWait = pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS),
     .begin = &begin,
-    .beginPullEnable = &beginPullEnable,
+    .addDevice = &addDevice,
     .close = &close,
-    .setTimeout = &setTimeout,
     .writeBit = &writeBit,
     .writeBits = &writeBits,
     .writeByte = &writeByte,
@@ -75,17 +65,13 @@ struct i2c i2c0 = {
     .readBits = &readBits,
     .readByte = &readByte,
     .readBytes = &readBytes,
-    .testConnection = &testConnection,
-    .scanner = &scanner,
 };
 
 struct i2c i2c1 = {
     .port = I2C_NUM_1,
-    .ticksToWait = pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS),
     .begin = &begin,
-    .beginPullEnable = &beginPullEnable,
+    .addDevice = &addDevice,
     .close = &close,
-    .setTimeout = &setTimeout,
     .writeBit = &writeBit,
     .writeBits = &writeBits,
     .writeByte = &writeByte,
@@ -94,52 +80,70 @@ struct i2c i2c1 = {
     .readBits = &readBits,
     .readByte = &readByte,
     .readBytes = &readBytes,
-    .testConnection = &testConnection,
-    .scanner = &scanner,
 };
 
-/* ^^^^^^
- * I2Cbus
- * ^^^^^^ */
-static GB_RESULT begin(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t clk_speed) {
+static uint32_t findDevice(struct i2c *i2c, uint8_t devAddr)
+{
+    uint32_t i = 0;
+
+    for (i = 0; i < GB_MAX_I2C_DEV_NUMS; ++i)
+    {
+        if (i2c->device[i].devAddress == devAddr)
+            return i;
+    }
+
+    return i;
+}
+
+static GB_RESULT begin(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t clk_speed)
+{
     GB_RESULT res = GB_OK;
-    CHK_RES(i2c->beginPullEnable(i2c, sda_io_num, scl_io_num, GPIO_PULLUP_ENABLE, GPIO_PULLUP_ENABLE, clk_speed));
+    i2c_master_bus_config_t i2c_mst_config = {
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .i2c_port = i2c->port,
+        .scl_io_num = scl_io_num,
+        .sda_io_num = sda_io_num,
+        .flags.enable_internal_pullup = true,
+    };
+
+    CHK_ESP_ERROR(i2c_new_master_bus(&i2c_mst_config, (i2c_master_bus_handle_t*)(i2c->busHandle)), GB_I2C_CFG_FAIL);
+
 error_exit:
     return res;
 }
 
-static GB_RESULT beginPullEnable(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t sda_pullup_en,
-        uint32_t scl_pullup_en, uint32_t clk_speed) {
-    i2c_config_t conf;
-    conf.mode = I2C_MODE_MASTER;
-    conf.sda_io_num = sda_io_num;
-    conf.sda_pullup_en = sda_pullup_en;
-    conf.scl_io_num = scl_io_num;
-    conf.scl_pullup_en = scl_pullup_en;
-    conf.master.clk_speed = clk_speed;
-    conf.clk_flags = 0;
-    esp_err_t err = i2c_param_config(i2c->port, &conf);
-    if (!err)
-        err = i2c_driver_install(i2c->port, conf.mode, 0, 0, 0);
-    else
-        return GB_I2C_CFG_FAIL;
-    if (err != ESP_OK)
-        return GB_I2C_INS_FAIL;
-    return GB_OK;
+static GB_RESULT addDevice(struct i2c *i2c, uint8_t devAddr, uint32_t clk_speed)
+{
+    GB_RESULT res = GB_OK;
+    i2c_device_config_t dev_cfg = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address = devAddr,
+        .scl_speed_hz = clk_speed,
+    };
+
+    CHK_ESP_ERROR(i2c_master_bus_add_device(*((i2c_master_bus_handle_t*)(i2c->busHandle)),
+                                             &dev_cfg,
+                                             (i2c_master_dev_handle_t*)(i2c->device[findDevice(i2c, devAddr)].devHandle)), GB_I2C_INS_FAIL);
+
+error_exit:
+    return res;
 }
 
 static GB_RESULT close(struct i2c *i2c) {
-    if (i2c_driver_delete(i2c->port) != ESP_OK)
-        return GB_I2C_RMV_FAIL;
-    else
-        return GB_OK;
+    GB_RESULT res = GB_OK;
+
+    for (int i = 0; i < GB_MAX_I2C_DEV_NUMS; i++)
+    {
+        if (0 != i2c->device[i].devAddress)
+        {
+            CHK_ESP_ERROR(i2c_master_bus_rm_device(*((i2c_master_dev_handle_t*)(i2c->device[i].devHandle))), GB_I2C_RMV_FAIL);
+        }
+    }
+    CHK_ESP_ERROR(i2c_del_master_bus(*((i2c_master_bus_handle_t*)(i2c->busHandle))), GB_I2C_RMV_FAIL);
+
+error_exit:
+    return res;
 }
-
-static void setTimeout(struct i2c *i2c, uint32_t ms) {
-    i2c->ticksToWait = pdMS_TO_TICKS(ms);
-}
-
-
 
 /*******************************************************************************
  * WRITING
@@ -179,21 +183,20 @@ error_exit:
 }
 
 static GB_RESULT writeBytes(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data) {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    int32_t timeout = I2C_MASTER_TIMEOUT_MS;
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (devAddr << 1) | I2C_MASTER_WRITE, I2C_MASTER_ACK_EN);
-    i2c_master_write_byte(cmd, regAddr, I2C_MASTER_ACK_EN);
-    i2c_master_write(cmd, (uint8_t*) data, length, I2C_MASTER_ACK_EN);
-    i2c_master_stop(cmd);
-    esp_err_t err = i2c_master_cmd_begin(i2c->port, cmd, (timeout < 0 ? i2c->ticksToWait : pdMS_TO_TICKS(timeout)));
-    i2c_cmd_link_delete(cmd);
-    if (err != ESP_OK) {
-        GB_DEBUGE("[port:%d, slave:0x%X] Failed to write %d bytes to__ register 0x%X, error: 0x%X",
-            i2c->port, devAddr, length, regAddr, err);
-        return GB_I2C_RW_FAIL;
-    }
-    return GB_OK;
+    GB_RESULT res = GB_OK;
+
+    i2c_master_transmit_multi_buffer_info_t i2c_buffer[3] = {
+        {.write_buffer = &regAddr, .buffer_size = 1},
+        {.write_buffer = data, .buffer_size = length},
+    };
+
+    CHK_ESP_ERROR(i2c_master_multi_buffer_transmit(*((i2c_master_dev_handle_t*)(i2c->device[findDevice(i2c, devAddr)].devHandle)),
+                                                    i2c_buffer,
+                                                    sizeof(i2c_buffer) / sizeof(i2c_master_transmit_multi_buffer_info_t),
+                                                    -1), GB_I2C_RW_FAIL);
+
+error_exit:
+    return res;
 }
 
 
@@ -230,52 +233,12 @@ error_exit:
 }
 
 static GB_RESULT readBytes(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data) {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    int32_t timeout = I2C_MASTER_TIMEOUT_MS;
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (devAddr << 1) | I2C_MASTER_WRITE, I2C_MASTER_ACK_EN);
-    i2c_master_write_byte(cmd, regAddr, I2C_MASTER_ACK_EN);
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (devAddr << 1) | I2C_MASTER_READ, I2C_MASTER_ACK_EN);
-    i2c_master_read(cmd, data, length, I2C_MASTER_LAST_NACK);
-    i2c_master_stop(cmd);
-    esp_err_t err = i2c_master_cmd_begin(i2c->port, cmd, (timeout < 0 ? i2c->ticksToWait : pdMS_TO_TICKS(timeout)));
-    i2c_cmd_link_delete(cmd);
-    if (err != ESP_OK) {
-        GB_DEBUGE(ERROR_TAG, "[i2c->port:%d, slave:0x%X] Failed to read %d bytes from register 0x%X, error: %s\n",
-            i2c->port, devAddr, length, regAddr, esp_err_to_name(err));
-        return GB_I2C_RW_FAIL;
-    }
-    return GB_OK;
-}
+    GB_RESULT res = GB_OK;
 
-
-/*******************************************************************************
- * UTILS
- ******************************************************************************/
-static GB_RESULT testConnection(struct i2c *i2c, uint8_t devAddr, int32_t timeout) {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (devAddr << 1) | I2C_MASTER_WRITE, I2C_MASTER_ACK_EN);
-    i2c_master_stop(cmd);
-    esp_err_t err = i2c_master_cmd_begin(i2c->port, cmd, (timeout < 0 ? i2c->ticksToWait : pdMS_TO_TICKS(timeout)));
-    i2c_cmd_link_delete(cmd);
-    if (err != ESP_OK)
-        return GB_I2C_CONNECT_FAIL;
-    return GB_OK;
-}
-
-static void scanner(struct i2c *i2c) {
-    const int32_t scanTimeout = 20;
-    GB_DEBUGE(ERROR_TAG, "\n>> i2c scanning ... \n");
-    uint8_t count = 0;
-    for (size_t i = 0x3; i < 0x78; i++) {
-        if (testConnection(i2c, i, scanTimeout) == ESP_OK) {
-            GB_DEBUGE(ERROR_TAG, "- Device found at address 0x%X%s, i \n");
-            count++;
-        }
-    }
-    if (count == 0)
-        GB_DEBUGE(ERROR_TAG, "- No i2c devices found! \n");
-    GB_DEBUGE(ERROR_TAG, "\n");
+    CHK_ESP_ERROR(i2c_master_transmit_receive(*((i2c_master_dev_handle_t*)(i2c->device[findDevice(i2c, devAddr)].devHandle)),
+                                              &regAddr, 1,
+                                              data, length,
+                                              -1), GB_I2C_RW_FAIL);
+error_exit:
+    return res;
 }

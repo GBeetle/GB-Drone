@@ -90,7 +90,7 @@ void gb_read_sensor_data(void* arg)
 
     (void) res;
     // mpu initialization
-    GB_MpuInit(&mpu);
+    GB_MPU_Init(&mpu);
     //CHK_FUNC_EXIT(mpu.testConnection(&mpu));
     CHK_EXIT(mpu.initialize(&mpu));
 

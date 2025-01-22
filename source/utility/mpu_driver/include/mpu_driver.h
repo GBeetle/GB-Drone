@@ -239,7 +239,7 @@ struct mpu
     uint8_t mpu_status;
 };
 
-void GB_MpuInit(struct mpu *mpu);
+void GB_MPU_Init(struct mpu *mpu);
 
 extern const accel_fs_t g_accel_fs;
 extern const gyro_fs_t g_gyro_fs;

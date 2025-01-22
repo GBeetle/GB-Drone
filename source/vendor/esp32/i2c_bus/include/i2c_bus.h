@@ -21,12 +21,21 @@
 #include <stdint.h>
 #include "error_handle.h"
 
-typedef int GB_I2cPort;
+#define GB_MAX_I2C_DEV_NUMS 10
+
+typedef int GB_I2C_Port;
+
+typedef struct GB_I2C_DevCell {
+    uint8_t devAddress;
+    void **devHandle;
+} GB_I2C_DevCell;
 
 // i2c class definition
 struct i2c {
-    GB_I2cPort port;            /*!< i2c port: I2C_NUM_0 or I2C_NUM_1 */
+    GB_I2C_Port port;            /*!< i2c port: I2C_NUM_0 or I2C_NUM_1 */
     uint32_t ticksToWait;       /*!< Timeout in ticks for read and write */
+    void **busHandle;
+    GB_I2C_DevCell device[GB_MAX_I2C_DEV_NUMS];
 
     /** *** i2c Begin ***
      * @brief  Config i2c bus and Install Driver
@@ -41,18 +50,13 @@ struct i2c {
      *                       - GB_I2C_INS_FAIL Driver install error
      */
     GB_RESULT (*begin)(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t clk_speed);
-    GB_RESULT (*beginPullEnable)(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t sda_pullup_en,
-                                 uint32_t scl_pullup_en, uint32_t clk_speed);
+
+    GB_RESULT (*addDevice)(struct i2c *i2c, uint8_t devAddr, uint32_t clk_speed);
 
     /**
      * Stop i2c bus and unninstall driver
      */
     GB_RESULT (*close)(struct i2c *i2c);
-
-    /**
-     * Timeout read and write in milliseconds
-     */
-    void (*setTimeout)(struct i2c *i2c, uint32_t ms);
 
     /**
      * *** WRITING interface ***
@@ -94,21 +98,6 @@ struct i2c {
     GB_RESULT (*readBits)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);
     GB_RESULT (*readByte)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t *data);
     GB_RESULT (*readBytes)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data);
-
-    /**
-     * @brief  Quick check to see if a slave device responds.
-     * @param  devAddr   [i2c slave device register]
-     * @param  timeout   [Custom timeout for the particular call]
-     * @return  - GB_OK Success
-     *          - GB_I2C_CONNECT_FAIL   i2c connect failed
-     */
-    GB_RESULT (*testConnection)(struct i2c *i2c, uint8_t devAddr, int32_t timeout);
-
-    /**
-     * i2c scanner utility, prints out all device addresses found on this i2c bus.
-     */
-    void (*scanner)(struct i2c *i2c);
-
 };
 
 // Default Objects
