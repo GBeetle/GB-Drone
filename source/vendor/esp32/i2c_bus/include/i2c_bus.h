@@ -27,14 +27,14 @@ typedef int GB_I2C_Port;
 
 typedef struct GB_I2C_DevCell {
     uint8_t devAddress;
-    void **devHandle;
+    void *devHandle;
 } GB_I2C_DevCell;
 
 // i2c class definition
 struct i2c {
     GB_I2C_Port port;            /*!< i2c port: I2C_NUM_0 or I2C_NUM_1 */
-    uint32_t ticksToWait;       /*!< Timeout in ticks for read and write */
-    void **busHandle;
+    void *busHandle;
+    uint32_t deviceNum;
     GB_I2C_DevCell device[GB_MAX_I2C_DEV_NUMS];
 
     /** *** i2c Begin ***

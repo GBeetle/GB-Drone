@@ -91,13 +91,16 @@ void gb_read_sensor_data(void* arg)
     (void) res;
     // mpu initialization
     GB_MPU_Init(&mpu);
-    //CHK_FUNC_EXIT(mpu.testConnection(&mpu));
-    CHK_EXIT(mpu.initialize(&mpu));
+    GB_DEBUGI(SENSOR_TAG, "GB_MPU_Init done");
+    CHK_FUNC_EXIT(mpu.testConnection(&mpu));
+    GB_DEBUGI(SENSOR_TAG, "testConnection done");
+    CHK_FUNC_EXIT(mpu.initialize(&mpu));
+    GB_DEBUGI(SENSOR_TAG, "initialize done");
 
     // test for sensor is good & horizontal
     //selftest_t st_result;
-    //CHK_EXIT(mpu.selfTest(&mpu, &st_result));
-    //CHK_EXIT(mpu.setOffsets(&mpu));
+    //CHK_FUNC_EXIT(mpu.selfTest(&mpu, &st_result));
+    //CHK_FUNC_EXIT(mpu.setOffsets(&mpu));
 
     GB_DEBUGI(SENSOR_TAG, "mpu status: %02x", mpu.mpu_status);
 
@@ -133,7 +136,7 @@ void gb_read_sensor_data(void* arg)
         //gpio_set_level( TEST_IMU_IO, 0 );
     }
 
-//error_exit:
+error_exit:
     GB_DEBUGE(ERROR_TAG, "Sensor data read error");
     return;
 }

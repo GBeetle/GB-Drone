@@ -198,17 +198,12 @@ void GB_MPU_Init(struct mpu *mpu) {
 #endif
 
 #if defined CONFIG_MPU_I2C
-    GB_DEBUGI(SENSOR_TAG, "MPU Init 1");
     mpu_addr_handle_t  MPU_DEFAULT_I2CADDRESS = MPU_I2CADDRESS_AD0_LOW;
 
     CHK_EXIT(i2c0.begin(&i2c0, MPU_SDA, MPU_SCL, MPU_I2C_CLOCK_SPEED));
-    GB_DEBUGI(SENSOR_TAG, "MPU Init 2");
     CHK_EXIT(i2c0.addDevice(&i2c0, MPU_DEFAULT_I2CADDRESS, MPU_I2C_CLOCK_SPEED));
-    GB_DEBUGI(SENSOR_TAG, "MPU Init 3");
     CHK_EXIT(i2c0.addDevice(&i2c0, BMP280_I2C_ADDRESS_1, MPU_I2C_CLOCK_SPEED));
-    GB_DEBUGI(SENSOR_TAG, "MPU Init 4");
     CHK_EXIT(i2c0.addDevice(&i2c0, COMPASS_I2CADDRESS, MPU_I2C_CLOCK_SPEED));
-    GB_DEBUGI(SENSOR_TAG, "MPU Init 5");
 
     mpu->bus  = &i2c0;
     mpu->addr = MPU_DEFAULT_I2CADDRESS;

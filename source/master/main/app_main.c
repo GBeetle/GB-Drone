@@ -19,6 +19,7 @@
 #include "log_sys.h"
 #include "mpu_driver.h"
 #include "task_manager.h"
+#include "gb_timer.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -26,8 +27,8 @@
 void app_main(void)
 {
     GB_LogSystemInit();
+    GB_SleepMs(10000);
 
-#if 0
     mpuDataQueueReady = xSemaphoreCreateBinary();
     mpuSensorReady = xSemaphoreCreateBinary();
     gyroQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
@@ -46,6 +47,6 @@ void app_main(void)
     xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
 
     GB_DEBUGI(GB_INFO, "Taks Create DONE");
-#endif
+
     return;
 }
