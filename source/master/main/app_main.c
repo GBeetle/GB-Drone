@@ -27,7 +27,6 @@
 void app_main(void)
 {
     GB_LogSystemInit();
-    GB_SleepMs(10000);
 
     mpuDataQueueReady = xSemaphoreCreateBinary();
     mpuSensorReady = xSemaphoreCreateBinary();

@@ -86,16 +86,14 @@ void gb_read_sensor_data(void* arg)
 {
     GB_TickType ticks = 0;
     GB_RESULT res = GB_OK;
+    uint32_t sample_times = 0;
     //selftest_t st_result;
 
     (void) res;
     // mpu initialization
     GB_MPU_Init(&mpu);
-    GB_DEBUGI(SENSOR_TAG, "GB_MPU_Init done");
     CHK_FUNC_EXIT(mpu.testConnection(&mpu));
-    GB_DEBUGI(SENSOR_TAG, "testConnection done");
     CHK_FUNC_EXIT(mpu.initialize(&mpu));
-    GB_DEBUGI(SENSOR_TAG, "initialize done");
 
     // test for sensor is good & horizontal
     //selftest_t st_result;
@@ -114,14 +112,13 @@ void gb_read_sensor_data(void* arg)
         raw_axes_t magRaw    = GB_RAW_DATA_ZERO;
         baro_t     baro_data = GB_BARO_DATA_ZERO;
 
-        //CHK_FUNC_EXIT(mpu.rotation(&mpu, &gyroRaw));
-        //CHK_FUNC_EXIT(mpu.acceleration(&mpu, &accelRaw));
-        //CHK_FUNC_EXIT(mpu.heading(&mpu, &magRaw));
-        //CHK_FUNC_EXIT(mpu.baroGetData(&mpu, &baro_data));
-        mpu.rotation(&mpu, &gyroRaw);
-        mpu.acceleration(&mpu, &accelRaw);
-        mpu.heading(&mpu, &magRaw);
-        mpu.baroGetData(&mpu, &baro_data);
+        CHK_FUNC_EXIT(mpu.rotation(&mpu, &gyroRaw));
+        CHK_FUNC_EXIT(mpu.acceleration(&mpu, &accelRaw));
+        // reduce compass & high sample rate to avoid I2C timeout
+        if (sample_times % 2 == 0)
+            CHK_FUNC_EXIT(mpu.heading(&mpu, &magRaw));
+        else
+            CHK_FUNC_EXIT(mpu.baroGetData(&mpu, &baro_data));
 
         if (gyroRaw.data.x != 0 && gyroRaw.data.y != 0 && gyroRaw.data.z != 0)
             xQueueSend(gyroQueue, &gyroRaw, portMAX_DELAY);
@@ -132,6 +129,7 @@ void gb_read_sensor_data(void* arg)
         if (baro_data.altitude != 0)
             xQueueSend(baroQueue, &baro_data, portMAX_DELAY);
 
+        sample_times++;
         xSemaphoreGive(mpuDataQueueReady);
         //gpio_set_level( TEST_IMU_IO, 0 );
     }

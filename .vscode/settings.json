@@ -46,6 +46,7 @@
         "mpu_registers.h": "c",
         "mpu_math.h": "c",
         "utility": "cpp",
-        "io_define.h": "c"
+        "io_define.h": "c",
+        "xmemory": "c"
     }
 }

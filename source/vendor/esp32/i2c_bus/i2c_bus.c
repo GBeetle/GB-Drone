@@ -101,7 +101,7 @@ static uint32_t findDevice(struct i2c *i2c, uint8_t devAddr)
     if (newDevice)
         i2c->deviceNum++;
 
-    GB_DEBUGI(GB_INFO, "I2C BUS findDevice: %d", i);
+    //GB_DEBUGI(GB_INFO, "I2C BUS findDevice: %d", i);
 
     return i;
 }
@@ -145,7 +145,7 @@ error_exit:
 static GB_RESULT close(struct i2c *i2c) {
     GB_RESULT res = GB_OK;
 
-    for (int i = 0; i < GB_MAX_I2C_DEV_NUMS; i++)
+    for (int i = 0; i < i2c->deviceNum; i++)
     {
         if (0 != i2c->device[i].devAddress)
         {
@@ -248,12 +248,10 @@ error_exit:
 static GB_RESULT readBytes(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data) {
     GB_RESULT res = GB_OK;
 
-    GB_DEBUGI(GB_INFO, "I2C BUS readBytes start");
     CHK_ESP_ERROR(i2c_master_transmit_receive((i2c_master_dev_handle_t)(i2c->device[findDevice(i2c, devAddr)].devHandle),
                                               &regAddr, 1,
                                               data, length,
                                               -1), GB_I2C_RW_FAIL);
-    GB_DEBUGI(GB_INFO, "I2C BUS readBytes end");
 error_exit:
     return res;
 }
