@@ -16,10 +16,10 @@ call env_setting.bat
 cd ../source/master
 
 if "%~1"=="init" (
-    :: create soft link
-    call pre_processing.bat
     idf.py set-target esp32s3
     idf.py add-dependency esp_tinyusb
+    :: create soft link
+    call pre_processing.bat
     exit /b
 )
 

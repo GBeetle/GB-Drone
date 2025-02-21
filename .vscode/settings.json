@@ -16,6 +16,13 @@
         "source/master/components/bmp280": true,
         "source/master/components/gb_timer": true,
         "remote/master/components/*": true,
+
+        "source/remote/components/i2c_bus": true,
+        "source/remote/components/spi_bus": true,
+        "source/remote/components/error_handle": true,
+        "source/remote/components/log_sys": true,
+        "source/remote/components/gb_timer": true,
+        "remote/remote/components/*": true,
     },
     "search.exclude": {
         "**/node_modules": true,
@@ -31,6 +38,13 @@
         "source/master/components/bmp280": true,
         "source/master/components/gb_timer": true,
         "remote/master/components/*": true,
+
+        "source/remote/components/i2c_bus": true,
+        "source/remote/components/spi_bus": true,
+        "source/remote/components/error_handle": true,
+        "source/remote/components/log_sys": true,
+        "source/remote/components/gb_timer": true,
+        "remote/remote/components/*": true,
     },
     "files.associations": {
         "cdc.h": "c",

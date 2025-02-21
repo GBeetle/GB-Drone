@@ -68,7 +68,7 @@ hardware/GB-Drone_master_remote/__Previews/*
 
 # components
 source/master/managed_components
-remote/master/managed_components
+source/remote/managed_components
 
 # for mklink files
 source/master/components/error_handle
@@ -80,3 +80,9 @@ source/master/components/Fusion
 source/master/components/bmp280
 source/master/components/lis3mdl
 source/master/components/gb_timer
+
+source/remote/components/error_handle
+source/remote/components/i2c_bus
+source/remote/components/log_sys
+source/remote/components/spi_bus
+source/remote/components/gb_timer
