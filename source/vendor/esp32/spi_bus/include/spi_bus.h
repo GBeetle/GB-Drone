@@ -24,15 +24,12 @@
 #include "driver/spi_common.h"
 #include "driver/spi_master.h"
 
-typedef int GB_SpiPort;
-typedef spi_device_handle_t GB_SpiDeviceHandle;
-
 /* ^^^
  * spi
  * ^^^ */
 struct spi {
-    GB_SpiPort host;     /*!< HSPI_HOST or VSPI_HOST */
-    GB_SpiDeviceHandle deviceHandle;
+    spi_host_device_t host;     /*!< HSPI_HOST or VSPI_HOST */
+    spi_device_handle_t deviceHandle;
 
     /**
      * @brief   Config spi bus and initialize
@@ -64,7 +61,6 @@ struct spi {
      *          - GB_OK                on success
      * */
     GB_RESULT (*addDevice)(struct spi *spi, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
-    GB_RESULT (*addDeviceCfg)(struct spi *spi, uint8_t address_len, spi_device_interface_config_t *dev_config);
     GB_RESULT (*removeDevice)(struct spi *spi);
 
     /**

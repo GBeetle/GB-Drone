@@ -86,3 +86,4 @@ source/remote/components/i2c_bus
 source/remote/components/log_sys
 source/remote/components/spi_bus
 source/remote/components/gb_timer
+source/remote/components/tft_driver

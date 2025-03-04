@@ -28,7 +28,6 @@
 static GB_RESULT begin(struct spi *spi, int mosi_io_num, int miso_io_num, int sclk_io_num, int max_transfer_sz);
 static GB_RESULT close(struct spi *spi);
 static GB_RESULT addDevice(struct spi *spi, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
-static GB_RESULT addDeviceCfg(struct spi *spi, uint8_t address_len, spi_device_interface_config_t *dev_config);
 static GB_RESULT removeDevice(struct spi *spi);
 /*******************************************************************************
  * WRITING
@@ -54,7 +53,6 @@ struct spi fspi = {
     .begin          = &begin,
     .close          = &close,
     .addDevice      = &addDevice,
-    .addDeviceCfg   = &addDeviceCfg,
     .removeDevice   = &removeDevice,
     .writeBit       = &writeBit,
     .writeBits      = &writeBits,
@@ -71,7 +69,6 @@ struct spi hspi = {
     .begin          = &begin,
     .close          = &close,
     .addDevice      = &addDevice,
-    .addDeviceCfg   = &addDeviceCfg,
     .removeDevice   = &removeDevice,
     .writeBit       = &writeBit,
     .writeBits      = &writeBits,
@@ -96,7 +93,7 @@ static GB_RESULT begin(struct spi *spi, int mosi_io_num, int miso_io_num, int sc
     config.quadhd_io_num = -1;  // -1 not used
     config.max_transfer_sz = max_transfer_sz;
     config.flags = SPICOMMON_BUSFLAG_MASTER;
-    esp_err_t err = spi_bus_initialize(spi->host, &config, SPI_DMA_DISABLED);
+    esp_err_t err = spi_bus_initialize(spi->host, &config, SPI_DMA_CH_AUTO);
     if(err != ESP_OK) {
         GB_DEBUGE(ERROR_TAG, "spi init failed, error: %s\n", esp_err_to_name(err));
         return GB_SPI_INI_FAIL;
@@ -132,14 +129,6 @@ static GB_RESULT addDevice(struct spi *spi, uint8_t address_len, uint8_t mode, u
     return GB_OK;
 }
 
-static GB_RESULT addDeviceCfg(struct spi *spi, uint8_t address_len, spi_device_interface_config_t *dev_config) {
-    dev_config->address_bits = address_len;  // must be set, SPIbus uses this 8-bits to send the regAddr
-    if (spi_bus_add_device(spi->host, dev_config, &(spi->deviceHandle)) != ESP_OK) {
-        return GB_SPI_CFG_FAIL;
-    }
-    return GB_OK;
-}
-
 static GB_RESULT removeDevice(struct spi *spi) {
     if (spi_bus_remove_device(spi->deviceHandle) != ESP_OK) {
         return GB_SPI_RMV_FAIL;
@@ -155,9 +144,9 @@ static GB_RESULT writeBit(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uin
     uint8_t buffer;
     GB_RESULT res = GB_OK;
 
-    CHK_RES(spi->readByte(spi, 0X00, regAddr, &buffer));
+    CHK_RES(spi->readByte(spi, devAddr, regAddr, &buffer));
     buffer = data ? (buffer | (1 << bitNum)) : (buffer & ~(1 << bitNum));
-    CHK_RES(spi->writeByte(spi, 0X00, regAddr, buffer));
+    CHK_RES(spi->writeByte(spi, devAddr, regAddr, buffer));
 error_exit:
     return res;
 }
@@ -166,20 +155,20 @@ static GB_RESULT writeBits(struct spi *spi, uint8_t devAddr, uint8_t regAddr, ui
     uint8_t buffer;
     GB_RESULT res = GB_OK;
 
-    CHK_RES(spi->readByte(spi, 0X00, regAddr, &buffer));
+    CHK_RES(spi->readByte(spi, devAddr, regAddr, &buffer));
     uint8_t mask = ((1 << length) - 1) << (bitStart - length + 1);
     data <<= (bitStart - length + 1);
     data &= mask;
     buffer &= ~mask;
     buffer |= data;
-    CHK_RES(spi->writeByte(spi, 0X00, regAddr, buffer));
+    CHK_RES(spi->writeByte(spi, devAddr, regAddr, buffer));
 error_exit:
     return res;
 }
 
 static GB_RESULT writeByte(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t data) {
     GB_RESULT res = GB_OK;
-    CHK_RES(spi->writeBytes(spi, 0X00, regAddr, 1, &data));
+    CHK_RES(spi->writeBytes(spi, devAddr, regAddr, 1, &data));
 error_exit:
     return res;
 }
@@ -211,7 +200,7 @@ static GB_RESULT writeBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, s
  ******************************************************************************/
 static GB_RESULT readBit(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data) {
     GB_RESULT res = GB_OK;
-    CHK_RES(spi->readBits(spi, 0X00, regAddr, bitNum, 1, data));
+    CHK_RES(spi->readBits(spi, devAddr, regAddr, bitNum, 1, data));
 error_exit:
     return res;
 }
@@ -220,7 +209,7 @@ static GB_RESULT readBits(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uin
     uint8_t buffer;
     GB_RESULT res = GB_OK;
 
-    CHK_RES(spi->readByte(spi, 0X00, regAddr, &buffer));
+    CHK_RES(spi->readByte(spi, devAddr, regAddr, &buffer));
     uint8_t mask = ((1 << length) - 1) << (bitStart - length + 1);
     buffer &= mask;
     buffer >>= (bitStart - length + 1);
@@ -232,7 +221,7 @@ error_exit:
 static GB_RESULT readByte(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t *data) {
     GB_RESULT res = GB_OK;
 
-    CHK_RES(spi->readBytes(spi, 0X00, regAddr, 1, data));
+    CHK_RES(spi->readBytes(spi, devAddr, regAddr, 1, data));
 error_exit:
     return res;
 }

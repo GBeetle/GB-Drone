@@ -1,5 +1,5 @@
 /*
- * This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
+ * This file is part of welkin project (https://github.com/GBeetle/welkin).
  * Copyright (c) 2022 GBeetle.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,10 +16,27 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include <stdarg.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+#include "freertos/queue.h"
+
+#include "driver/gpio.h"
+
 #include "log_sys.h"
+#include "io_define.h"
 #include "tft_sprite.h"
 
+#define CONFIG_TINYUSB_CDC_RX_BUFSIZE 64
 #define BITS_PER_PIXEL 1              // How many bits per pixel in Sprite
+
+static const char *TAG = "example";
+static uint8_t buf[CONFIG_TINYUSB_CDC_RX_BUFSIZE + 1];
 
 struct TFT_eSPI tft;
 struct TFT_eSprite sprite;
@@ -71,30 +88,30 @@ void draw_loop()
         TFT_RED, TFT_MAGENTA, TFT_YELLOW, TFT_WHITE,
         TFT_ORANGE, TFT_GREENYELLOW, TFT_PINK, TFT_BROWN,
         TFT_GOLD, TFT_SILVER, TFT_SKYBLUE, TFT_VIOLET};
-
     tft.fillScreen(&tft, TFT_NAVY);
-
     while (1)
     {
-        tft.fillScreen(&tft, color[i++]);
-        i %= 24;
+        //tft.fillScreen(&tft, color[i++]);
+        //i %= 24;
 
         drawStar(100, 100, 100);
         vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
 }
 
+//Main application
 void app_main(void)
 {
-    GB_LogSystemInit();
+    //fflush(stdout);
+    welkin_log_system_init();
 
     TFT_eSpi_init(&tft, TFT_WIDTH, TFT_HEIGHT, 0);
-    GB_DEBUGI(TFT_TAG, "TFT espi init DONE");
+    ESP_LOGI(TAG, "TFT espi init DONE");
 
     tft.setRotation(&tft, 0);
 
     TFT_eSprite_init(&sprite, &tft);
-    GB_DEBUGI(TFT_TAG, "TFT Sprite init DONE");
+    ESP_LOGI(TAG, "TFT Sprite init DONE");
 
-    xTaskCreate(draw_loop, "draw_loop", 5120, NULL, 4 | portPRIVILEGE_BIT, NULL);
+    xTaskCreate(draw_loop, "draw_loop", 4096, NULL, 4 | portPRIVILEGE_BIT, NULL);
 }
