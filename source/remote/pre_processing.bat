@@ -5,7 +5,7 @@ rem set source dir and target dir
 set "vendorSourceDir=%cd%\..\vendor\esp32"
 set "utilitySourceDir=%cd%\..\utility"
 set "targetDir=%cd%\components"
-set "vendorSourceFolders=i2c_bus log_sys spi_bus gb_timer"
+set "vendorSourceFolders=i2c_bus log_sys spi_bus gb_timer file_system"
 set "utilitySourceFolders=error_handle tft_driver"
 
 rem create target dir

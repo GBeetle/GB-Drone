@@ -21,6 +21,7 @@
 #include "tinyusb.h"
 #include "tinyusb_net.h"
 #include "class/cdc/cdc_device.h"
+#include "driver/uart.h"
 #include "log_sys.h"
 
 #define GB_LOG_BUFFER_SIZE 1024
@@ -63,21 +64,24 @@ void GB_LogSystemInit()
 
 #ifdef CONFIG_USB_LOG_ENABLE
     ESP_LOGI(GB_INFO, "USB device initialization");
-    tinyusb_config_t tusb_cfg = {}; // the configuration using default values
+
+    const tinyusb_config_t tusb_cfg = {
+        .device_descriptor = NULL,
+        .string_descriptor = NULL,
+        .external_phy = false, // In the most cases you need to use a `false` value
+#if (TUD_OPT_HIGH_SPEED)
+        .fs_configuration_descriptor = NULL,
+        .hs_configuration_descriptor = NULL,
+        .qualifier_descriptor = NULL,
+#else
+        .configuration_descriptor = NULL,
+#endif // TUD_OPT_HIGH_SPEED
+    };
+
     ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
 
-    tinyusb_config_cdcacm_t amc_cfg = {
-        .usb_dev = TINYUSB_USBDEV_0,
-        .cdc_port = TINYUSB_CDC_ACM_0,
-        .rx_unread_buf_sz = 64,
-        .callback_rx = NULL,
-        .callback_rx_wanted_char = NULL,
-        .callback_line_state_changed = NULL,
-        .callback_line_coding_changed = NULL
-    };
-    // SET wanted char => ' '
-    tud_cdc_n_set_wanted_char(amc_cfg.cdc_port, ' ');
-    ESP_ERROR_CHECK(tusb_cdc_acm_init(&amc_cfg));
+    tinyusb_config_cdcacm_t acm_cfg = { 0 }; // the configuration uses default values
+    ESP_ERROR_CHECK(tusb_cdc_acm_init(&acm_cfg));
     esp_tusb_init_console(TINYUSB_CDC_ACM_0); // log to usb
 #endif
 }
@@ -145,7 +149,8 @@ GB_RESULT GB_ReadBytes(uint8_t *buf, size_t *rx_size)
     GB_RESULT res = GB_OK;
 
 #ifdef CONFIG_UART_LOG_ENABLE
-    rxBytes = uart_read_bytes(UART_NUM_0, buf, rx_size, 10 / portTICK_RATE_MS);
+    int rxBytes = uart_read_bytes(UART_NUM_0, buf, *rx_size, 10 / portTICK_PERIOD_MS);
+    *rx_size = rxBytes;
 #elif CONFIG_USB_LOG_ENABLE
     esp_err_t ret = tinyusb_cdcacm_read(TINYUSB_CDC_ACM_0, buf, CONFIG_TINYUSB_CDC_RX_BUFSIZE, rx_size);
     if (ret == ESP_OK) {

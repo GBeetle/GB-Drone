@@ -51,6 +51,8 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+pictures
+
 # Build Output Directory
 source/master/build
 source/remote/build
@@ -87,3 +89,4 @@ source/remote/components/log_sys
 source/remote/components/spi_bus
 source/remote/components/gb_timer
 source/remote/components/tft_driver
+source/remote/components/file_system

@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include "log_sys.h"
 #include "tft_sprite.h"
+#include "file_system.h"
 
 #define BITS_PER_PIXEL 1              // How many bits per pixel in Sprite
 
@@ -87,14 +88,74 @@ void draw_loop()
 void app_main(void)
 {
     GB_LogSystemInit();
+    GB_FileSystem_Init("storage");
 
     TFT_eSpi_init(&tft, TFT_WIDTH, TFT_HEIGHT, 0);
-    GB_DEBUGI(TFT_TAG, "TFT espi init DONE");
-
     tft.setRotation(&tft, 0);
-
     TFT_eSprite_init(&sprite, &tft);
-    GB_DEBUGI(TFT_TAG, "TFT Sprite init DONE");
 
     xTaskCreate(draw_loop, "draw_loop", 5120, NULL, 4 | portPRIVILEGE_BIT, NULL);
 }
+
+#if 0
+const int bitmapWidth = 240;
+const int bitmapHeight = 240;
+
+void setup() {
+    Serial.begin(9600);
+    tft.reset();
+    uint16_t identifier = tft.readID();
+    tft.begin(identifier);
+    tft.setRotation(1);
+    tft.fillScreen(BLACK);
+
+    if (!flash.begin()) {
+        Serial.println("Error, failed to initialize flash chip!");
+        while (1);
+    }
+
+    if (!fatfs.begin(&flash)) {
+        Serial.println("Error, failed to mount filesystem!");
+        while (1);
+    }
+}
+
+void loop() {
+    for (int i = 0; i < 75; i++) {
+        char filename[20];
+        sprintf(filename, "output%d.raw", i);
+        displayBitmapFromFlash(filename);
+        delay(100);  // Adjust delay as needed
+    }
+}
+
+void displayBitmapFromFlash(const char* filename) {
+    File file = fatfs.open(filename);
+    if (!file) {
+        Serial.print("Failed to open file: ");
+        Serial.println(filename);
+        return;
+    }
+
+    tft.startWrite();
+    tft.setAddrWindow(0, 0, bitmapWidth, bitmapHeight);
+
+    uint8_t buffer[3];
+    for (int y = 0; y < bitmapHeight; y++) {
+        for (int x = 0; x < bitmapWidth; x++) {
+            if (file.read(buffer, 3) == 3) {
+                uint16_t color = tft.color565(buffer[0], buffer[1], buffer[2]);
+                tft.pushColor(color);
+            } else {
+                Serial.println("Error reading file");
+                file.close();
+                tft.endWrite();
+                return;
+            }
+        }
+    }
+
+    file.close();
+    tft.endWrite();
+}
+#endif

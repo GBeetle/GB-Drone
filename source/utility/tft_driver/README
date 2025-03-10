@@ -1,5 +1,5 @@
 /*
- * This file is part of welkin project (https://github.com/GBeetle/welkin).
+ * This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
  * Copyright (c) 2022 GBeetle.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,103 +15,86 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <string.h>
-#include <stdarg.h>
+ #include <stdio.h>
+ #include "log_sys.h"
+ #include "tft_sprite.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
-#include "freertos/queue.h"
+ #define BITS_PER_PIXEL 1              // How many bits per pixel in Sprite
 
-#include "driver/gpio.h"
+ struct TFT_eSPI tft;
+ struct TFT_eSprite sprite;
 
-#include "log_sys.h"
-#include "io_define.h"
-#include "tft_sprite.h"
+ // =========================================================================
+ // Create sprite, plot graphics in it, plot to screen, then delete sprite
+ // =========================================================================
+ void drawStar(int x, int y, int star_color)
+ {
+     // 1 bpp colour values can only be 1 or 0 (one or zero)
+     uint16_t transparent = 0; // The transparent colour, can only be 1 or 0
 
-#define CONFIG_TINYUSB_CDC_RX_BUFSIZE 64
-#define BITS_PER_PIXEL 1              // How many bits per pixel in Sprite
+     // Create an 1 bit (2 colour) sprite 70x80 pixels (uses 70*80/8 = 700 bytes of RAM)
+     // Colour depths of 8 bits per pixel and 16 bits are also supported.
+     sprite.setColorDepth(&sprite, BITS_PER_PIXEL);         // Set colour depth first
+     sprite.createSprite(&sprite, 70, 80, 1);               // then create the sprite
 
-static const char *TAG = "example";
-static uint8_t buf[CONFIG_TINYUSB_CDC_RX_BUFSIZE + 1];
+     // Fill Sprite with the colour that will be defined later as "transparent"
+     // We could also fill with any colour as transparent, and later specify that
+     // same colour when we push the Sprite onto the display screen.
+     sprite.fillSprite(&sprite, transparent);
 
-struct TFT_eSPI tft;
-struct TFT_eSprite sprite;
+     // Draw 2 triangles to create a filled in star
+     sprite._tft->fillTriangle(sprite._tft, 35, 0, 0, 59, 69, 59, star_color);
+     sprite._tft->fillTriangle(sprite._tft, 35, 79, 0, 20, 69, 20, star_color);
 
-// =========================================================================
-// Create sprite, plot graphics in it, plot to screen, then delete sprite
-// =========================================================================
-void drawStar(int x, int y, int star_color)
-{
-    // 1 bpp colour values can only be 1 or 0 (one or zero)
-    uint16_t transparent = 0; // The transparent colour, can only be 1 or 0
+     // Punch a star shaped hole in the middle with a smaller "transparent" star
+     sprite._tft->fillTriangle(sprite._tft, 35, 7, 6, 56, 63, 56, transparent);
+     sprite._tft->fillTriangle(sprite._tft, 35, 73, 6, 24, 63, 24, transparent);
 
-    // Create an 1 bit (2 colour) sprite 70x80 pixels (uses 70*80/8 = 700 bytes of RAM)
-    // Colour depths of 8 bits per pixel and 16 bits are also supported.
-    sprite.setColorDepth(&sprite, BITS_PER_PIXEL);         // Set colour depth first
-    sprite.createSprite(&sprite, 70, 80, 1);               // then create the sprite
+     // Set the 2 pixel colours that 1 and 0 represent on the display screen
+     sprite.setBitmapColor(&sprite, star_color, transparent);
 
-    // Fill Sprite with the colour that will be defined later as "transparent"
-    // We could also fill with any colour as transparent, and later specify that
-    // same colour when we push the Sprite onto the display screen.
-    sprite.fillSprite(&sprite, transparent);
+     // Push sprite to TFT screen CGRAM at coordinate x,y (top left corner)
+     // Specify what colour is to be treated as transparent (black in this example)
+     sprite.pushSpriteTrans(&sprite, x, y, transparent);
 
-    // Draw 2 triangles to create a filled in star
-    sprite._tft->fillTriangle(sprite._tft, 35, 0, 0, 59, 69, 59, star_color);
-    sprite._tft->fillTriangle(sprite._tft, 35, 79, 0, 20, 69, 20, star_color);
+     // Delete Sprite to free memory, creating and deleting takes very little time.
+     sprite.deleteSprite(&sprite);
+ }
 
-    // Punch a star shaped hole in the middle with a smaller "transparent" star
-    sprite._tft->fillTriangle(sprite._tft, 35, 7, 6, 56, 63, 56, transparent);
-    sprite._tft->fillTriangle(sprite._tft, 35, 73, 6, 24, 63, 24, transparent);
+ void draw_loop()
+ {
+     int i = 0;
+     uint16_t color[24] = {
+         TFT_BLACK, TFT_NAVY, TFT_DARKGREEN, TFT_DARKCYAN,
+         TFT_MAROON, TFT_PURPLE, TFT_OLIVE, TFT_LIGHTGREY,
+         TFT_DARKGREY, TFT_BLUE, TFT_GREEN, TFT_CYAN,
+         TFT_RED, TFT_MAGENTA, TFT_YELLOW, TFT_WHITE,
+         TFT_ORANGE, TFT_GREENYELLOW, TFT_PINK, TFT_BROWN,
+         TFT_GOLD, TFT_SILVER, TFT_SKYBLUE, TFT_VIOLET};
 
-    // Set the 2 pixel colours that 1 and 0 represent on the display screen
-    sprite.setBitmapColor(&sprite, star_color, transparent);
+     tft.fillScreen(&tft, TFT_NAVY);
 
-    // Push sprite to TFT screen CGRAM at coordinate x,y (top left corner)
-    // Specify what colour is to be treated as transparent (black in this example)
-    sprite.pushSpriteTrans(&sprite, x, y, transparent);
+     while (1)
+     {
+         tft.fillScreen(&tft, color[i++]);
+         i %= 24;
 
-    // Delete Sprite to free memory, creating and deleting takes very little time.
-    sprite.deleteSprite(&sprite);
-}
+         drawStar(100, 100, 100);
+         vTaskDelay(2000 / portTICK_PERIOD_MS);
+     }
+ }
 
-void draw_loop()
-{
-    int i = 0;
-    uint16_t color[24] = {
-        TFT_BLACK, TFT_NAVY, TFT_DARKGREEN, TFT_DARKCYAN,
-        TFT_MAROON, TFT_PURPLE, TFT_OLIVE, TFT_LIGHTGREY,
-        TFT_DARKGREY, TFT_BLUE, TFT_GREEN, TFT_CYAN,
-        TFT_RED, TFT_MAGENTA, TFT_YELLOW, TFT_WHITE,
-        TFT_ORANGE, TFT_GREENYELLOW, TFT_PINK, TFT_BROWN,
-        TFT_GOLD, TFT_SILVER, TFT_SKYBLUE, TFT_VIOLET};
-    tft.fillScreen(&tft, TFT_NAVY);
-    while (1)
-    {
-        //tft.fillScreen(&tft, color[i++]);
-        //i %= 24;
+ void app_main(void)
+ {
+     GB_LogSystemInit();
 
-        drawStar(100, 100, 100);
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
-    }
-}
+     TFT_eSpi_init(&tft, TFT_WIDTH, TFT_HEIGHT, 0);
+     GB_DEBUGI(TFT_TAG, "TFT espi init DONE");
 
-//Main application
-void app_main(void)
-{
-    //fflush(stdout);
-    welkin_log_system_init();
+     tft.setRotation(&tft, 0);
 
-    TFT_eSpi_init(&tft, TFT_WIDTH, TFT_HEIGHT, 0);
-    ESP_LOGI(TAG, "TFT espi init DONE");
+     TFT_eSprite_init(&sprite, &tft);
+     GB_DEBUGI(TFT_TAG, "TFT Sprite init DONE");
 
-    tft.setRotation(&tft, 0);
-
-    TFT_eSprite_init(&sprite, &tft);
-    ESP_LOGI(TAG, "TFT Sprite init DONE");
-
-    xTaskCreate(draw_loop, "draw_loop", 4096, NULL, 4 | portPRIVILEGE_BIT, NULL);
-}
+     xTaskCreate(draw_loop, "draw_loop", 5120, NULL, 4 | portPRIVILEGE_BIT, NULL);
+ }

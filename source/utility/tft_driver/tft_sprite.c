@@ -1,14 +1,19 @@
-/**************************************************************************************
-// The following class creates Sprites in RAM, graphics can then be drawn in the Sprite
-// and rendered quickly onto the TFT screen. The class inherits the graphics functions
-// from the TFT_eSPI class. Some functions are overridden by this class so that the
-// graphics are written to the Sprite rather than the TFT.
-// Coded by Bodmer, see license file in root folder
-***************************************************************************************/
-/***************************************************************************************
-// Color bytes are swapped when writing to RAM, this introduces a small overhead but
-// there is a nett performance gain by using swapped bytes.
-***************************************************************************************/
+/*
+ * This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
+ * Copyright (c) 2022 GBeetle.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include "tft_sprite.h"
 

@@ -22,6 +22,7 @@
         "source/remote/components/log_sys": true,
         "source/remote/components/gb_timer": true,
         "source/remote/components/tft_driver": true,
+        "source/remote/components/file_system": true
     },
     "search.exclude": {
         "**/node_modules": true,
@@ -43,6 +44,7 @@
         "source/remote/components/log_sys": true,
         "source/remote/components/gb_timer": true,
         "source/remote/components/tft_driver": true,
+        "source/remote/components/file_system": true
     },
     "files.associations": {
         "cdc.h": "c",
@@ -59,6 +61,7 @@
         "mpu_math.h": "c",
         "utility": "cpp",
         "io_define.h": "c",
-        "xmemory": "c"
+        "xmemory": "c",
+        "readme": "cpp"
     }
 }
