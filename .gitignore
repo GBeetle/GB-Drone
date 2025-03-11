@@ -90,3 +90,8 @@ source/remote/components/spi_bus
 source/remote/components/gb_timer
 source/remote/components/tft_driver
 source/remote/components/file_system
+
+# tools
+tools/esp-idf-ftpServer/build
+tools/esp-idf-ftpServer/managed_components
+tools/esp-idf-ftpServer/dependencies.lock

@@ -62,6 +62,7 @@
         "utility": "cpp",
         "io_define.h": "c",
         "xmemory": "c",
-        "readme": "cpp"
+        "readme": "cpp",
+        "algorithm": "c"
     }
 }

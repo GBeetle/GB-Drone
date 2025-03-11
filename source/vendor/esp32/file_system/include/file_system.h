@@ -23,5 +23,8 @@
 #include "results.h"
 
 GB_RESULT GB_FileSystem_Init(const char* partition_label);
+GB_RESULT GB_FileSystem_Write(const char* file, const uint8_t *data, uint32_t len);
+GB_RESULT GB_FileSystem_Read(const char* file, uint8_t *data, uint32_t len);
+GB_RESULT GB_FileSystem_ListDir();
 
 #endif /* end of include guard: _FILE_SYSTEM__ */

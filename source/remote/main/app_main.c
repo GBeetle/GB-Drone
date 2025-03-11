@@ -90,6 +90,16 @@ void app_main(void)
     GB_LogSystemInit();
     GB_FileSystem_Init("storage");
 
+#if 0
+    char test[] = "Hello world";
+    char out[256] = {0};
+    uint32_t out_size = 256;
+    GB_FileSystem_Write("Hello", (uint8_t *)test, strlen(test));
+    GB_FileSystem_Read("Hello", (uint8_t *)out, strlen(test));
+    GB_DEBUGI(FS_TAG, "Read %d bytes, data: %s", out_size, out);
+    GB_FileSystem_ListDir();
+#endif
+
     TFT_eSpi_init(&tft, TFT_WIDTH, TFT_HEIGHT, 0);
     tft.setRotation(&tft, 0);
     TFT_eSprite_init(&sprite, &tft);
@@ -98,28 +108,6 @@ void app_main(void)
 }
 
 #if 0
-const int bitmapWidth = 240;
-const int bitmapHeight = 240;
-
-void setup() {
-    Serial.begin(9600);
-    tft.reset();
-    uint16_t identifier = tft.readID();
-    tft.begin(identifier);
-    tft.setRotation(1);
-    tft.fillScreen(BLACK);
-
-    if (!flash.begin()) {
-        Serial.println("Error, failed to initialize flash chip!");
-        while (1);
-    }
-
-    if (!fatfs.begin(&flash)) {
-        Serial.println("Error, failed to mount filesystem!");
-        while (1);
-    }
-}
-
 void loop() {
     for (int i = 0; i < 75; i++) {
         char filename[20];

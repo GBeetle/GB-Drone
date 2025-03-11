@@ -41,7 +41,7 @@
 #endif
 
 static const char *TAG = "MAIN";
-static char *MOUNT_POINT = "/root";
+static char *MOUNT_POINT = "/storage";
 
 EventGroupHandle_t xEventTask;
 int FTP_TASK_FINISH_BIT = BIT2;
@@ -97,7 +97,7 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t e
 		xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 	}
 #endif
-} 
+}
 
 #if CONFIG_AP_MODE
 void wifi_init_softap()
@@ -242,8 +242,8 @@ esp_err_t wifi_init_sta()
 		ret_value = ESP_ERR_INVALID_STATE;
 	}
 	ESP_LOGI(TAG, "wifi_init_sta finished.");
-	vEventGroupDelete(s_wifi_event_group); 
-	return ret_value; 
+	vEventGroupDelete(s_wifi_event_group);
+	return ret_value;
 }
 #endif // CONFIG_ST_MODE
 
@@ -493,7 +493,7 @@ void app_main(void)
 	if (s_wl_handle < 0) {
 		while(1) { vTaskDelay(1); }
 	};
-#endif 
+#endif
 
 #if CONFIG_SPI_SDCARD
 	if (CONFIG_SDSPI_POWER != -1) {
@@ -506,7 +506,7 @@ void app_main(void)
 		vTaskDelay(3000 / portTICK_PERIOD_MS);
 	}
 #endif
-	
+
 #if CONFIG_SPI_SDCARD || CONFIG_MMC_SDCARD
 	// Mount FAT File System on SDCARD
 	sdmmc_card_t card;
@@ -514,7 +514,7 @@ void app_main(void)
 	if (ret != ESP_OK) {
 		while(1) { vTaskDelay(1); }
 	};
-#endif 
+#endif
 
 	// Create FTP server task
 	xEventTask = xEventGroupCreate();
@@ -530,11 +530,11 @@ void app_main(void)
 #if CONFIG_FLASH
 	esp_vfs_fat_spiflash_unmount(MOUNT_POINT, s_wl_handle);
 	ESP_LOGI(TAG, "FLASH unmounted");
-#endif 
+#endif
 
 #if CONFIG_SPI_SDCARD || CONFIG_MMC_SDCARD
 	esp_vfs_fat_sdcard_unmount(MOUNT_POINT, &card);
 	ESP_LOGI(TAG, "SDCARD unmounted");
-#endif 
+#endif
 
 }

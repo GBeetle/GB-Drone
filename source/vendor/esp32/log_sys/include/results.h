@@ -93,6 +93,8 @@ typedef uint32_t GB_RESULT;
 #define GB_FS_MOUNT_FAIL        0x80000801
 #define GB_FS_FOPEN_FAIL        0x80000802
 #define GB_FS_RE_FOPEN_FAIL     0x80000803
+#define GB_FS_WRITE_FAIL        0x80000804
+#define GB_FS_READ_FAIL         0x80000805
 
 #define GB_FTP_INIT_FAIL        0x80000900
 #define GB_FTP_CONNECT_FAIL     0x80000901

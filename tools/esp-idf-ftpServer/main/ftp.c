@@ -68,7 +68,7 @@ extern EventGroupHandle_t xEventTask;
 int ftp_buff_size = CONFIG_MICROPY_FTPSERVER_BUFFER_SIZE;
 int ftp_timeout = FTP_CMD_TIMEOUT_MS;
 const char *FTP_TAG = "[Ftp]";
-const char *MOUNT_POINT = "/root";
+const char *MOUNT_POINT = "/storage";
 
 static uint8_t ftp_stop = 0;
 char ftp_user[FTP_USER_PASS_LEN_MAX + 1];
@@ -1364,7 +1364,7 @@ int32_t ftp_get_maxstack (void) {
 void ftp_task (void *pvParameters)
 {
 	ESP_LOGI(FTP_TAG, "ftp_task start");
-	esp_log_level_set(FTP_TAG, ESP_LOG_WARN); 
+	esp_log_level_set(FTP_TAG, ESP_LOG_WARN);
 	strcpy(ftp_user, CONFIG_FTP_USER);
 	strcpy(ftp_pass, CONFIG_FTP_PASSWORD);
 	ESP_LOGI(FTP_TAG, "ftp_user:[%s] ftp_pass:[%s]", ftp_user, ftp_pass);

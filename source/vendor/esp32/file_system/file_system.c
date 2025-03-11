@@ -15,6 +15,13 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/errno.h>
 #include "esp_flash.h"
 #include "esp_flash_spi_init.h"
 #include "esp_partition.h"
@@ -23,10 +30,11 @@
 #include "esp_system.h"
 #include "soc/spi_periph.h"
 #include "file_system.h"
+#include "error_handle.h"
 #include "log_sys.h"
 #include <errno.h>
 
-#define MAX_STRING_LOG_LEN 1024
+#define MAX_FILE_PATH_LEN 256
 // Maximum time to wait for the mutex in a logging statement.
 //
 // We don't expect this to happen in most cases, as contention is low. The most likely case is if a
@@ -71,7 +79,7 @@ bool gb_mount_fatfs(const char* partition_label)
             .format_if_mount_failed = true,
             .allocation_unit_size = CONFIG_WL_SECTOR_SIZE
     };
-    esp_err_t err = esp_vfs_fat_spiflash_mount(base_path, partition_label, &mount_config, &s_wl_handle);
+    esp_err_t err = esp_vfs_fat_spiflash_mount_rw_wl(base_path, partition_label, &mount_config, &s_wl_handle);
     if (err != ESP_OK) {
         GB_DEBUGE(FS_TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
         return false;
@@ -114,5 +122,118 @@ GB_RESULT GB_FileSystem_Init(const char* partition_label)
     gb_get_fatfs_usage(&bytes_total, &bytes_free);
     GB_DEBUGI(FS_TAG, "FAT FS: %d kB total, %d kB free", bytes_total / 1024, bytes_free / 1024);
 
+    return res;
+}
+
+GB_RESULT GB_FileSystem_Write(const char* file, const uint8_t *data, uint32_t len)
+{
+    GB_RESULT res = GB_OK;
+    char full_path[MAX_FILE_PATH_LEN] = {0};
+    FILE *f = NULL;
+
+    strcpy(full_path, base_path);
+    strcat(full_path, "/");
+    strcat(full_path, file);
+
+    f = fopen(full_path, "wb");
+    if (f == NULL) {
+        GB_DEBUGE(FS_TAG, "Failed to open file for writing");
+        CHK_RES(GB_FS_RE_FOPEN_FAIL);
+    }
+
+    fwrite(data, len, 1, f);
+
+#if FS_DEBUG
+    struct stat info;
+    if (stat(full_path, &info) < 0) {
+        GB_DEBUGE(FS_TAG, "Failed to stat file: %s", strerror(errno));
+        CHK_RES(GB_FS_FOPEN_FAIL);
+    }
+
+    GB_DEBUGI(
+        FS_TAG,
+        "File stats:\n"
+        "\tFile size:                %ld bytes\n"
+        "\tFile modification time:   %s",
+        info.st_size,
+        ctime(&info.st_mtime)
+    );
+#endif
+
+error_exit:
+    if (f) fclose(f);
+    return res;
+}
+
+GB_RESULT GB_FileSystem_Read(const char* file, uint8_t *data, uint32_t len)
+{
+    GB_RESULT res = GB_OK;
+    char full_path[MAX_FILE_PATH_LEN] = {0};
+    FILE *f = NULL;
+    int read_len = 0;
+
+    strcpy(full_path, base_path);
+    strcat(full_path, "/");
+    strcat(full_path, file);
+
+#if FS_DEBUG
+    struct stat info;
+    if (stat(full_path, &info) < 0) {
+        GB_DEBUGE(FS_TAG, "Failed to stat file: %s", strerror(errno));
+        CHK_RES(GB_FS_FOPEN_FAIL);
+    }
+
+    GB_DEBUGI(
+        FS_TAG,
+        "File stats:\n"
+        "\tFile size:                %ld bytes\n"
+        "\tFile modification time:   %s",
+        info.st_size,
+        ctime(&info.st_mtime)
+    );
+#endif
+
+    f = fopen(full_path, "rb");
+    if (f == NULL) {
+        GB_DEBUGE(FS_TAG, "Failed to open file for reading");
+        CHK_RES(GB_FS_RE_FOPEN_FAIL);
+    }
+
+    read_len = fread(data, len, 1, f);
+    if (read_len != 1) {
+        GB_DEBUGE(FS_TAG, "Failed to read file");
+        CHK_RES(GB_FS_READ_FAIL);
+    }
+
+error_exit:
+    if (f) fclose(f);
+    return res;
+}
+
+GB_RESULT GB_FileSystem_ListDir()
+{
+    GB_RESULT res = GB_OK;
+
+    GB_DEBUGI(FS_TAG, "Listing files in %s:", base_path);
+
+    DIR *dir = opendir(base_path);
+    if (!dir) {
+        GB_DEBUGE(FS_TAG, "Failed to open directory: %s", strerror(errno));
+        CHK_RES(GB_FS_FOPEN_FAIL);
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        GB_DEBUGI(FS_TAG,
+            "    %s: %s\n",
+            (entry->d_type == DT_DIR)
+                ? "directory"
+                : "file     ",
+            entry->d_name
+        );
+    }
+
+error_exit:
+    closedir(dir);
     return res;
 }
