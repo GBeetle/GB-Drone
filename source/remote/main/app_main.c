@@ -20,68 +20,22 @@
 #include "tft_sprite.h"
 #include "file_system.h"
 
-#define BITS_PER_PIXEL 1              // How many bits per pixel in Sprite
-
 struct TFT_eSPI tft;
 struct TFT_eSprite sprite;
 
-// =========================================================================
-// Create sprite, plot graphics in it, plot to screen, then delete sprite
-// =========================================================================
-void drawStar(int x, int y, int star_color)
-{
-    // 1 bpp colour values can only be 1 or 0 (one or zero)
-    uint16_t transparent = 0; // The transparent colour, can only be 1 or 0
-
-    // Create an 1 bit (2 colour) sprite 70x80 pixels (uses 70*80/8 = 700 bytes of RAM)
-    // Colour depths of 8 bits per pixel and 16 bits are also supported.
-    sprite.setColorDepth(&sprite, BITS_PER_PIXEL);         // Set colour depth first
-    sprite.createSprite(&sprite, 70, 80, 1);               // then create the sprite
-
-    // Fill Sprite with the colour that will be defined later as "transparent"
-    // We could also fill with any colour as transparent, and later specify that
-    // same colour when we push the Sprite onto the display screen.
-    sprite.fillSprite(&sprite, transparent);
-
-    // Draw 2 triangles to create a filled in star
-    sprite._tft->fillTriangle(sprite._tft, 35, 0, 0, 59, 69, 59, star_color);
-    sprite._tft->fillTriangle(sprite._tft, 35, 79, 0, 20, 69, 20, star_color);
-
-    // Punch a star shaped hole in the middle with a smaller "transparent" star
-    sprite._tft->fillTriangle(sprite._tft, 35, 7, 6, 56, 63, 56, transparent);
-    sprite._tft->fillTriangle(sprite._tft, 35, 73, 6, 24, 63, 24, transparent);
-
-    // Set the 2 pixel colours that 1 and 0 represent on the display screen
-    sprite.setBitmapColor(&sprite, star_color, transparent);
-
-    // Push sprite to TFT screen CGRAM at coordinate x,y (top left corner)
-    // Specify what colour is to be treated as transparent (black in this example)
-    sprite.pushSpriteTrans(&sprite, x, y, transparent);
-
-    // Delete Sprite to free memory, creating and deleting takes very little time.
-    sprite.deleteSprite(&sprite);
-}
-
 void draw_loop()
 {
-    int i = 0;
-    uint16_t color[24] = {
-        TFT_BLACK, TFT_NAVY, TFT_DARKGREEN, TFT_DARKCYAN,
-        TFT_MAROON, TFT_PURPLE, TFT_OLIVE, TFT_LIGHTGREY,
-        TFT_DARKGREY, TFT_BLUE, TFT_GREEN, TFT_CYAN,
-        TFT_RED, TFT_MAGENTA, TFT_YELLOW, TFT_WHITE,
-        TFT_ORANGE, TFT_GREENYELLOW, TFT_PINK, TFT_BROWN,
-        TFT_GOLD, TFT_SILVER, TFT_SKYBLUE, TFT_VIOLET};
+    uint32_t buffer_size = TFT_WIDTH * TFT_HEIGHT * 2;
+    uint16_t *buffer = (uint16_t *)malloc(buffer_size);
 
-    tft.fillScreen(&tft, TFT_NAVY);
+    for (int i = 1; i < 62; i++) {
+        char filename[20];
+        sprintf(filename, "O_%d.RAW", i);
 
-    while (1)
-    {
-        tft.fillScreen(&tft, color[i++]);
-        i %= 24;
+        GB_FileSystem_Read(filename, (uint8_t*)buffer, buffer_size);
+        tft.pushImageRam(&tft, 0, 0, TFT_WIDTH, TFT_HEIGHT, buffer);
 
-        drawStar(100, 100, 100);
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        GB_DEBUGI(TFT_TAG, "Display %s", filename);
     }
 }
 
@@ -106,44 +60,3 @@ void app_main(void)
 
     xTaskCreate(draw_loop, "draw_loop", 5120, NULL, 4 | portPRIVILEGE_BIT, NULL);
 }
-
-#if 0
-void loop() {
-    for (int i = 0; i < 75; i++) {
-        char filename[20];
-        sprintf(filename, "output%d.raw", i);
-        displayBitmapFromFlash(filename);
-        delay(100);  // Adjust delay as needed
-    }
-}
-
-void displayBitmapFromFlash(const char* filename) {
-    File file = fatfs.open(filename);
-    if (!file) {
-        Serial.print("Failed to open file: ");
-        Serial.println(filename);
-        return;
-    }
-
-    tft.startWrite();
-    tft.setAddrWindow(0, 0, bitmapWidth, bitmapHeight);
-
-    uint8_t buffer[3];
-    for (int y = 0; y < bitmapHeight; y++) {
-        for (int x = 0; x < bitmapWidth; x++) {
-            if (file.read(buffer, 3) == 3) {
-                uint16_t color = tft.color565(buffer[0], buffer[1], buffer[2]);
-                tft.pushColor(color);
-            } else {
-                Serial.println("Error reading file");
-                file.close();
-                tft.endWrite();
-                return;
-            }
-        }
-    }
-
-    file.close();
-    tft.endWrite();
-}
-#endif
