@@ -63,6 +63,7 @@
         "io_define.h": "c",
         "xmemory": "c",
         "readme": "cpp",
-        "algorithm": "c"
+        "algorithm": "c",
+        "atomic": "c"
     }
 }

@@ -34,6 +34,6 @@
 #define TFT_SPI_RES  18
 #define TFT_SPI_DC   17
 #define TFT_SPI_BLK  14
-#define TFT_SPI_CLOCK_SPEED SPI_MASTER_FREQ_8M
+#define TFT_SPI_CLOCK_SPEED SPI_MASTER_FREQ_40M
 
 #endif /* end of include guard: _IO_DEFINE__ */

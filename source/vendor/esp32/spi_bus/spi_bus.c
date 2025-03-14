@@ -21,13 +21,15 @@
 #include "esp_intr_alloc.h"
 #include "spi_bus.h"
 
+#define SPI_DMA_MAX_TRANS_SIZE  (32 * 1024)   // ESP32S3
+
 // Defaults
 #define SPIBUS_READ     (0x80)  /*!< addr | SPIBUS_READ  */
 #define SPIBUS_WRITE    (0x7F)  /*!< addr & SPIBUS_WRITE */
 
 static GB_RESULT begin(struct spi *spi, int mosi_io_num, int miso_io_num, int sclk_io_num, int max_transfer_sz);
 static GB_RESULT close(struct spi *spi);
-static GB_RESULT addDevice(struct spi *spi, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
+static GB_RESULT addDevice(struct spi *spi, uint8_t devAddr, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
 static GB_RESULT removeDevice(struct spi *spi);
 /*******************************************************************************
  * WRITING
@@ -91,7 +93,7 @@ static GB_RESULT begin(struct spi *spi, int mosi_io_num, int miso_io_num, int sc
     config.sclk_io_num = sclk_io_num;
     config.quadwp_io_num = -1;  // -1 not used
     config.quadhd_io_num = -1;  // -1 not used
-    config.max_transfer_sz = max_transfer_sz;
+    config.max_transfer_sz = SPI_DMA_MAX_TRANS_SIZE;
     config.flags = SPICOMMON_BUSFLAG_MASTER;
     esp_err_t err = spi_bus_initialize(spi->host, &config, SPI_DMA_CH_AUTO);
     if(err != ESP_OK) {
@@ -108,7 +110,7 @@ static GB_RESULT close(struct spi *spi) {
     return GB_OK;
 }
 
-static GB_RESULT addDevice(struct spi *spi, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num) {
+static GB_RESULT addDevice(struct spi *spi, uint8_t devAddr, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num) {
     spi_device_interface_config_t dev_config;
     dev_config.command_bits     = 0;
     dev_config.address_bits     = address_len;
@@ -123,15 +125,21 @@ static GB_RESULT addDevice(struct spi *spi, uint8_t address_len, uint8_t mode, u
     dev_config.queue_size       = 1;
     dev_config.pre_cb           = NULL;
     dev_config.post_cb          = NULL;
-    if (spi_bus_add_device(spi->host, &dev_config, &(spi->deviceHandle)) != ESP_OK) {
+    if (spi_bus_add_device(spi->host, &dev_config, (spi_device_handle_t *)(&(spi->device[devAddr].devHandle))) != ESP_OK) {
         return GB_SPI_CFG_FAIL;
     }
+    spi->device[devAddr].init = true;
     return GB_OK;
 }
 
 static GB_RESULT removeDevice(struct spi *spi) {
-    if (spi_bus_remove_device(spi->deviceHandle) != ESP_OK) {
-        return GB_SPI_RMV_FAIL;
+    for (int i = 0; i < GB_SPI_DEV_MAX; i++)
+    {
+        if (spi->device[i].init)
+        {
+            if (spi_bus_remove_device((spi_device_handle_t)(spi->device[i].devHandle)) != ESP_OK)
+                return GB_SPI_RMV_FAIL;
+        }
     }
     return GB_OK;
 }
@@ -174,23 +182,43 @@ error_exit:
 }
 
 static GB_RESULT writeBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data) {
-    spi_transaction_t transaction;
-    transaction.flags = 0;
-    transaction.cmd = 0;
-    transaction.addr = regAddr & SPIBUS_WRITE;
-    transaction.length = length * 8;
-    transaction.rxlength = 0;
-    transaction.user = NULL;
-    transaction.tx_buffer = data;
-    transaction.rx_buffer = NULL;
-    esp_err_t err = spi_device_transmit(spi->deviceHandle, &transaction);
-    if (err != ESP_OK) {
-        char str[length*5+1];
-        for(size_t i = 0; i < length; i++)
-            sprintf(str+i*5, "0x%s%X ", (data[i] < 0x10 ? "0" : ""), data[i]);
-        GB_DEBUGE(ERROR_TAG, "[%s, handle:0x%X] Write %d bytes to__ register 0x%X, data: %s\n", (spi->host == 1 ? "FSPI" : "HSPI"), (uint32_t)spi->deviceHandle, length, regAddr, str);
-        return GB_SPI_RW_FAIL;
+    esp_err_t err = ESP_OK;
+    int remain_len = length;
+    uint32_t process_len = 0;
+    uint32_t process_times = length / SPI_DMA_MAX_TRANS_SIZE + 1;
+    spi_transaction_t *ret_trans[process_times];
+    spi_transaction_t transaction[process_times];
+
+    for (int i = 0; remain_len > 0; i++)
+    {
+        if (remain_len > SPI_DMA_MAX_TRANS_SIZE)
+            process_len = SPI_DMA_MAX_TRANS_SIZE;
+        else
+            process_len = remain_len;
+
+        //GB_DEBUGE(ERROR_TAG, "PUSH %d bytes", process_len);
+
+        transaction[i].flags = 0;
+        transaction[i].cmd = 0;
+        transaction[i].addr = regAddr & SPIBUS_WRITE;
+        transaction[i].length = process_len * 8;
+        transaction[i].rxlength = 0;
+        transaction[i].user = NULL;
+        transaction[i].tx_buffer = data;
+        transaction[i].rx_buffer = NULL;
+        err = spi_device_transmit((spi_device_handle_t)(spi->device[devAddr].devHandle), &transaction[i]);
+        if (err != ESP_OK) {
+            char str[process_len*5+1];
+            for(size_t i = 0; i < process_len; i++)
+                sprintf(str+i*5, "0x%s%X ", (data[i] < 0x10 ? "0" : ""), data[i]);
+            GB_DEBUGE(ERROR_TAG, "[%s, devAddr:0x%X] Write %d bytes to__ register 0x%X, data: %s, err: %08x\n", (spi->host == 1 ? "FSPI" : "HSPI"), (uint32_t)devAddr, length, regAddr, str, err);
+            return GB_SPI_RW_FAIL;
+        }
+
+        remain_len -= process_len;
+        data += process_len;
     }
+
     return GB_OK;
 }
 
@@ -237,12 +265,12 @@ static GB_RESULT readBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, si
     transaction.user = NULL;
     transaction.tx_buffer = NULL;
     transaction.rx_buffer = data;
-    esp_err_t err = spi_device_transmit(spi->deviceHandle, &transaction);
+    esp_err_t err = spi_device_transmit((spi_device_handle_t)(spi->device[devAddr].devHandle), &transaction);
     if (err != ESP_OK) {
         char str[length*5+1];
         for(size_t i = 0; i < length; i++)
             sprintf(str+i*5, "0x%s%X ", (data[i] < 0x10 ? "0" : ""), data[i]);
-        GB_DEBUGE(ERROR_TAG, "[%s, handle:0x%X] Read_ %d bytes from register 0x%X, data: %s\n", (spi->host == 1 ? "FHPI" : "HSPI"), (uint32_t)spi->deviceHandle, length, regAddr, str);
+        GB_DEBUGE(ERROR_TAG, "[%s, devAddr:0x%X] Read_ %d bytes from register 0x%X, data: %s\n", (spi->host == 1 ? "FHPI" : "HSPI"), devAddr, length, regAddr, str);
         return GB_SPI_RW_FAIL;
     }
     return GB_OK;
@@ -259,7 +287,7 @@ static GB_RESULT readWriteBytes(struct spi *spi, uint8_t devAddr, uint8_t regAdd
     transaction.user = NULL;
     transaction.tx_buffer = w_data;
     transaction.rx_buffer = r_data;
-    esp_err_t err = spi_device_transmit(spi->deviceHandle, &transaction);
+    esp_err_t err = spi_device_transmit((spi_device_handle_t)(spi->device[devAddr].devHandle), &transaction);
     if (err != ESP_OK) {
         char rstr[length*5+1];
         char wstr[length*5+1];
@@ -267,8 +295,8 @@ static GB_RESULT readWriteBytes(struct spi *spi, uint8_t devAddr, uint8_t regAdd
             sprintf(rstr+i*5, "0x%s%X ", (r_data[i] < 0x10 ? "0" : ""), r_data[i]);
             sprintf(wstr+i*5, "0x%s%X ", (w_data[i] < 0x10 ? "0" : ""), w_data[i]);
         }
-        GB_DEBUGE(ERROR_TAG, "[%s, handle:0x%X] Read_ %d bytes from register 0x%X, data: %s\n", (spi->host == 1 ? "FHPI" : "HSPI"), (uint32_t)spi->deviceHandle, length, regAddr, rstr);
-        GB_DEBUGE(ERROR_TAG, "[%s, handle:0x%X] Write %d bytes to__ register 0x%X, data: %s\n", (spi->host == 1 ? "FSPI" : "HSPI"), (uint32_t)spi->deviceHandle, length, regAddr, wstr);
+        GB_DEBUGE(ERROR_TAG, "[%s, devAddr:0x%X] Read_ %d bytes from register 0x%X, data: %s\n", (spi->host == 1 ? "FHPI" : "HSPI"), devAddr, length, regAddr, rstr);
+        GB_DEBUGE(ERROR_TAG, "[%s, devAddr:0x%X] Write %d bytes to__ register 0x%X, data: %s\n", (spi->host == 1 ? "FSPI" : "HSPI"), devAddr, length, regAddr, wstr);
         return GB_SPI_RW_FAIL;
     }
     return GB_OK;

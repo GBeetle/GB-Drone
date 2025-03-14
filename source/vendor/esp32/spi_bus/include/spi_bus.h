@@ -24,12 +24,32 @@
 #include "driver/spi_common.h"
 #include "driver/spi_master.h"
 
+typedef enum {
+    GB_SPI_DEV_0 = 0,
+    GB_SPI_DEV_1 = 1,
+    GB_SPI_DEV_2 = 2,
+    GB_SPI_DEV_3 = 3,
+    GB_SPI_DEV_4 = 4,
+    GB_SPI_DEV_5 = 5,
+    GB_SPI_DEV_6 = 6,
+    GB_SPI_DEV_7 = 7,
+
+    GB_SPI_DEV_MAX
+} GB_SPI_DEV_T;
+
+typedef struct GB_SPI_DevCell {
+    bool init;
+    void *devHandle;
+} GB_SPI_DevCell;
+
+typedef int GB_SPI_Port;
+
 /* ^^^
  * spi
  * ^^^ */
 struct spi {
-    spi_host_device_t host;     /*!< HSPI_HOST or VSPI_HOST */
-    spi_device_handle_t deviceHandle;
+    GB_SPI_Port host;     /*!< HSPI_HOST or VSPI_HOST */
+    GB_SPI_DevCell device[GB_SPI_DEV_MAX];
 
     /**
      * @brief   Config spi bus and initialize
@@ -60,7 +80,7 @@ struct spi {
      * @return  - GB_SPI_CFG_FAIL      spi config failed
      *          - GB_OK                on success
      * */
-    GB_RESULT (*addDevice)(struct spi *spi, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
+    GB_RESULT (*addDevice)(struct spi *spi, uint8_t devAddr, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
     GB_RESULT (*removeDevice)(struct spi *spi);
 
     /**

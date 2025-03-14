@@ -95,7 +95,9 @@
 #define TFT_MAD_BGR 0x08
 #define TFT_MAD_MH  0x04
 #define TFT_MAD_SS  0x02
-#define TFT_MAD_GS  0x01
+#define TFT_MAD_GS
+
+#define TFT_RGB_ORDER 1
 
 #ifdef TFT_RGB_ORDER
   #if (TFT_RGB_ORDER == 1)

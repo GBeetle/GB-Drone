@@ -107,15 +107,15 @@
 #define CS_H
 
 #define tft_Read_8(C) \
-  CHK_LOGE(tft_dev->bus->readByte(tft_dev->bus, 0x00, 0x00, (C)), "TFT readByte failed\n")
+  CHK_LOGE(tft_dev->bus->readByte(tft_dev->bus, GB_SPI_DEV_0, 0x00, (C)), "TFT readByte failed\n")
 #define tft_Write_8(C) \
-  CHK_LOGE(tft_dev->bus->writeByte(tft_dev->bus, 0x00, 0x00, (C)), "TFT writeByte failed\n")
+  CHK_LOGE(tft_dev->bus->writeByte(tft_dev->bus, GB_SPI_DEV_0, 0x00, (C)), "TFT writeByte failed\n")
 #define tft_Write_16(C) \
-  CHK_LOGE(tft_dev->bus->writeByte(tft_dev->bus, 0x00, 0x00, (uint8_t)((C)>>8)), "TFT writeByte failed\n"); \
-  CHK_LOGE(tft_dev->bus->writeByte(tft_dev->bus, 0x00, 0x00, (uint8_t)((C)>>0)), "TFT writeByte failed\n")
+  CHK_LOGE(tft_dev->bus->writeByte(tft_dev->bus, GB_SPI_DEV_0, 0x00, (uint8_t)((C)>>8)), "TFT writeByte failed\n"); \
+  CHK_LOGE(tft_dev->bus->writeByte(tft_dev->bus, GB_SPI_DEV_0, 0x00, (uint8_t)((C)>>0)), "TFT writeByte failed\n")
 #define tft_Write_16S(C) \
-  CHK_LOGE(tft_dev->bus->writeByte(tft_dev->bus, 0x00, 0x00, (uint8_t)((C)>>0)), "TFT writeByte failed\n"); \
-  CHK_LOGE(tft_dev->bus->writeByte(tft_dev->bus, 0x00, 0x00, (uint8_t)((C)>>8)), "TFT writeByte failed\n")
+  CHK_LOGE(tft_dev->bus->writeByte(tft_dev->bus, GB_SPI_DEV_0, 0x00, (uint8_t)((C)>>0)), "TFT writeByte failed\n"); \
+  CHK_LOGE(tft_dev->bus->writeByte(tft_dev->bus, GB_SPI_DEV_0, 0x00, (uint8_t)((C)>>8)), "TFT writeByte failed\n")
 
 #define tft_Write_32(C) \
   tft_Write_16((uint16_t) ((C)>>16)); \

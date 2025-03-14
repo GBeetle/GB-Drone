@@ -259,7 +259,7 @@ static GB_RESULT initBus(struct TFT_eSPI * tft_dev)
     GB_RESULT res = GB_OK;
 
     CHK_RES(hspi.begin(&hspi, TFT_SPI_MOSI, -1, TFT_SPI_SCLK, 0));
-    CHK_RES(hspi.addDevice(&hspi, 0, 2, SPI_DEVICE_NO_DUMMY, TFT_SPI_CLOCK_SPEED, -1));
+    CHK_RES(hspi.addDevice(&hspi, GB_SPI_DEV_0, 0, 2, SPI_DEVICE_NO_DUMMY, TFT_SPI_CLOCK_SPEED, -1));
 
     tft_dev->bus  = &hspi;
 
@@ -328,7 +328,7 @@ void TFT_eSpi_init(struct TFT_eSPI * tft_dev, int16_t w, int16_t h, uint8_t tc)
     tft_dev->textdatum     = TL_DATUM;      // Top Left text alignment is default
     tft_dev->fontsloaded   = 0;
 
-    tft_dev->_swapBytes = false;    // Do not swap colour bytes by default
+    tft_dev->_swapBytes = false;    // Do not swap colour bytes by default for big edain pictures
 
     tft_dev->locked          = true;     // Transaction mutex lock flag to ensure begin/endTranaction pairing
     tft_dev->inTransaction   = false;    // Flag to prevent multiple sequential functions to keep bus access open
@@ -5387,7 +5387,7 @@ static void pushBlock(struct TFT_eSPI *tft_dev, uint16_t color, uint32_t len)
 
     for (int i = 0; i < len; i++)
         color_buffer[i] = color;
-    CHK_LOGE(tft_dev->bus->writeBytes(tft_dev->bus, 0x00, 0x00, sizeof(color_buffer), (const uint8_t*)color_buffer), "TFT pushBlock failed\n");
+    CHK_LOGE(tft_dev->bus->writeBytes(tft_dev->bus, GB_SPI_DEV_0, 0x00, sizeof(color_buffer), (const uint8_t*)color_buffer), "TFT pushBlock failed\n");
     //GB_DEBUGI(TFT_TAG, "PUSH block ok");
     // while (len--) { tft_Write_16(color); }
 }
@@ -5397,9 +5397,11 @@ static void pushBlock(struct TFT_eSPI *tft_dev, uint16_t color, uint32_t len)
 ** Description:             Write a sequence of pixels
 ***************************************************************************************/
 static void pushPixels(struct TFT_eSPI * tft_dev, const void* data_in, uint32_t len){
+    uint16_t *data = (uint16_t*)data_in;
 
-  uint16_t *data = (uint16_t*)data_in;
+    if(tft_dev->_swapBytes) {
+        for (uint32_t i = 0; i < len; i++) (data[i] = data[i] << 8 | data[i] >> 8);
+    }
 
-  if (tft_dev->_swapBytes) while ( len-- ) {tft_Write_16(*data); data++;}
-  else while ( len-- ) {tft_Write_16S(*data); data++;}
+    CHK_LOGE(tft_dev->bus->writeBytes(tft_dev->bus, GB_SPI_DEV_0, 0x00, len * 2, data_in), "TFT pushPixels failed\n");
 }
