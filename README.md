@@ -10,6 +10,22 @@
     build-master.bat flash
     build-master.bat run
 
+## How to build for remote
+
+    cd tools
+    build-remote.bat init    # only need to run once
+    build-remote.bat build
+    build-remote.bat flash
+    build-remote.bat run
+
+## How to build tools
+
+### Build ftpServer
+    cd tools
+    build-tool.bat ftpServer build
+    build-tool.bat ftpServer flash
+    build-tool.bat ftpServer run
+
 
 [Bilibili 合集](https://space.bilibili.com/173526357/channel/series)
 
