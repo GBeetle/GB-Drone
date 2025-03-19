@@ -33,7 +33,7 @@ void draw_loop()
         sprintf(filename, "O_%d.RAW", i);
 
         GB_FileSystem_Read(filename, (uint8_t*)buffer, buffer_size);
-        tft.pushImageRam(&tft, 0, 0, TFT_WIDTH, TFT_HEIGHT, buffer);
+        tft.pushImage(&tft, 0, 0, TFT_WIDTH, TFT_HEIGHT, buffer);
 
         vTaskDelay(50 / portTICK_PERIOD_MS);
 

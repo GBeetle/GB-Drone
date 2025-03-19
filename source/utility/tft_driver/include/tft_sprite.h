@@ -127,7 +127,7 @@ struct TFT_eSprite{
   uint16_t (*readPixelValue)(struct TFT_eSprite* sprite, int32_t x, int32_t y);
 
            // Write an image (colour bitmap) to the sprite.
-  void     (*pushImageRam)(struct TFT_eSprite* sprite, int32_t x0, int32_t y0, int32_t w, int32_t h, uint16_t *data, uint8_t sbpp); //default, sbpp=0
+  void     (*pushImage)(struct TFT_eSprite* sprite, int32_t x0, int32_t y0, int32_t w, int32_t h, uint16_t *data, uint8_t sbpp); //default, sbpp=0
   void     (*pushImageFlash)(struct TFT_eSprite* sprite, int32_t x0, int32_t y0, int32_t w, int32_t h, const uint16_t *data);
 
            // Push the sprite to the TFT screen, this fn calls pushImage() in the TFT class.

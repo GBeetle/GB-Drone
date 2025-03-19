@@ -578,8 +578,8 @@ struct TFT_eSPI {
   void     (*pushRect)(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data);
 
            // These are used to render images or sprites stored in RAM arrays (used by Sprite class for 16bpp Sprites)
-  void     (*pushImageRam)(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data);
-  void     (*pushImageRamTrans)(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data, uint16_t transparent);
+  void     (*pushImage)(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data);
+  void     (*pushImageTrans)(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data, uint16_t transparent);
 
            // These are used to render images stored in FLASH (PROGMEM)
   void     (*pushImageFlashTrans)(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t *data, uint16_t transparent);

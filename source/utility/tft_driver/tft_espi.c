@@ -87,8 +87,8 @@ static int16_t  getPivotX(struct TFT_eSPI * tft_dev); // Get pivot x
 static int16_t  getPivotY(struct TFT_eSPI * tft_dev); // Get pivot y
 static void    readRect(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data);
 static void    pushRect(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data);
-static void    pushImageRam(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data);
-static void    pushImageRamTrans(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data, uint16_t transparent);
+static void    pushImage(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data);
+static void    pushImageTrans(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data, uint16_t transparent);
 static void    pushImageFlashTrans(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t *data, uint16_t transparent);
 static void    pushImageFlash(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, const uint16_t *data);
 static void    pushImageBpp8(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint8_t *data, bool bpp8, uint16_t *cmap);  // bpp8=true, cmap = nullptr
@@ -456,8 +456,8 @@ void TFT_eSpi_init(struct TFT_eSPI * tft_dev, int16_t w, int16_t h, uint8_t tc)
     tft_dev->getPivotY           = &getPivotY;
     tft_dev->readRect            = &readRect;
     tft_dev->pushRect            = &pushRect;
-    tft_dev->pushImageRam        = &pushImageRam;
-    tft_dev->pushImageRamTrans   = &pushImageRamTrans;
+    tft_dev->pushImage        = &pushImage;
+    tft_dev->pushImageTrans   = &pushImageTrans;
     tft_dev->pushImageFlashTrans = &pushImageFlashTrans;
     tft_dev->pushImageFlash      = &pushImageFlash;
     tft_dev->pushImageBpp8       = &pushImageBpp8;
@@ -1376,7 +1376,7 @@ static void pushRect(struct TFT_eSPI *tft_dev, int32_t x, int32_t y, int32_t w, 
     bool swap = tft_dev->_swapBytes;
 
     tft_dev->_swapBytes = false;
-    tft_dev->pushImageRam(tft_dev, x, y, w, h, data);
+    tft_dev->pushImage(tft_dev, x, y, w, h, data);
     tft_dev->_swapBytes = swap;
 }
 
@@ -1385,7 +1385,7 @@ static void pushRect(struct TFT_eSPI *tft_dev, int32_t x, int32_t y, int32_t w, 
 ** Function name:                     pushImage
 ** Description:                         plot 16 bit colour sprite or image onto TFT
 ***************************************************************************************/
-static void pushImageRam(struct TFT_eSPI *tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data)
+static void pushImage(struct TFT_eSPI *tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data)
 {
     PI_CLIP(tft_dev);
 
@@ -1416,7 +1416,7 @@ static void pushImageRam(struct TFT_eSPI *tft_dev, int32_t x, int32_t y, int32_t
 ** Function name:                     pushImage
 ** Description:                         plot 16 bit sprite or image with 1 colour being transparent
 ***************************************************************************************/
-static void pushImageRamTrans(struct TFT_eSPI *tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data, uint16_t transp)
+static void pushImageTrans(struct TFT_eSPI *tft_dev, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data, uint16_t transp)
 {
     PI_CLIP(tft_dev);
 

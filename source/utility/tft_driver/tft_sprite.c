@@ -77,7 +77,7 @@ static void     getRotatedBoundsBound(struct TFT_eSprite* sprite, int16_t angle,
 
 static uint16_t readPixel(struct TFT_eSprite* sprite, int32_t x0, int32_t y0);
 static uint16_t readPixelValue(struct TFT_eSprite* sprite, int32_t x, int32_t y);
-static void     pushImageRam(struct TFT_eSprite* sprite, int32_t x0, int32_t y0, int32_t w, int32_t h, uint16_t *data, uint8_t sbpp); //default, sbpp=0
+static void     pushImage(struct TFT_eSprite* sprite, int32_t x0, int32_t y0, int32_t w, int32_t h, uint16_t *data, uint8_t sbpp); //default, sbpp=0
 static void     pushImageFlash(struct TFT_eSprite* sprite, int32_t x0, int32_t y0, int32_t w, int32_t h, const uint16_t *data);
 static void     pushSprite(struct TFT_eSprite* sprite, int32_t x, int32_t y);
 static void     pushSpriteTrans(struct TFT_eSprite* sprite, int32_t x, int32_t y, uint16_t transparent);
@@ -154,7 +154,7 @@ void TFT_eSprite_init(struct TFT_eSprite *sprite, struct TFT_eSPI *tft)
   sprite->getRotatedBoundsBound = &getRotatedBoundsBound;
   sprite->readPixel             = &readPixel;
   sprite->readPixelValue        = &readPixelValue;
-  sprite->pushImageRam          = &pushImageRam;
+  sprite->pushImage          = &pushImage;
   sprite->pushImageFlash        = &pushImageFlash;
   sprite->pushSprite            = &pushSprite;
   sprite->pushSpriteTrans       = &pushSpriteTrans;
@@ -613,7 +613,7 @@ static bool pushRotatedSprite(struct TFT_eSprite* sprite, struct TFT_eSprite *sp
       else { rp = sprite->readPixel(sprite, xp, yp); rp = (uint16_t)(rp>>8 | rp<<8); }
       if (transp != 0x00FFFFFF && tpcolor == rp) {
         if (pixel_count) {
-          spr->pushImageRam(spr, x - pixel_count, y, pixel_count, 1, sline_buffer, 0);
+          spr->pushImage(spr, x - pixel_count, y, pixel_count, 1, sline_buffer, 0);
           pixel_count = 0;
         }
       }
@@ -621,7 +621,7 @@ static bool pushRotatedSprite(struct TFT_eSprite* sprite, struct TFT_eSprite *sp
         sline_buffer[pixel_count++] = rp;
       }
     } while (++x < max_x && (xs += sprite->_cosra) < xe && (ys += sprite->_sinra) < ye);
-    if (pixel_count) spr->pushImageRam(spr, x - pixel_count, y, pixel_count, 1, sline_buffer, 0);
+    if (pixel_count) spr->pushImage(spr, x - pixel_count, y, pixel_count, 1, sline_buffer, 0);
   }
   spr->_tft->setSwapBytes(spr->_tft, oldSwapBytes);
   return true;
@@ -763,7 +763,7 @@ static void pushSprite(struct TFT_eSprite* sprite, int32_t x, int32_t y)
   {
     bool oldSwapBytes = sprite->_tft->getSwapBytes(sprite->_tft);
     sprite->_tft->setSwapBytes(sprite->_tft, false);
-    sprite->_tft->pushImageRam(sprite->_tft, x, y, sprite->_dwidth, sprite->_dheight, sprite->_img );
+    sprite->_tft->pushImage(sprite->_tft, x, y, sprite->_dwidth, sprite->_dheight, sprite->_img );
     sprite->_tft->setSwapBytes(sprite->_tft, oldSwapBytes);
   }
   else if (sprite->_bpp == 4)
@@ -786,7 +786,7 @@ static void pushSpriteTrans(struct TFT_eSprite* sprite, int32_t x, int32_t y, ui
   {
     bool oldSwapBytes = sprite->_tft->getSwapBytes(sprite->_tft);
     sprite->_tft->setSwapBytes(sprite->_tft, false);
-    sprite->_tft->pushImageRamTrans(sprite->_tft, x, y, sprite->_dwidth, sprite->_dheight, sprite->_img, transp);
+    sprite->_tft->pushImageTrans(sprite->_tft, x, y, sprite->_dwidth, sprite->_dheight, sprite->_img, transp);
     sprite->_tft->setSwapBytes(sprite->_tft, oldSwapBytes);
   }
   else if (sprite->_bpp == 8)
@@ -828,7 +828,7 @@ static bool pushToSprite(struct TFT_eSprite* sprite, struct TFT_eSprite *dspr, i
 
   bool oldSwapBytes = dspr->_tft->getSwapBytes(dspr->_tft);
   dspr->_tft->setSwapBytes(dspr->_tft, false);
-  dspr->pushImageRam(dspr, x, y, sprite->_dwidth, sprite->_dheight, sprite->_img, sprite->_bpp);
+  dspr->pushImage(dspr, x, y, sprite->_dwidth, sprite->_dheight, sprite->_img, sprite->_bpp);
   dspr->_tft->setSwapBytes(dspr->_tft, oldSwapBytes);
 
   return true;
@@ -875,7 +875,7 @@ static bool pushToSpriteTrans(struct TFT_eSprite* sprite, struct TFT_eSprite *ds
 
       if (transp == rp) {
         if (pixel_count) {
-          dspr->pushImageRam(dspr, ox, y, pixel_count, 1, sline_buffer, sprite->_bpp);
+          dspr->pushImage(dspr, ox, y, pixel_count, 1, sline_buffer, sprite->_bpp);
           ox += pixel_count;
           pixel_count = 0;
         }
@@ -885,7 +885,7 @@ static bool pushToSpriteTrans(struct TFT_eSprite* sprite, struct TFT_eSprite *ds
         sline_buffer[pixel_count++] = rp;
       }
     }
-    if (pixel_count) dspr->pushImageRam(dspr, ox, y, pixel_count, 1, sline_buffer, 0);
+    if (pixel_count) dspr->pushImage(dspr, ox, y, pixel_count, 1, sline_buffer, 0);
     y++;
   }
   dspr->_tft->setSwapBytes(dspr->_tft, oldSwapBytes);
@@ -924,10 +924,10 @@ static bool pushSpriteWin(struct TFT_eSprite* sprite, int32_t tx, int32_t ty, in
 
     // Check if a faster block copy to screen is possible
     if ( sx == 0 && sw == sprite->_dwidth)
-      sprite->_tft->pushImageRam(sprite->_tft, tx, ty, sw, sh, sprite->_img +sprite-> _iwidth * sprite->_ys );
+      sprite->_tft->pushImage(sprite->_tft, tx, ty, sw, sh, sprite->_img +sprite-> _iwidth * sprite->_ys );
     else // Render line by line
       while (sh--)
-        sprite->_tft->pushImageRam(sprite->_tft, tx, ty++, sw, 1, sprite->_img + sprite->_xs + sprite->_iwidth * sprite->_ys++ );
+        sprite->_tft->pushImage(sprite->_tft, tx, ty++, sw, 1, sprite->_img + sprite->_xs + sprite->_iwidth * sprite->_ys++ );
 
     sprite->_tft->setSwapBytes(sprite->_tft, oldSwapBytes);
   }
@@ -1127,7 +1127,7 @@ static uint16_t readPixel(struct TFT_eSprite* sprite, int32_t x, int32_t y)
 ** Function name:           pushImage
 ** Description:             push image into a defined area of a sprite
 ***************************************************************************************/
-static void  pushImageRam(struct TFT_eSprite* sprite, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data, uint8_t sbpp)
+static void  pushImage(struct TFT_eSprite* sprite, int32_t x, int32_t y, int32_t w, int32_t h, uint16_t *data, uint8_t sbpp)
 {
   if (data == NULL || !sprite->_created) return;
 
