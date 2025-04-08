@@ -18,6 +18,8 @@
  #include <stdio.h>
  #include "log_sys.h"
  #include "tft_sprite.h"
+ #include "file_system.h"
+ #include "disp_driver.h"
 
  #define BITS_PER_PIXEL 1              // How many bits per pixel in Sprite
 
@@ -88,13 +90,9 @@
  {
      GB_LogSystemInit();
 
-     TFT_eSpi_init(&tft, TFT_WIDTH, TFT_HEIGHT, 0);
-     GB_DEBUGI(TFT_TAG, "TFT espi init DONE");
-
-     tft.setRotation(&tft, 0);
-
+     disp_driver_init();
+     TFT_eSpi_init(&tft, LV_HOR_RES_MAX, LV_VER_RES_MAX, 0);
      TFT_eSprite_init(&sprite, &tft);
-     GB_DEBUGI(TFT_TAG, "TFT Sprite init DONE");
 
      xTaskCreate(draw_loop, "draw_loop", 5120, NULL, 4 | portPRIVILEGE_BIT, NULL);
  }

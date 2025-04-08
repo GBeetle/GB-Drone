@@ -1,0 +1,2 @@
+rsource "disp_tft/Kconfig"
+rsource "disp_touch/Kconfig"

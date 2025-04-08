@@ -51,7 +51,7 @@ struct i2c {
      */
     GB_RESULT (*begin)(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t clk_speed);
 
-    GB_RESULT (*addDevice)(struct i2c *i2c, uint8_t devAddr, uint32_t clk_speed);
+    GB_RESULT (*addDevice)(struct i2c *i2c, uint64_t devAddr, uint32_t clk_speed);
 
     /**
      * Stop i2c bus and unninstall driver
@@ -74,10 +74,10 @@ struct i2c {
      * @return  - GB_OK Success
      *          - GB_I2C_RW_FAIL   i2c read/wirte failed
      */
-    GB_RESULT (*writeBit)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data);
-    GB_RESULT (*writeBits)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
-    GB_RESULT (*writeByte)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t data);
-    GB_RESULT (*writeBytes)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data);
+    GB_RESULT (*writeBit)(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t data);
+    GB_RESULT (*writeBits)(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
+    GB_RESULT (*writeByte)(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t data);
+    GB_RESULT (*writeBytes)(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, size_t length, const uint8_t *data);
 
     /**
      * *** READING interface ***
@@ -94,10 +94,10 @@ struct i2c {
      * @return  - GB_OK Success
      *          - GB_I2C_RW_FAIL   i2c read/wirte failed
      */
-    GB_RESULT (*readBit)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data);
-    GB_RESULT (*readBits)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);
-    GB_RESULT (*readByte)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t *data);
-    GB_RESULT (*readBytes)(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data);
+    GB_RESULT (*readBit)(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t *data);
+    GB_RESULT (*readBits)(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);
+    GB_RESULT (*readByte)(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t *data);
+    GB_RESULT (*readBytes)(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *data);
 };
 
 // Default Objects

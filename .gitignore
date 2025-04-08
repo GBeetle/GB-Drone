@@ -82,6 +82,7 @@ source/master/components/Fusion
 source/master/components/bmp280
 source/master/components/lis3mdl
 source/master/components/gb_timer
+source/master/components/gpio_setting
 
 source/remote/components/error_handle
 source/remote/components/i2c_bus
@@ -90,6 +91,9 @@ source/remote/components/spi_bus
 source/remote/components/gb_timer
 source/remote/components/tft_driver
 source/remote/components/file_system
+source/remote/components/lvgl
+source/remote/components/disp_driver
+source/remote/components/gpio_setting
 
 # tools
 tools/esp-idf-ftpServer/build

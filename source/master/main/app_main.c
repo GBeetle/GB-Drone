@@ -38,8 +38,8 @@ void app_main(void)
     GB_DEBUGI(GB_INFO, "Taks Create Start");
 
     // TEST IO
-    //gpio_reset_pin( TEST_IMU_IO );
-    //gpio_set_direction( TEST_IMU_IO, GPIO_MODE_OUTPUT );
+    //GB_GPIO_Reset( TEST_IMU_IO );
+    //GB_GPIO_SetDirection( TEST_IMU_IO, GB_GPIO_OUTPUT );
 
     xTaskCreatePinnedToCore( gb_sensor_fusion, "gb_sensor_fusion", 5120, NULL, configMAX_PRIORITIES - 1, NULL, tskNO_AFFINITY );
     xTaskCreatePinnedToCore( gb_read_sensor_data, "gb_read_sensor_data", 4096, NULL, configMAX_PRIORITIES - 2, &mpu_isr_handle, tskNO_AFFINITY );

@@ -80,7 +80,7 @@ struct spi {
      * @return  - GB_SPI_CFG_FAIL      spi config failed
      *          - GB_OK                on success
      * */
-    GB_RESULT (*addDevice)(struct spi *spi, uint8_t devAddr, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
+    GB_RESULT (*addDevice)(struct spi *spi, uint64_t devAddr, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
     GB_RESULT (*removeDevice)(struct spi *spi);
 
     /**
@@ -97,10 +97,12 @@ struct spi {
      * @return  - GB_SPI_RW_FAIL       spi read/write failed
      *          - GB_OK                on success
      */
-    GB_RESULT (*writeBit)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data);
-    GB_RESULT (*writeBits)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
-    GB_RESULT (*writeByte)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t data);
-    GB_RESULT (*writeBytes)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data);
+    GB_RESULT (*writeBit)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t data);
+    GB_RESULT (*writeBits)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
+    GB_RESULT (*writeByte)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t data);
+    GB_RESULT (*writeBytes)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, const uint8_t *data);
+    GB_RESULT (*readWriteBytesWithConfig)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data,
+                                      uint8_t commandBits, uint8_t addrBits, uint8_t dummyBits);
 
     /**
      * *** READING interface ***
@@ -115,11 +117,11 @@ struct spi {
      * @return  - GB_SPI_RW_FAIL       spi read/write failed
      *          - GB_OK                on success
      */
-    GB_RESULT (*readBit)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data);
-    GB_RESULT (*readBits)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);
-    GB_RESULT (*readByte)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t *data);
-    GB_RESULT (*readBytes)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data);
-    GB_RESULT (*readWriteBytes)(struct spi *spi, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data);
+    GB_RESULT (*readBit)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t *data);
+    GB_RESULT (*readBits)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);
+    GB_RESULT (*readByte)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t *data);
+    GB_RESULT (*readBytes)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *data);
+    GB_RESULT (*readWriteBytes)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data);
 };
 
 // Default objects

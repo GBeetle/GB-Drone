@@ -20,6 +20,7 @@
 #include "bmp280.h"
 #include "gb_timer.h"
 #include "isr_manager.h"
+//#include "gpio_setting.h"
 
 static GB_RESULT initialize(struct mpu *mpu);
 static GB_RESULT reset(struct mpu *mpu);

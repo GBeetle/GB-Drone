@@ -1,0 +1,637 @@
+# NOTES:
+# - default <> if <> work only when no prompt is available for the user
+
+menu "Disp-Driver TFT Display controller"
+
+    # Predefined display configurations for multiple
+    # evaluation/development boards.
+    choice PREDEFINED_DISPLAY
+        prompt "Select predefined display configuration"
+        default PREDEFINED_DISPLAY_NONE
+        help
+            Select predefined display configuration
+
+        config PREDEFINED_DISPLAY_NONE
+            bool "None"
+        config PREDEFINED_DISPLAY_M5STACK
+            bool "M5Stack"
+            select TFT_DISPLAY_CONTROLLER_ILI9341
+            select TFT_DISPLAY_PROTOCOL_SPI
+        config PREDEFINED_DISPLAY_M5STICK
+            bool "M5Stick"
+            select TFT_DISPLAY_CONTROLLER_SH1107
+            select TFT_DISPLAY_PROTOCOL_SPI
+            select TFT_DISPLAY_MONOCHROME
+            select THEME_MONO
+        config PREDEFINED_DISPLAY_M5STICKC
+            bool "M5StickC"
+            select TFT_DISPLAY_CONTROLLER_ST7735S
+            select TFT_DISPLAY_PROTOCOL_SPI
+        config PREDEFINED_DISPLAY_ERTFT0356
+            bool "ER-TFT035-6"
+            select TFT_DISPLAY_CONTROLLER_ILI9488
+            select TFT_DISPLAY_PROTOCOL_SPI
+        config PREDEFINED_DISPLAY_ADA_FEATHERWING
+            bool "Adafruit 3.5 Featherwing"
+            select TFT_DISPLAY_CONTROLLER_HX8357
+            select TFT_DISPLAY_PROTOCOL_SPI
+       config PREDEFINED_DISPLAY_RPI_MPI3501
+            bool "RPi MPI3501"
+            select TFT_DISPLAY_CONTROLLER_ILI9486
+            select TFT_DISPLAY_PROTOCOL_SPI
+        config PREDEFINED_DISPLAY_WEMOS_LOLIN
+            bool "Wemos Lolin OLED"
+            select TFT_DISPLAY_CONTROLLER_SSD1306
+            select TFT_DISPLAY_PROTOCOL_I2C
+            select TFT_DISPLAY_MONOCHROME
+            select THEME_MONO
+        config PREDEFINED_DISPLAY_ATAG
+            bool "AIRcable ATAGv3"
+            select TFT_DISPLAY_CONTROLLER_IL3820
+            select TFT_DISPLAY_PROTOCOL_SPI
+            select TFT_DISPLAY_MONOCHROME
+            select THEME_MONO
+        config PREDEFINED_DISPLAY_RPI_RA8875
+            bool "RAiO RA8875"
+            select TFT_DISPLAY_CONTROLLER_RA8875
+            select TFT_DISPLAY_PROTOCOL_SPI
+        config PREDEFINED_DISPLAY_TTGO
+            bool "TTGO T-Display"
+            select TFT_DISPLAY_CONTROLLER_ST7789
+            select TFT_DISPLAY_PROTOCOL_SPI
+            select TFT_DISPLAY_OFFSETS
+        config PREDEFINED_DISPLAY_TTGO_CAMERA_PLUS
+            bool "TTGO Camera Plus"
+            select TFT_DISPLAY_CONTROLLER_ST7789
+            select TFT_DISPLAY_PROTOCOL_SPI
+        config PREDEFINED_DISPLAY_WT32_SC01
+            bool "Wireless Tag WT32-SC01"
+            select TFT_DISPLAY_CONTROLLER_ST7796S
+            select TFT_DISPLAY_PROTOCOL_SPI
+    endchoice
+
+    # START of helper symbols.
+    #
+    # Display controller symbols,
+    #
+    # This boolean configuration symbols can be used to know what
+    # display controller has been choosen by the user. When selected
+    # the symbol <symbol_name> is set to y, then in the file sdkconfig.h
+    # the symbol CONFIG_<symbol_name> is set to 1.
+    #
+    # If you add support for a new display controller to the repository
+    # you must add a config option for it on this helper symbols section.
+    config TFT_DISPLAY_CONTROLLER_ILI9341
+        bool
+        help
+            ILI9341 display controller.
+
+    config TFT_DISPLAY_CONTROLLER_ILI9481
+        bool
+        help
+            ILI9481 display controller.
+
+    config TFT_DISPLAY_CONTROLLER_ILI9488
+        bool
+        help
+            ILI9488 display controller.
+
+    config TFT_DISPLAY_CONTROLLER_ILI9486
+        bool
+        help
+            ILI9486 display controller.
+
+    config TFT_DISPLAY_CONTROLLER_ST7789
+        bool
+        help
+            ST7789 display controller.
+
+    config TFT_DISPLAY_CONTROLLER_GC9A01
+        bool
+        help
+            GC9A01 display controller.
+
+    config TFT_DISPLAY_CONTROLLER_ST7735S
+        bool
+        help
+            ST7735S display controller.
+
+    config TFT_DISPLAY_CONTROLLER_HX8357
+        bool
+        help
+            HX8357 display controller.
+
+    config TFT_DISPLAY_CONTROLLER_SH1107
+        bool
+        help
+            SH1107 display controller.
+
+    config TFT_DISPLAY_CONTROLLER_SSD1306
+        bool
+        help
+            SSD1306 display controller.
+
+    config TFT_DISPLAY_CONTROLLER_FT81X
+        bool
+        help
+            FT81x display controller.
+
+    config TFT_DISPLAY_CONTROLLER_IL3820
+        bool
+        help
+            IL3820 epaper display controller.
+
+    config TFT_DISPLAY_CONTROLLER_JD79653A
+        bool
+        help
+            FitiPower JD79653A display controller for GoodDisplay GDEW0154M09 e-paper panel
+
+    config TFT_DISPLAY_CONTROLLER_UC8151D
+        bool
+        help
+            UltraChip UC8151D display controller with GoodDisplay GDEW0154M10 DES e-paper panel
+
+    config TFT_DISPLAY_CONTROLLER_RA8875
+        bool
+        help
+            RA8875 display controller.
+
+    config TFT_DISPLAY_CONTROLLER_ST7796S
+        bool
+        help
+            ST7796S display controller.
+
+    # Display controller communication protocol
+    #
+    # This symbols define the communication protocol used
+    # to communicate with the display controller.
+    # This symbols can be used, but not limited, to:
+    # - Know what peripherals to initialize.
+    # - Know if the touch and display controllers share the same peripheral.
+    # - Etc.
+    config TFT_DISPLAY_PROTOCOL_SPI
+        bool
+        help
+            Display controller protocol SPI
+
+    config TFT_DISPLAY_PROTOCOL_I2C
+        bool
+        help
+            Display controller protocol I2C
+
+    # Used in display init function to send display orientation commands
+    choice DISPLAY_ORIENTATION
+        prompt "Display orientation"
+        default DISPLAY_ORIENTATION_PORTRAIT if !TFT_DISPLAY_CONTROLLER_SSD1306
+        default DISPLAY_ORIENTATION_LANDSCAPE if TFT_DISPLAY_CONTROLLER_SSD1306
+        config DISPLAY_ORIENTATION_PORTRAIT
+            bool "Portrait" if !TFT_DISPLAY_CONTROLLER_SSD1306
+        config DISPLAY_ORIENTATION_PORTRAIT_INVERTED
+            bool "Portrait inverted" if !TFT_DISPLAY_CONTROLLER_SSD1306
+        config DISPLAY_ORIENTATION_LANDSCAPE
+            bool "Landscape"
+        config DISPLAY_ORIENTATION_LANDSCAPE_INVERTED
+            bool "Landscape inverted"
+    endchoice
+
+    config DISPLAY_ORIENTATION
+        int
+        default 0 if DISPLAY_ORIENTATION_PORTRAIT
+        default 1 if DISPLAY_ORIENTATION_PORTRAIT_INVERTED
+        default 2 if DISPLAY_ORIENTATION_LANDSCAPE
+        default 3 if DISPLAY_ORIENTATION_LANDSCAPE_INVERTED
+
+    config TFT_DISPLAY_OFFSETS
+        bool
+        help
+        Display area doesn't start at address 0
+
+    config TFT_DISPLAY_X_OFFSET
+        depends on TFT_DISPLAY_OFFSETS
+        int
+        default 40 if PREDEFINED_DISPLAY_TTGO && (DISPLAY_ORIENTATION_LANDSCAPE || DISPLAY_ORIENTATION_LANDSCAPE_INVERTED)
+        default 53 if PREDEFINED_DISPLAY_TTGO && (DISPLAY_ORIENTATION_PORTRAIT  || DISPLAY_ORIENTATION_PORTRAIT_INVERTED)
+        default 0
+
+    config TFT_DISPLAY_Y_OFFSET
+        depends on TFT_DISPLAY_OFFSETS
+        int
+        default 53  if PREDEFINED_DISPLAY_TTGO && (DISPLAY_ORIENTATION_LANDSCAPE || DISPLAY_ORIENTATION_LANDSCAPE_INVERTED)
+        default 40 if PREDEFINED_DISPLAY_TTGO && (DISPLAY_ORIENTATION_PORTRAIT  || DISPLAY_ORIENTATION_PORTRAIT_INVERTED)
+        default 0
+
+
+    # Display colors(?)
+    # Useful to know when the display being used is a monochrome
+    # display, so we can use the monochrome theme, etc.
+    config TFT_DISPLAY_MONOCHROME
+        bool
+        help
+            A monochrome display is used.
+    # END of helper symbols
+
+    # Select one of the available display controllers.
+    choice
+    prompt "Select a display controller model." if PREDEFINED_DISPLAY_NONE
+        help
+        Select the controller for your display.
+
+    config TFT_DISPLAY_USER_CONTROLLER_ILI9341
+        bool "ILI9341"
+            select TFT_DISPLAY_CONTROLLER_ILI9341
+            select TFT_DISPLAY_PROTOCOL_SPI
+    config TFT_DISPLAY_USER_CONTROLLER_ILI9481
+        bool "ILI9481"
+            select TFT_DISPLAY_CONTROLLER_ILI9481
+            select TFT_DISPLAY_PROTOCOL_SPI
+    config TFT_DISPLAY_USER_CONTROLLER_ILI9486
+        bool "ILI9486"
+            select TFT_DISPLAY_CONTROLLER_ILI9486
+            select TFT_DISPLAY_PROTOCOL_SPI
+    config TFT_DISPLAY_USER_CONTROLLER_ILI9488
+        bool "ILI9488"
+            select TFT_DISPLAY_CONTROLLER_ILI9488
+            select TFT_DISPLAY_PROTOCOL_SPI
+    config TFT_DISPLAY_USER_CONTROLLER_ST7789
+        bool "ST7789"
+            select TFT_DISPLAY_CONTROLLER_ST7789
+            select TFT_DISPLAY_PROTOCOL_SPI
+    config TFT_DISPLAY_USER_CONTROLLER_ST7796S
+        bool "ST7796S"
+            select TFT_DISPLAY_CONTROLLER_ST7796S
+            select TFT_DISPLAY_PROTOCOL_SPI
+    config TFT_DISPLAY_USER_CONTROLLER_GC9A01
+        bool "GC9A01"
+            select TFT_DISPLAY_CONTROLLER_GC9A01
+            select TFT_DISPLAY_PROTOCOL_SPI
+        config TFT_DISPLAY_USER_CONTROLLER_ST7735S
+            bool "ST7735S"
+            select TFT_DISPLAY_CONTROLLER_ST7735S
+            select TFT_DISPLAY_PROTOCOL_SPI
+    config TFT_DISPLAY_USER_CONTROLLER_HX8357
+        bool "HX8357"
+            select TFT_DISPLAY_CONTROLLER_HX8357
+            select TFT_DISPLAY_PROTOCOL_SPI
+    config TFT_DISPLAY_USER_CONTROLLER_SH1107
+        bool "SH1107"
+            select TFT_DISPLAY_CONTROLLER_SH1107
+            select TFT_DISPLAY_PROTOCOL_SPI
+            select TFT_DISPLAY_MONOCHROME
+        config TFT_DISPLAY_USER_CONTROLLER_SSD1306
+            bool "SSD1306"
+            select TFT_DISPLAY_CONTROLLER_SSD1306
+            select TFT_DISPLAY_PROTOCOL_I2C
+            select TFT_DISPLAY_MONOCHROME
+        config TFT_DISPLAY_USER_CONTROLLER_FT81X
+            bool "FT81X"
+            select TFT_DISPLAY_CONTROLLER_FT81X
+            select TFT_DISPLAY_PROTOCOL_SPI
+        config TFT_DISPLAY_USER_CONTROLLER_IL3820
+            bool "IL3820"
+            select TFT_DISPLAY_CONTROLLER_IL3820
+            select TFT_DISPLAY_PROTOCOL_SPI
+            select TFT_DISPLAY_MONOCHROME
+        config TFT_DISPLAY_USER_CONTROLLER_JD79653A
+            bool "JD79653A"
+            select TFT_DISPLAY_CONTROLLER_JD79653A
+            select TFT_DISPLAY_PROTOCOL_SPI
+            select TFT_DISPLAY_MONOCHROME
+        config TFT_DISPLAY_USER_CONTROLLER_UC8151D
+            bool "UC8151D"
+            select TFT_DISPLAY_CONTROLLER_UC8151D
+            select TFT_DISPLAY_PROTOCOL_SPI
+            select TFT_DISPLAY_MONOCHROME
+        config TFT_DISPLAY_USER_CONTROLLER_RA8875
+            bool "RA8875"
+            select TFT_DISPLAY_CONTROLLER_RA8875
+            select TFT_DISPLAY_PROTOCOL_SPI
+    endchoice
+
+    config CUSTOM_DISPLAY_BUFFER_SIZE
+        bool "Use custom display buffer size (bytes)"
+        help
+            Enable to use a custom display buffer size.
+
+    config CUSTOM_DISPLAY_BUFFER_BYTES
+        int "Custom buffer size (bytes)"
+        depends on CUSTOM_DISPLAY_BUFFER_SIZE
+        default 1024
+        help
+            See Display buffer on LVGL docs for more information.
+
+    # Select one of the available FT81x configurations.
+    choice
+        prompt "Select a FT81x configuration." if TFT_DISPLAY_USER_CONTROLLER_FT81X
+        default FT81X_CONFIG_EVE_NHD_50
+        help
+            Select a configuration for your FT81x display.
+        config FT81X_CONFIG_EVE_VM800B35A
+            bool "EVE_VM800B35A"
+        config FT81X_CONFIG_EVE_VM800B43A
+            bool "EVE_VM800B43A"
+        config FT81X_CONFIG_EVE_VM800B50A
+            bool "EVE_VM800B50A"
+        config FT81X_CONFIG_EVE_VM810C
+            bool "EVE_VM810C"
+        config FT81X_CONFIG_EVE_ME812A
+            bool "EVE_ME812A"
+        config FT81X_CONFIG_EVE_ME813A
+            bool "EVE_ME813A"
+        config FT81X_CONFIG_EVE_FT810CB_HY50HD
+            bool "EVE_FT810CB_HY50HD"
+        config FT81X_CONFIG_EVE_FT811CB_HY50HD
+            bool "EVE_FT811CB_HY50HD"
+        config FT81X_CONFIG_EVE_ET07
+            bool "EVE_ET07"
+        config FT81X_CONFIG_EVE_RVT28
+            bool "EVE_RVT28"
+        config FT81X_CONFIG_EVE_RVT35
+            bool "EVE_RVT35"
+        config FT81X_CONFIG_EVE_RVT43
+            bool "EVE_RVT43"
+        config FT81X_CONFIG_EVE_RVT50
+            bool "EVE_RVT50"
+        config FT81X_CONFIG_EVE_RVT70
+            bool "EVE_RVT70"
+        config FT81X_CONFIG_EVE_RiTFT43
+            bool "EVE_RiTFT43"
+        config FT81X_CONFIG_EVE_RiTFT50
+            bool "EVE_RiTFT50"
+        config FT81X_CONFIG_EVE_RiTFT70
+            bool "EVE_RiTFT70"
+        config FT81X_CONFIG_EVE_EVE2_29
+            bool "EVE_EVE2_29"
+        config FT81X_CONFIG_EVE_EVE2_35
+            bool "EVE_EVE2_35"
+        config FT81X_CONFIG_EVE_EVE2_35G
+            bool "EVE_EVE2_35G"
+        config FT81X_CONFIG_EVE_EVE2_38
+            bool "EVE_EVE2_38"
+        config FT81X_CONFIG_EVE_EVE2_38G
+            bool "EVE_EVE2_38G"
+        config FT81X_CONFIG_EVE_EVE2_43
+            bool "EVE_EVE2_43"
+        config FT81X_CONFIG_EVE_EVE2_43G
+            bool "EVE_EVE2_43G"
+        config FT81X_CONFIG_EVE_EVE2_50
+            bool "EVE_EVE2_50"
+        config FT81X_CONFIG_EVE_EVE2_50G
+            bool "EVE_EVE2_50G"
+        config FT81X_CONFIG_EVE_EVE2_70
+            bool "EVE_EVE2_70"
+        config FT81X_CONFIG_EVE_EVE2_70G
+            bool "EVE_EVE2_70G"
+        config FT81X_CONFIG_EVE_EVE3_35
+            bool "EVE_EVE3_35"
+        config FT81X_CONFIG_EVE_EVE3_35G
+            bool "EVE_EVE3_35G"
+        config FT81X_CONFIG_EVE_EVE3_43
+            bool "EVE_EVE3_43"
+        config FT81X_CONFIG_EVE_EVE3_43G
+            bool "EVE_EVE3_43G"
+        config FT81X_CONFIG_EVE_EVE3_50
+            bool "EVE_EVE3_50"
+        config FT81X_CONFIG_EVE_EVE3_50G
+            bool "EVE_EVE3_50G"
+        config FT81X_CONFIG_EVE_EVE3_70
+            bool "EVE_EVE3_70"
+        config FT81X_CONFIG_EVE_EVE3_70G
+            bool "EVE_EVE3_70G"
+        config FT81X_CONFIG_EVE_NHD_35
+            bool "EVE_NHD_35"
+        config FT81X_CONFIG_EVE_NHD_43
+            bool "EVE_NHD_43"
+        config FT81X_CONFIG_EVE_NHD_50
+            bool "EVE_NHD_50"
+        config FT81X_CONFIG_EVE_NHD_70
+            bool "EVE_NHD_70"
+        config FT81X_CONFIG_EVE_ADAM101
+            bool "EVE_ADAM101"
+        config FT81X_CONFIG_EVE_CFAF240400C1_030SC
+            bool "EVE_CFAF240400C1_030SC"
+        config FT81X_CONFIG_EVE_CFAF320240F_035T
+            bool "EVE_CFAF320240F_035T"
+        config FT81X_CONFIG_EVE_CFAF480128A0_039TC
+            bool "EVE_CFAF480128A0_039TC"
+        config FT81X_CONFIG_EVE_CFAF800480E0_050SC
+            bool "EVE_CFAF800480E0_050SC"
+        config FT81X_CONFIG_EVE_PAF90
+            bool "EVE_PAF90"
+        config FT81X_CONFIG_EVE_SUNFLOWER
+            bool "EVE_SUNFLOWER"
+        config FT81X_CONFIG_EVE_CONNECTEVE
+            bool "EVE_CONNECTEVE"
+    endchoice
+
+    config INVERT_DISPLAY
+        bool "IN DEPRECATION - Invert display." if TFT_DISPLAY_CONTROLLER_RA8875
+        default n
+        help
+            If text is backwards on your display, try enabling this.
+
+    config INVERT_COLORS
+        bool "Invert colors in display" if TFT_DISPLAY_CONTROLLER_ILI9341 || TFT_DISPLAY_CONTROLLER_ST7735S || TFT_DISPLAY_CONTROLLER_ILI9481 || TFT_DISPLAY_CONTROLLER_ST7789 || TFT_DISPLAY_CONTROLLER_SSD1306 || TFT_DISPLAY_CONTROLLER_SH1107 || TFT_DISPLAY_CONTROLLER_HX8357
+        default y if PREDEFINED_DISPLAY_M5STACK || PREDEFINED_DISPLAY_M5STICKC
+        help
+            If the colors look inverted on your display, try enabling this.
+            If it didn't help try LVGL configuration -> Swap the 2 bytes of RGB565 color.
+
+    config M5STICKC_HANDLE_AXP192
+        bool "Handle Backlight and TFT power for M5StickC using AXP192." if PREDEFINED_DISPLAY_M5STICKC || TFT_DISPLAY_CONTROLLER_ST7735S
+        default y if PREDEFINED_DISPLAY_M5STICKC
+        help
+            Display and TFT power supply on M5StickC is controlled using an AXP192 Power Mangerment IC.
+            Select yes if you want to enable TFT IC (LDO3) and backlight power using AXP192 by LVGL, or select no if you want to take care of
+            power management in your own code.
+
+    config AXP192_PIN_SDA
+        int "GPIO for AXP192 I2C SDA"
+        depends on M5STICKC_HANDLE_AXP192
+        range 0 39
+        default 21 if PREDEFINED_DISPLAY_M5STICKC
+        default 21
+        help
+            Configure the AXP192 I2C SDA pin here.
+
+    config AXP192_PIN_SCL
+        int "GPIO for AXP192 I2C SCL"
+        depends on M5STICKC_HANDLE_AXP192
+        range 0 39
+        default 22 if PREDEFINED_DISPLAY_M5STICKC
+        default 22
+        help
+            Configure the AXP192 I2C SDA pin here.
+
+    # menu will be visible only when PREDEFINED_DISPLAY_NONE is y
+    menu "Display RA8875 Configuration"
+    visible if TFT_DISPLAY_CONTROLLER_RA8875
+
+        config DISP_RA8875_PLLDIVM
+            int "PLLDIVM value for RA8875 System Clock"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            range 0 1
+            default 0
+            help
+                Configure the value to use for PLLDIVM in PLLC0 register here.
+
+        config DISP_RA8875_PLLDIVN
+            int "PLLDIVN value for RA8875 System Clock"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            range 1 31
+            default 7
+            help
+                Configure the value to use for PLLDIVN in PLLC0 register here.
+
+        config DISP_RA8875_PLLDIVK
+            int "PLLDIVK value for RA8875 System Clock"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            range 0 7
+            default 3
+            help
+                Configure the value to use for PLLDIVK in PLLC1 register here.
+
+        config DISP_RA8875_PCLK_MULTIPLIER
+            int "PCLK Period Setting"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            range 0 3
+            default 0
+            help
+                Configure the PCLK multiplier in PCSR register here.
+
+        config DISP_RA8875_PCLK_INVERT
+            bool "PCLK Inversion"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            default n
+            help
+                Configure the PCLK to be inverted in PCSR register here.
+
+        config DISP_RA8875_DE_POLARITY
+            bool "Data Enable (DE) Polarity/Invert"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            default n
+            help
+                Set to make data enable (DE) signal active low.
+
+        config DISP_RA8875_HORI_NON_DISP_PERIOD
+            int "Horizontal Non-Display Period"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            range 12 274
+            default 12
+            help
+                Configure the Horizontal Non-Display Period (aka Horizontal Back Porch).
+                Horizontal Non-Display Period(pixels) = 8*(HNDR+1) + 2*(HNDFTR/2+1) + 2
+
+        config DISP_RA8875_HSYNC_START
+            int "HSYNC Start Position"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            range 8 256
+            default 8
+            help
+                Configure start position of HSYNC (aka Horizontal Front Porch).
+                HSYNC Start Position(pixels) = 8*(HSTR+1)
+
+        config DISP_RA8875_HSYNC_PW
+            int "HSYNC Pulse Width"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            range 8 256
+            default 8
+            help
+                Configure pulse width of HSYNC.
+                HSYNC Pulse Width(pixels) = 8*(HPW+1)
+
+        config DISP_RA8875_HSYNC_POLARITY
+            bool "HSYNC Polarity/Invert"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            default n
+            help
+                Set to make HSYNC signal active high.
+
+        config DISP_RA8875_VERT_NON_DISP_PERIOD
+            int "Vertical Non-Display Period"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            range 1 512
+            default 1
+            help
+                Configure the Vertical Non-Display Period (aka Vertical Back Porch).
+                Vertical Non-Display Period(lines) = (VNDR+1)
+
+        config DISP_RA8875_VSYNC_START
+            int "VSYNC Start Position"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            range 1 512
+            default 1
+            help
+                Configure start position of VSYNC (aka Vertical Front Porch).
+                VSYNC Start Position(lines) = (VSTR+1)
+
+        config DISP_RA8875_VSYNC_PW
+            int "VSYNC Pulse Width"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            range 1 128
+            default 1
+            help
+                Configure pulse width of VSYNC.
+                VSYNC Pulse Width(lines) = (VPWR+1)
+
+        config DISP_RA8875_VSYNC_POLARITY
+            bool "VSYNC Polarity/Invert"
+            depends on TFT_DISPLAY_CONTROLLER_RA8875
+            default n
+            help
+                Set to make VSYNC signal active high.
+
+    endmenu
+
+    # menu will be visible only when PREDEFINED_DISPLAY_NONE is y
+    menu "Display ST7789 Configuration"
+    visible if TFT_DISPLAY_CONTROLLER_ST7789
+
+        config DISP_ST7789_SOFT_RESET
+            bool "Soft reset - use software reset instead of reset pin"
+            depends on TFT_DISPLAY_CONTROLLER_ST7789
+            default n
+            help
+                Use software reset and ignores configured reset pin (some hardware does not use a reset pin).
+
+    endmenu
+
+    # menu will be visible only when PREDEFINED_DISPLAY_NONE is y
+    menu "Display Pin Assignments"
+    visible if PREDEFINED_DISPLAY_NONE || PREDEFINED_DISPLAY_RPI_MPI3501 || PREDEFINED_PINS_TKOALA
+
+        config ENABLE_BACKLIGHT_CONTROL
+            bool "Enable control of the display backlight by using an GPIO." if \
+                ( PREDEFINED_DISPLAY_NONE && ! ( TFT_DISPLAY_CONTROLLER_SH1107 || TFT_DISPLAY_CONTROLLER_SSD1306 ) ) \
+                || PREDEFINED_DISPLAY_RPI_MPI3501
+            default y if PREDEFINED_DISPLAY_M5STACK
+            default y if PREDEFINED_DISPLAY_WROVER4
+            default y if PREDEFINED_DISPLAY_ERTFT0356
+            default y if PREDEFINED_DISPLAY_TTGO
+            default y if PREDEFINED_DISPLAY_TTGO_CAMERA_PLUS
+            default y if PREDEFINED_DISPLAY_WT32_SC01
+            help
+                Enable controlling the display backlight using an GPIO
+
+        config BACKLIGHT_ACTIVE_LVL
+            bool "Is backlight turn on with a HIGH (1) logic level?"
+            depends on ENABLE_BACKLIGHT_CONTROL
+            default y if PREDEFINED_DISPLAY_M5STACK
+            default y if PREDEFINED_DISPLAY_ERTFT0356
+            default y if PREDEFINED_DISPLAY_TTGO
+            default y if PREDEFINED_DISPLAY_TTGO_CAMERA_PLUS
+            default y if PREDEFINED_DISPLAY_WT32_SC01
+            help
+                Some backlights are turned on with a high signal, others held low.
+                If enabled, a value of 1 will be sent to the display to enable the backlight,
+                otherwise a 0 will be expected to enable it.
+    endmenu
+
+    config LV_HOR_RES_MAX
+        int "Maximal horizontal resolution to support by the library."
+        default 480
+
+    config LV_VER_RES_MAX
+        int "Maximal vertical resolution to support by the library."
+        default 320
+
+endmenu

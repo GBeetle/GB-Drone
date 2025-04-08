@@ -29,23 +29,25 @@
 
 static GB_RESULT begin(struct spi *spi, int mosi_io_num, int miso_io_num, int sclk_io_num, int max_transfer_sz);
 static GB_RESULT close(struct spi *spi);
-static GB_RESULT addDevice(struct spi *spi, uint8_t devAddr, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
+static GB_RESULT addDevice(struct spi *spi, uint64_t devAddr, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num);
 static GB_RESULT removeDevice(struct spi *spi);
 /*******************************************************************************
  * WRITING
  ******************************************************************************/
-static GB_RESULT writeBit(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data);
-static GB_RESULT writeBits(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
-static GB_RESULT writeByte(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t data);
-static GB_RESULT writeBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data);
+static GB_RESULT writeBit(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t data);
+static GB_RESULT writeBits(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
+static GB_RESULT writeByte(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t data);
+static GB_RESULT writeBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, const uint8_t *data);
+static GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data,
+                                      uint8_t commandBits, uint8_t addrBits, uint8_t dummyBits);
 /*******************************************************************************
  * READING
  ******************************************************************************/
-static GB_RESULT readBit(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data);
-static GB_RESULT readBits(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);
-static GB_RESULT readByte(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t *data);
-static GB_RESULT readBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data);
-static GB_RESULT readWriteBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data);
+static GB_RESULT readBit(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t *data);
+static GB_RESULT readBits(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);
+static GB_RESULT readByte(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t *data);
+static GB_RESULT readBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *data);
+static GB_RESULT readWriteBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data);
 
 /*******************************************************************************
  * OBJECTS
@@ -65,6 +67,7 @@ struct spi fspi = {
     .readByte       = &readByte,
     .readBytes      = &readBytes,
     .readWriteBytes = &readWriteBytes,
+    .readWriteBytesWithConfig = &readWriteBytesWithConfig,
 };
 struct spi hspi = {
     .host           = SPI3_HOST,
@@ -81,6 +84,7 @@ struct spi hspi = {
     .readByte       = &readByte,
     .readBytes      = &readBytes,
     .readWriteBytes = &readWriteBytes,
+    .readWriteBytesWithConfig = &readWriteBytesWithConfig,
 };
 
 /*******************************************************************************
@@ -110,7 +114,7 @@ static GB_RESULT close(struct spi *spi) {
     return GB_OK;
 }
 
-static GB_RESULT addDevice(struct spi *spi, uint8_t devAddr, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num) {
+static GB_RESULT addDevice(struct spi *spi, uint64_t devAddr, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num) {
     spi_device_interface_config_t dev_config;
     dev_config.command_bits     = 0;
     dev_config.address_bits     = address_len;
@@ -148,7 +152,7 @@ static GB_RESULT removeDevice(struct spi *spi) {
 /*******************************************************************************
  * WRITING
  ******************************************************************************/
-static GB_RESULT writeBit(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data) {
+static GB_RESULT writeBit(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t data) {
     uint8_t buffer;
     GB_RESULT res = GB_OK;
 
@@ -159,7 +163,7 @@ error_exit:
     return res;
 }
 
-static GB_RESULT writeBits(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data) {
+static GB_RESULT writeBits(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data) {
     uint8_t buffer;
     GB_RESULT res = GB_OK;
 
@@ -174,19 +178,18 @@ error_exit:
     return res;
 }
 
-static GB_RESULT writeByte(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t data) {
+static GB_RESULT writeByte(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t data) {
     GB_RESULT res = GB_OK;
     CHK_RES(spi->writeBytes(spi, devAddr, regAddr, 1, &data));
 error_exit:
     return res;
 }
 
-static GB_RESULT writeBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data) {
+static GB_RESULT writeBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, const uint8_t *data) {
     esp_err_t err = ESP_OK;
     int remain_len = length;
     uint32_t process_len = 0;
     uint32_t process_times = length / SPI_DMA_MAX_TRANS_SIZE + 1;
-    spi_transaction_t *ret_trans[process_times];
     spi_transaction_t transaction[process_times];
 
     for (int i = 0; remain_len > 0; i++)
@@ -226,14 +229,14 @@ static GB_RESULT writeBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, s
 /*******************************************************************************
  * READING
  ******************************************************************************/
-static GB_RESULT readBit(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data) {
+static GB_RESULT readBit(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t *data) {
     GB_RESULT res = GB_OK;
     CHK_RES(spi->readBits(spi, devAddr, regAddr, bitNum, 1, data));
 error_exit:
     return res;
 }
 
-static GB_RESULT readBits(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data) {
+static GB_RESULT readBits(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data) {
     uint8_t buffer;
     GB_RESULT res = GB_OK;
 
@@ -246,7 +249,7 @@ error_exit:
     return res;
 }
 
-static GB_RESULT readByte(struct spi *spi, uint8_t devAddr, uint8_t regAddr, uint8_t *data) {
+static GB_RESULT readByte(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t *data) {
     GB_RESULT res = GB_OK;
 
     CHK_RES(spi->readBytes(spi, devAddr, regAddr, 1, data));
@@ -254,7 +257,7 @@ error_exit:
     return res;
 }
 
-static GB_RESULT readBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data) {
+static GB_RESULT readBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *data) {
     if(length == 0) return GB_SPI_INVALID_SIZE;
     spi_transaction_t transaction;
     transaction.flags = 0;
@@ -276,7 +279,7 @@ static GB_RESULT readBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, si
     return GB_OK;
 }
 
-static GB_RESULT readWriteBytes(struct spi *spi, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data) {
+static GB_RESULT readWriteBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data) {
     if(length == 0) return GB_SPI_INVALID_SIZE;
     spi_transaction_t transaction;
     transaction.flags = 0;
@@ -302,4 +305,47 @@ static GB_RESULT readWriteBytes(struct spi *spi, uint8_t devAddr, uint8_t regAdd
     return GB_OK;
 }
 
+GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data,
+                                   uint8_t commandBits, uint8_t addrBits, uint8_t dummyBits)
+{
+    esp_err_t err = ESP_OK;
+    int remain_len = length;
+    uint32_t process_len = 0;
+    uint32_t process_times = length / SPI_DMA_MAX_TRANS_SIZE + 1;
+    spi_transaction_ext_t transaction[process_times];
 
+    for (int i = 0; remain_len > 0; i++)
+    {
+        if (remain_len > SPI_DMA_MAX_TRANS_SIZE)
+            process_len = SPI_DMA_MAX_TRANS_SIZE;
+        else
+            process_len = remain_len;
+
+        //GB_DEBUGE(ERROR_TAG, "PUSH %d bytes", process_len);
+
+        transaction[i].command_bits = commandBits;
+        transaction[i].address_bits = addrBits;
+        transaction[i].dummy_bits = dummyBits;
+        transaction[i].base.flags = 0;
+        transaction[i].base.cmd = 0;
+        transaction[i].base.addr = regAddr & SPIBUS_WRITE;
+        transaction[i].base.length = process_len * 8;
+        transaction[i].base.rxlength = 0;
+        transaction[i].base.user = NULL;
+        transaction[i].base.tx_buffer = w_data;
+        transaction[i].base.rx_buffer = r_data;
+        err = spi_device_transmit((spi_device_handle_t)(spi->device[devAddr].devHandle), (spi_transaction_t *)&transaction[i]);
+        if (err != ESP_OK) {
+            char str[process_len*5+1];
+            for(size_t i = 0; i < process_len; i++)
+                sprintf(str+i*5, "0x%s%X ", (w_data[i] < 0x10 ? "0" : ""), w_data[i]);
+            GB_DEBUGE(ERROR_TAG, "[%s, devAddr:0x%X] Write %d bytes to__ register 0x%X, data: %s, err: %08x\n", (spi->host == 1 ? "FSPI" : "HSPI"), (uint32_t)devAddr, length, regAddr, str, err);
+            return GB_SPI_RW_FAIL;
+        }
+
+        remain_len -= process_len;
+        w_data += process_len;
+    }
+
+    return GB_OK;
+}

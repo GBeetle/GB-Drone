@@ -18,7 +18,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "i2c_bus.h"
-#include "driver/gpio.h"
 #include "esp_err.h"
 
 #include "driver/i2c_master.h"
@@ -31,23 +30,23 @@
 #define I2C_MASTER_ACK_DIS  false   /*!< Disable ack check for master */
 
 static GB_RESULT begin(struct i2c *i2c, uint32_t sda_io_num, uint32_t scl_io_num, uint32_t clk_speed);
-static GB_RESULT addDevice(struct i2c *i2c, uint8_t devAddr, uint32_t clk_speed);
+static GB_RESULT addDevice(struct i2c *i2c, uint64_t devAddr, uint32_t clk_speed);
 static GB_RESULT close(struct i2c *i2c);
 /*******************************************************************************
  * WRITING
  ******************************************************************************/
-static GB_RESULT writeBit(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data);
-static GB_RESULT writeBits(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
-static GB_RESULT writeByte(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t data);
-static GB_RESULT writeBytes(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data);
+static GB_RESULT writeBit(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t data);
+static GB_RESULT writeBits(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
+static GB_RESULT writeByte(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t data);
+static GB_RESULT writeBytes(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, size_t length, const uint8_t *data);
 
 /*******************************************************************************
  * READING
  ******************************************************************************/
-static GB_RESULT readBit(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data);
-static GB_RESULT readBits(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);
-static GB_RESULT readByte(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t *data);
-static GB_RESULT readBytes(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data);
+static GB_RESULT readBit(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t *data);
+static GB_RESULT readBits(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);
+static GB_RESULT readByte(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t *data);
+static GB_RESULT readBytes(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *data);
 
 /*******************************************************************************
  * OBJECTS
@@ -123,7 +122,7 @@ error_exit:
     return res;
 }
 
-static GB_RESULT addDevice(struct i2c *i2c, uint8_t devAddr, uint32_t clk_speed)
+static GB_RESULT addDevice(struct i2c *i2c, uint64_t devAddr, uint32_t clk_speed)
 {
     GB_RESULT res = GB_OK;
     i2c_device_config_t dev_cfg = {
@@ -161,7 +160,7 @@ error_exit:
 /*******************************************************************************
  * WRITING
  ******************************************************************************/
-static GB_RESULT writeBit(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data) {
+static GB_RESULT writeBit(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t data) {
     uint8_t buffer;
     GB_RESULT res = GB_OK;
 
@@ -172,7 +171,7 @@ error_exit:
     return res;
 }
 
-static GB_RESULT writeBits(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data) {
+static GB_RESULT writeBits(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data) {
     uint8_t buffer;
     GB_RESULT res = GB_OK;
 
@@ -187,7 +186,7 @@ error_exit:
     return res;
 }
 
-static GB_RESULT writeByte(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t data) {
+static GB_RESULT writeByte(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t data) {
     GB_RESULT res = GB_OK;
 
     CHK_RES(i2c->writeBytes(i2c, devAddr, regAddr, 1, &data));
@@ -195,11 +194,12 @@ error_exit:
     return res;
 }
 
-static GB_RESULT writeBytes(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, const uint8_t *data) {
+static GB_RESULT writeBytes(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, size_t length, const uint8_t *data) {
     GB_RESULT res = GB_OK;
+    uint8_t i2cRegAddr = regAddr;
 
     i2c_master_transmit_multi_buffer_info_t i2c_buffer[3] = {
-        {.write_buffer = &regAddr, .buffer_size = 1},
+        {.write_buffer = &i2cRegAddr, .buffer_size = 1},
         {.write_buffer = data, .buffer_size = length},
     };
 
@@ -216,7 +216,7 @@ error_exit:
 /*******************************************************************************
  * READING
  ******************************************************************************/
-static GB_RESULT readBit(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data) {
+static GB_RESULT readBit(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitNum, uint8_t *data) {
     GB_RESULT res = GB_OK;
 
     CHK_RES(i2c->readBits(i2c, devAddr, regAddr, bitNum, 1, data));
@@ -224,7 +224,7 @@ error_exit:
     return res;
 }
 
-static GB_RESULT readBits(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data) {
+static GB_RESULT readBits(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data) {
     uint8_t buffer;
     GB_RESULT res = GB_OK;
 
@@ -237,7 +237,7 @@ error_exit:
     return res;
 }
 
-static GB_RESULT readByte(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, uint8_t *data) {
+static GB_RESULT readByte(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, uint8_t *data) {
     GB_RESULT res = GB_OK;
 
     CHK_RES(i2c->readBytes(i2c, devAddr, regAddr, 1, data));
@@ -245,11 +245,12 @@ error_exit:
     return res;
 }
 
-static GB_RESULT readBytes(struct i2c *i2c, uint8_t devAddr, uint8_t regAddr, size_t length, uint8_t *data) {
+static GB_RESULT readBytes(struct i2c *i2c, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *data) {
     GB_RESULT res = GB_OK;
+    uint8_t i2cRegAddr = regAddr;
 
     CHK_ESP_ERROR(i2c_master_transmit_receive((i2c_master_dev_handle_t)(i2c->device[findDevice(i2c, devAddr)].devHandle),
-                                              &regAddr, 1,
+                                              &i2cRegAddr, 1,
                                               data, length,
                                               -1), GB_I2C_RW_FAIL);
 error_exit:

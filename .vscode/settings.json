@@ -6,6 +6,8 @@
         "**/CVS": true,
         "**/.DS_Store": true,
         "**/Thumbs.db": true,
+
+        "source/master/build": true,
         "source/master/components/i2c_bus": true,
         "source/master/components/spi_bus": true,
         "source/master/components/error_handle": true,
@@ -15,19 +17,27 @@
         "source/master/components/lis3mdl": true,
         "source/master/components/bmp280": true,
         "source/master/components/gb_timer": true,
+        "source/master/components/gpio_setting": true,
 
+        "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
         "source/remote/components/spi_bus": true,
         "source/remote/components/error_handle": true,
         "source/remote/components/log_sys": true,
         "source/remote/components/gb_timer": true,
         "source/remote/components/tft_driver": true,
-        "source/remote/components/file_system": true
+        "source/remote/components/file_system": true,
+        "source/remote/components/lvgl": true,
+        "source/remote/components/disp_driver": true,
+        "source/remote/components/gpio_setting": true,
     },
+
     "search.exclude": {
         "**/node_modules": true,
         "**/bower_components": true,
         "**/*.code-search": true,
+
+        "source/master/build": true,
         "source/master/components/i2c_bus": true,
         "source/master/components/spi_bus": true,
         "source/master/components/error_handle": true,
@@ -37,14 +47,19 @@
         "source/master/components/lis3mdl": true,
         "source/master/components/bmp280": true,
         "source/master/components/gb_timer": true,
+        "source/master/components/gpio_setting": true,
 
+        "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
         "source/remote/components/spi_bus": true,
         "source/remote/components/error_handle": true,
         "source/remote/components/log_sys": true,
         "source/remote/components/gb_timer": true,
         "source/remote/components/tft_driver": true,
-        "source/remote/components/file_system": true
+        "source/remote/components/file_system": true,
+        "source/remote/components/lvgl": true,
+        "source/remote/components/disp_driver": true,
+        "source/remote/components/gpio_setting": true,
     },
     "files.associations": {
         "cdc.h": "c",
@@ -64,6 +79,14 @@
         "xmemory": "c",
         "readme": "cpp",
         "algorithm": "c",
-        "atomic": "c"
-    }
+        "atomic": "c",
+        "lvgl_spi_conf.h": "c",
+        "disp_spi.h": "c",
+        "compare": "cpp",
+        "cstddef": "cpp",
+        "limits": "cpp",
+        "type_traits": "cpp",
+        "disp_driver.h": "c"
+    },
+    "C_Cpp.dimInactiveRegions": false
 }

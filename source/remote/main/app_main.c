@@ -19,13 +19,14 @@
 #include "log_sys.h"
 #include "tft_sprite.h"
 #include "file_system.h"
+#include "disp_driver.h"
 
 struct TFT_eSPI tft;
 struct TFT_eSprite sprite;
 
 void draw_loop()
 {
-    uint32_t buffer_size = TFT_WIDTH * TFT_HEIGHT * 2;
+    uint32_t buffer_size = LV_HOR_RES_MAX * LV_VER_RES_MAX * 2;
     uint16_t *buffer = (uint16_t *)heap_caps_malloc(buffer_size, MALLOC_CAP_DMA);
 
     for (int i = 0; i < 60; i++) {
@@ -33,11 +34,11 @@ void draw_loop()
         sprintf(filename, "O_%d.RAW", i);
 
         GB_FileSystem_Read(filename, (uint8_t*)buffer, buffer_size);
-        tft.pushImage(&tft, 0, 0, TFT_WIDTH, TFT_HEIGHT, buffer);
+        tft.pushImage(&tft, 0, 0, LV_HOR_RES_MAX, LV_VER_RES_MAX, buffer);
 
         vTaskDelay(50 / portTICK_PERIOD_MS);
 
-        //GB_DEBUGI(TFT_TAG, "Display %s", filename);
+        GB_DEBUGI(DISP_TAG, "Display %s", filename);
     }
 }
 
@@ -46,7 +47,8 @@ void app_main(void)
     GB_LogSystemInit();
     GB_FileSystem_Init("storage");
 
-    TFT_eSpi_init(&tft, TFT_WIDTH, TFT_HEIGHT, 0);
+    disp_driver_init();
+    TFT_eSpi_init(&tft, LV_HOR_RES_MAX, LV_VER_RES_MAX, 0);
     tft.setRotation(&tft, 0);
     TFT_eSprite_init(&sprite, &tft);
 

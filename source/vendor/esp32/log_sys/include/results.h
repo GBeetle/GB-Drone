@@ -25,6 +25,7 @@ typedef uint32_t GB_RESULT;
 
 #define GB_OK                   0x00000000
 #define GB_FAIL                 0x80000000
+#define GB_INVALID_ARGUMENT     0x80000001
 
 #define GB_CHK_BOOL_FAIL        0x80000500
 

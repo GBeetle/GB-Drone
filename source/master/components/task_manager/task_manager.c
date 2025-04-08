@@ -106,7 +106,7 @@ void gb_read_sensor_data(void* arg)
     while (1) {
         if (xSemaphoreTake(mpuSensorReady, portMAX_DELAY) == pdTRUE) {}
 
-        //gpio_set_level( TEST_IMU_IO, 1 );
+        //GB_GPIO_Set( TEST_IMU_IO, 1 );
         raw_axes_t gyroRaw  = GB_RAW_DATA_ZERO;
         raw_axes_t accelRaw  = GB_RAW_DATA_ZERO;
         raw_axes_t magRaw    = GB_RAW_DATA_ZERO;
@@ -131,7 +131,7 @@ void gb_read_sensor_data(void* arg)
 
         sample_times++;
         xSemaphoreGive(mpuDataQueueReady);
-        //gpio_set_level( TEST_IMU_IO, 0 );
+        //GB_GPIO_Set( TEST_IMU_IO, 0 );
     }
 
 error_exit:
@@ -196,7 +196,7 @@ void gb_sensor_fusion(void* arg)
     while (1) {
         if (xSemaphoreTake(mpuDataQueueReady, portMAX_DELAY) == pdTRUE) {}
 
-        //gpio_set_level( TEST_IMU_IO, 1 );
+        //GB_GPIO_Set( TEST_IMU_IO, 1 );
 
         // 0.3ms start
         CHK_FUNC_EXIT(get_sensor_data(&accelRaw, &gyroRaw, &magRaw, &accelG, &gyroDPS, &magDPS, &baro_data));
@@ -283,7 +283,7 @@ void gb_sensor_fusion(void* arg)
         GB_DEBUGD(SENSOR_TAG, "gyro: [%+7.2f %+7.2f %+7.2f ] (º/s) \t", gyroDPS.xyz[0], gyroDPS.xyz[1], gyroDPS.xyz[2]);
         GB_DEBUGD(SENSOR_TAG, "accel: [%+6.2f %+6.2f %+6.2f ] (G) \t", accelG.data.x, accelG.data.y, accelG.data.z);
         GB_DEBUGD(SENSOR_TAG, "mag: [%+6.2f %+6.2f %+6.2f ] (Gauss) \n", magDPS.data.x, magDPS.data.y, magDPS.data.z);
-        //gpio_set_level( TEST_IMU_IO, 0 );
+        //GB_GPIO_Set( TEST_IMU_IO, 0 );
     }
 
 error_exit:

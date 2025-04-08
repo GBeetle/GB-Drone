@@ -16,9 +16,7 @@
  */
 
 #include "tft_espi.h"
-
-void st7789_init(struct TFT_eSPI * tft_dev, uint8_t tc);
-void st7789_rotation(struct TFT_eSPI * tft_dev, uint8_t m);
+#include "disp_driver.h"
 
 static void    drawPixel(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, uint32_t color);
 static void    drawChar(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, uint16_t c, uint32_t color, uint32_t bg, uint8_t size);
@@ -258,25 +256,7 @@ static GB_RESULT initBus(struct TFT_eSPI * tft_dev)
 {
     GB_RESULT res = GB_OK;
 
-    CHK_RES(hspi.begin(&hspi, TFT_SPI_MOSI, -1, TFT_SPI_SCLK, 0));
-    CHK_RES(hspi.addDevice(&hspi, GB_SPI_DEV_0, 0, 2, SPI_DEVICE_NO_DUMMY, TFT_SPI_CLOCK_SPEED, -1));
-
-    tft_dev->bus  = &hspi;
-
-    //TFT_DC
-    gpio_reset_pin( TFT_SPI_DC );
-    gpio_set_direction( TFT_SPI_DC, GPIO_MODE_OUTPUT );
-    gpio_set_level( TFT_SPI_DC, 1 );
-
-    //TFT_RST
-    gpio_reset_pin( TFT_SPI_RES );
-    gpio_set_direction( TFT_SPI_RES, GPIO_MODE_OUTPUT );
-    gpio_set_level( TFT_SPI_RES, 1 );
-
-    //TFT_BLK
-    gpio_reset_pin( TFT_SPI_BLK );
-    gpio_set_direction( TFT_SPI_BLK, GPIO_MODE_OUTPUT );
-    gpio_set_level( TFT_SPI_BLK, 1 );
+    tft_dev->bus = &hspi;
 
 #if defined (TFT_PARALLEL_8_BIT)
 
@@ -299,10 +279,10 @@ static GB_RESULT initBus(struct TFT_eSPI * tft_dev)
     PARALLEL_INIT_TFT_DATA_BUS;
 
 #endif
-error_exit:
     return res;
 }
 
+//extern void st7789_init(struct TFT_eSPI * tft_dev, uint8_t tc);
 /***************************************************************************************
 ** Function name:                     TFT_eSpi_init (tc is tab colour for ST7735 displays only)
 ** Description:                         Reset, then initialise the TFT display registers
@@ -534,11 +514,9 @@ void TFT_eSpi_init(struct TFT_eSPI * tft_dev, int16_t w, int16_t h, uint8_t tc)
     tft_dev->pushBlock           = &pushBlock;
     tft_dev->pushPixels          = &pushPixels;
 
-    GB_DEBUGI(TFT_TAG, "ready to reset viewport");
     // Reset the viewport to the whole screen
     tft_dev->resetViewport(tft_dev);
 
-    GB_DEBUGI(TFT_TAG, "ready to reset init Bus");
     if (tft_dev->_booted)
     {
         initBus(tft_dev);
@@ -551,32 +529,7 @@ void TFT_eSpi_init(struct TFT_eSPI * tft_dev, int16_t w, int16_t h, uint8_t tc)
         tft_dev->end_tft_write(tft_dev);
     } // end of: if just _booted
 
-    GB_DEBUGI(TFT_TAG, "ready to reset RST");
-    // Toggle RST low to reset
-    // TFT_RST
-    gpio_set_level(TFT_SPI_RES, false);
-    delay(200);
-    gpio_set_level(TFT_SPI_RES, true);
-    //writecommand(TFT_SWRST); // Software reset
-    delay(200); // Wait for reset to complete
-
-    tft_dev->begin_tft_write(tft_dev);
-
-    GB_DEBUGI(TFT_TAG, "ready to init st7739");
-    tft_dev->tabcolor = tc;
-    st7789_init(tft_dev, tc);
-
-#ifdef TFT_INVERSION_ON
-    tft_dev->writecommand(tft_dev, TFT_INVON);
-#endif
-
-#ifdef TFT_INVERSION_OFF
-    tft_dev->writecommand(tft_dev, TFT_INVOFF);
-#endif
-
-    tft_dev->end_tft_write(tft_dev);
-    tft_dev->setRotation(tft_dev, tft_dev->rotation);
-    GB_DEBUGI(TFT_TAG, "TFT_eSpi_init Done");
+    GB_DEBUGI(DISP_TAG, "TFT_eSpi_init Done");
 }
 
 /***************************************************************************************
@@ -905,12 +858,7 @@ static bool clipWindow(struct TFT_eSPI * tft_dev, int32_t *xs, int32_t *ys, int3
 ***************************************************************************************/
 static void setRotation(struct TFT_eSPI * tft_dev, uint8_t m)
 {
-    tft_dev->begin_tft_write(tft_dev);
-
-    st7789_rotation(tft_dev, m);
-    delay(10);
-
-    tft_dev->end_tft_write(tft_dev);
+    disp_driver_set_rotation(m);
 
     tft_dev->addr_row = 0xFFFF;
     tft_dev->addr_col = 0xFFFF;
@@ -3912,7 +3860,7 @@ static void fillRect(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, int32_t w,
     //Serial.print(" x=");Serial.print( y);Serial.print(", y=");Serial.print( y);
     //Serial.print(", w=");Serial.print(w);Serial.print(", h=");Serial.println(h);
 
-    GB_DEBUGI(TFT_TAG, "window, x: %d, y: %d, w: %d, h: %d, color: %08x", x, y, w, h, color);
+    GB_DEBUGI(DISP_TAG, "window, x: %d, y: %d, w: %d, h: %d, color: %08x", x, y, w, h, color);
 
     tft_dev->begin_tft_write(tft_dev);
     tft_dev->setWindow(tft_dev, x, y, x + w - 1, y + h - 1);
@@ -5382,13 +5330,13 @@ void gpioMode(uint8_t gpio, uint8_t mode)
 ***************************************************************************************/
 static void pushBlock(struct TFT_eSPI *tft_dev, uint16_t color, uint32_t len)
 {
-    //GB_DEBUGI(TFT_TAG, "PUSH block, color: %04x, len: %d", color, len);
+    //GB_DEBUGI(DISP_TAG, "PUSH block, color: %04x, len: %d", color, len);
     uint16_t color_buffer[len];
 
     for (int i = 0; i < len; i++)
         color_buffer[i] = color;
     CHK_LOGE(tft_dev->bus->writeBytes(tft_dev->bus, GB_SPI_DEV_0, 0x00, sizeof(color_buffer), (const uint8_t*)color_buffer), "TFT pushBlock failed\n");
-    //GB_DEBUGI(TFT_TAG, "PUSH block ok");
+    //GB_DEBUGI(DISP_TAG, "PUSH block ok");
     // while (len--) { tft_Write_16(color); }
 }
 

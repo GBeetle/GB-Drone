@@ -24,11 +24,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "driver/gpio.h"
 #include "spi_bus.h"
 #include "error_handle.h"
 #include "io_define.h"
-#include "st7789_defines.h"
+#include "gpio_setting.h"
+#include "disp_driver.h"
 
 // Bit level feature flags
 // Bit 0 set: viewport capability
@@ -100,8 +100,8 @@
 
 #define DMA_BUSY_CHECK // Not used so leave blank
 
-#define DC_C gpio_set_level(TFT_SPI_DC, false)
-#define DC_D gpio_set_level(TFT_SPI_DC, true)
+#define DC_C GB_GPIO_Set(TFT_SPI_DC, false)
+#define DC_D GB_GPIO_Set(TFT_SPI_DC, true)
 
 #define CS_L
 #define CS_H

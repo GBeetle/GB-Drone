@@ -1,0 +1,285 @@
+menu "Disp-Driver Touch controller"
+
+    config TOUCH_CONTROLLER
+	int
+	default 0 if TOUCH_CONTROLLER_NONE
+	default 1 if TOUCH_CONTROLLER_XPT2046
+	default 2 if TOUCH_CONTROLLER_FT6X06
+	default 3 if TOUCH_CONTROLLER_STMPE610
+        default 4 if TOUCH_CONTROLLER_ADCRAW
+        default 5 if TOUCH_CONTROLLER_FT81X
+        default 6 if TOUCH_CONTROLLER_RA8875
+
+    choice
+	prompt "Select a touch panel controller model."
+	default TOUCH_CONTROLLER_NONE
+	help
+	    Select the controller for your touch panel.
+
+	config TOUCH_CONTROLLER_NONE
+	    bool "None"
+	config TOUCH_CONTROLLER_XPT2046
+            select TOUCH_DRIVER_PROTOCOL_SPI
+            bool "XPT2046"
+	config TOUCH_CONTROLLER_FT6X06
+            select TOUCH_DRIVER_PROTOCOL_I2C
+            bool "FT6X06"
+        config TOUCH_CONTROLLER_STMPE610
+            select TOUCH_DRIVER_PROTOCOL_SPI
+            bool "STMPE610"
+        config TOUCH_CONTROLLER_ADCRAW
+            select TOUCH_DRIVER_ADC
+            bool "ADCRAW"
+        config TOUCH_CONTROLLER_FT81X
+            select TOUCH_DRIVER_PROTOCOL_SPI
+            bool "FT81X"
+        config TOUCH_CONTROLLER_RA8875
+            select TOUCH_DRIVER_DISPLAY
+            bool "RA8875"
+    endchoice
+
+    config TOUCH_DRIVER_PROTOCOL_SPI
+        bool
+        help
+            Touch controller protocol SPI
+
+    config TOUCH_DRIVER_PROTOCOL_I2C
+        bool
+        help
+            Touch controller protocol I2C
+
+    config TOUCH_DRIVER_ADC
+        bool
+        help
+            Touch controller via ADC
+
+    config TOUCH_DRIVER_DISPLAY
+        bool
+        help
+            Touch controller uses same interface/device as display
+	    (Note: Display must be initialized before touch)
+
+    menu "Touchpanel Configuration (XPT2046)"
+        depends on TOUCH_CONTROLLER_XPT2046
+
+        config TOUCH_X_MIN
+            int
+            prompt "Minimum X coordinate value."
+            default 0 if PREDEFINED_PINS_38V4
+            default 200
+
+        config TOUCH_Y_MIN
+            int
+            prompt "Minimum Y coordinate value."
+            default 0 if PREDEFINED_PINS_38V4
+            default 120
+
+        config TOUCH_X_MAX
+            int
+            prompt "Maximum X coordinate value."
+            default 4095 if PREDEFINED_PINS_38V4
+            default 1900
+
+        config TOUCH_Y_MAX
+            int
+            prompt "Maximum Y coordinate value."
+            default 4095 if PREDEFINED_PINS_38V4
+            default 1900
+
+        choice
+            prompt "Select touch detection method."
+            default TOUCH_DETECT_IRQ
+            help
+                Select the controller for your touch panel.
+
+            config TOUCH_DETECT_IRQ
+                bool "IRQ pin only"
+            config TOUCH_DETECT_IRQ_PRESSURE
+                bool "IRQ pin and pressure"
+            config TOUCH_DETECT_PRESSURE
+                bool "Pressure only"
+        endchoice
+    endmenu
+
+    menu "Touchpanel Configuration (FT6X06)"
+        depends on TOUCH_CONTROLLER_FT6X06
+
+	config FT6X36_SWAPXY
+	    bool
+	    prompt "Swap X with Y coordinate."
+	    default y
+
+        config FT6X36_INVERT_X
+            bool
+            prompt "Invert X coordinate value."
+            default n
+
+        config FT6X36_INVERT_Y
+            bool
+            prompt "Invert Y coordinate value."
+            default y
+
+    endmenu
+
+    menu "Touchpanel Configuration (STMPE610)"
+        depends on TOUCH_CONTROLLER_STMPE610
+
+        config TOUCH_X_MIN
+            int
+            prompt "Minimum X coordinate value."
+            default 160
+
+        config TOUCH_Y_MIN
+            int
+            prompt "Minimum Y coordinate value."
+            default 230
+
+        config TOUCH_X_MAX
+            int
+            prompt "Maximum X coordinate value."
+            default 3800
+
+        config TOUCH_Y_MAX
+            int
+            prompt "Maximum Y coordinate value."
+            default 3800
+
+    endmenu
+
+    menu "Touchpanel (ADCRAW) Pin Assignments"
+        depends on TOUCH_CONTROLLER_ADCRAW
+
+        config TOUCHSCREEN_RESISTIVE_PIN_YU
+            int
+            prompt "GPIO Y+"
+            default 26 if CONFIG_PREDEFINED_DISPLAY_WROVER4
+            default 26
+
+            help
+            Configure the touchpanel Y+ pin. Can be a regular GPIO.
+
+        config TOUCHSCREEN_RESISTIVE_PIN_YD
+            int
+            prompt "GPIO/ADC Y-"
+            default 32 if CONFIG_PREDEFINED_DISPLAY_WROVER4
+            default 32
+
+            help
+            Configure the touchpanel Y- pin. Must be ADC input.
+
+        config TOUCHSCREEN_RESISTIVE_PIN_XL
+            int
+            prompt "GPIO X-"
+            default 27 if CONFIG_PREDEFINED_DISPLAY_WROVER4
+            default 27
+
+            help
+            Configure the touchpanel X- pin. Can be a regular GPIO.
+
+        config TOUCHSCREEN_RESISTIVE_PIN_XR
+            int
+            prompt "GPIO/ADC X+"
+            default 33 if CONFIG_PREDEFINED_DISPLAY_WROVER4
+            default 33
+
+            help
+            Configure the touchpanel X- pin. Must be ADC input.
+    endmenu
+
+    menu "Touchpanel Configuration (ADCRAW)"
+        depends on TOUCH_CONTROLLER_ADCRAW
+
+        config TOUCH_X_MIN
+            int
+            prompt "Minimum X coordinate value."
+            default 160
+
+        config TOUCH_Y_MIN
+            int
+            prompt "Minimum Y coordinate value."
+            default 230
+
+        config TOUCH_X_MAX
+            int
+            prompt "Maximum X coordinate value."
+            default 3800
+
+        config TOUCH_Y_MAX
+            int
+            prompt "Maximum Y coordinate value."
+            default 3800
+
+    endmenu
+
+    menu "Touchpanel Configuration (RA8875)"
+        depends on TOUCH_CONTROLLER_RA8875
+
+        config TOUCH_X_MIN
+            int
+            prompt "Minimum X coordinate ADC value"
+	    range 0 1023
+            default 0
+
+        config TOUCH_Y_MIN
+            int
+            prompt "Minimum Y coordinate ADC value"
+	    range 0 1023
+            default 0
+
+        config TOUCH_X_MAX
+            int
+            prompt "Maximum X coordinate ADC value"
+	    range 0 1023
+            default 1023
+
+        config TOUCH_Y_MAX
+            int
+            prompt "Maximum Y coordinate ADC value"
+	    range 0 1023
+            default 1023
+
+        config TOUCH_RA8875_SAMPLE_TIME
+            int
+            prompt "TP Sample Time Adjusting"
+	    range 0 7
+            default 0
+
+        config TOUCH_RA8875_ADC_CLOCK
+            int
+            prompt "ADC Clock Setting"
+	    range 0 7
+            default 0
+
+        config TOUCH_RA8875_WAKEUP_ENABLE
+            bool
+            prompt "Touch Panel Wakeup Enable"
+            default n
+
+        config TOUCH_RA8875_EXTERNAL_VREF
+            bool
+            prompt "TP ADC Use External Reference Voltage Source"
+            default n
+
+        config TOUCH_RA8875_DEBOUNCE_ENABLE
+            bool
+            prompt "De-bounce Circuit Enable for Touch Panel Interrupt"
+            default y
+
+    endmenu
+
+    config TOUCH_INVERT_X
+        bool
+        prompt "Invert X coordinate value."
+        default y
+
+    config TOUCH_INVERT_Y
+        bool
+        prompt "Invert Y coordinate value."
+        default y
+
+    config TOUCH_XY_SWAP
+        bool
+        prompt "Swap XY."
+        default n
+
+endmenu

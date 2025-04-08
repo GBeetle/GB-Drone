@@ -51,7 +51,7 @@ extern const char* RF24_TAG;
 extern const char* GB_INFO;
 extern const char* LORA_TAG;
 extern const char* FS_TAG;
-extern const char* TFT_TAG;
+extern const char* DISP_TAG;
 
 void GB_LogSystemInit(void);
 void GB_PrintLog(GB_LOG_LEVEL level, const char *tag, const char* format, ...);
