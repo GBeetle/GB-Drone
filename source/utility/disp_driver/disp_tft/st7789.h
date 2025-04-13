@@ -121,9 +121,7 @@ extern "C"
 #define TFT_DRIVER          0x7789
 
 void st7789_init(void);
-#if 0
-void st7789_flush(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_map);
-#endif
+void st7789_flush(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *color_map);
 void st7789_enable_backlight(bool backlight);
 
 #ifdef __cplusplus

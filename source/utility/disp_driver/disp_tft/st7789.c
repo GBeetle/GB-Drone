@@ -50,7 +50,7 @@ static void st7789_send_color(void *data, uint16_t length);
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-#if 1
+
 void st7789_init(void)
 {
     lcd_init_cmd_t st7789_init_cmds[] = {
@@ -129,7 +129,7 @@ void st7789_init(void)
 
     st7789_set_orientation(CONFIG_DISPLAY_ORIENTATION);
 }
-#endif
+
 void st7789_enable_backlight(bool backlight)
 {
 #if ST7789_ENABLE_BACKLIGHT_CONTROL
@@ -146,18 +146,19 @@ void st7789_enable_backlight(bool backlight)
 #endif
 }
 
-#if 0
 /* The ST7789 display controller can drive 320*240 displays, when using a 240*240
  * display there's a gap of 80px, we need to edit the coordinates to take into
  * account that gap, this is not necessary in all orientations. */
-void st7789_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t * color_map)
+void st7789_flush(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *color_map)
 {
     uint8_t data[4] = {0};
 
-    uint16_t offsetx1 = area->x1;
-    uint16_t offsetx2 = area->x2;
-    uint16_t offsety1 = area->y1;
-    uint16_t offsety2 = area->y2;
+    uint16_t offsetx1 = x1;
+    uint16_t offsetx2 = x2;
+    uint16_t offsety1 = y1;
+    uint16_t offsety2 = y2;
+
+    //GB_DEBUGI(DISP_TAG, "st7789_flush (%d, %d), (%d, %d)", x1, y1, x2, y2);
 
 #if (CONFIG_TFT_DISPLAY_OFFSETS)
     offsetx1 += CONFIG_TFT_DISPLAY_X_OFFSET;
@@ -194,12 +195,10 @@ void st7789_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t * colo
     /*Memory write*/
     st7789_send_cmd(ST7789_RAMWR);
 
-    uint32_t size = lv_area_get_width(area) * lv_area_get_height(area);
+    uint32_t size = (x2 - x1 + 1) * (y2 - y1 + 1);
 
     st7789_send_color((void*)color_map, size * 2);
-
 }
-#endif
 
 /**********************
  *   STATIC FUNCTIONS

@@ -314,6 +314,8 @@ GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t r
     uint32_t process_times = length / SPI_DMA_MAX_TRANS_SIZE + 1;
     spi_transaction_ext_t transaction[process_times];
 
+    //GB_DEBUGE(ERROR_TAG, "readWriteBytesWithConfig begin %d bytes", length);
+
     for (int i = 0; remain_len > 0; i++)
     {
         if (remain_len > SPI_DMA_MAX_TRANS_SIZE)
@@ -346,6 +348,8 @@ GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t r
         remain_len -= process_len;
         w_data += process_len;
     }
+
+    //GB_DEBUGE(ERROR_TAG, "readWriteBytesWithConfig end %d bytes", length);
 
     return GB_OK;
 }

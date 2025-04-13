@@ -96,3 +96,23 @@
 
      xTaskCreate(draw_loop, "draw_loop", 5120, NULL, 4 | portPRIVILEGE_BIT, NULL);
  }
+
+ #if 0 // show flash pictures
+ void draw_loop()
+{
+    uint32_t buffer_size = LV_HOR_RES_MAX * LV_VER_RES_MAX * 2;
+    uint16_t *buffer = (uint16_t *)heap_caps_malloc(buffer_size, MALLOC_CAP_DMA);
+
+    for (int i = 0; i < 60; i++) {
+        char filename[20];
+        sprintf(filename, "O_%d.RAW", i);
+
+        GB_FileSystem_Read(filename, (uint8_t*)buffer, buffer_size);
+        tft.pushImage(&tft, 0, 0, LV_HOR_RES_MAX, LV_VER_RES_MAX, buffer);
+
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+
+        GB_DEBUGI(DISP_TAG, "Display %s", filename);
+    }
+}
+#endif

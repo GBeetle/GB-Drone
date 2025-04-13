@@ -157,6 +157,18 @@ void disp_driver_init(void);
 
 void disp_driver_set_rotation(uint8_t m);
 
+/* Display flush callback */
+void disp_driver_flush(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *color_map);
+
+#if 0
+/* Display rounder callback, used with monochrome dispays */
+void disp_driver_rounder(lv_disp_drv_t * disp_drv, lv_area_t * area);
+
+/* Display set_px callback, used with monochrome dispays */
+void disp_driver_set_px(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
+    lv_color_t color, lv_opa_t opa);
+#endif
+
 /**********************
  *      MACROS
  **********************/

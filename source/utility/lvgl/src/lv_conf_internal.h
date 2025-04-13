@@ -13,7 +13,7 @@
 /* Handle special Kconfig options */
 #include "lv_conf_kconfig.h"
 
-#ifdef CONFIG_CONF_SKIP
+#ifdef CONFIG_LV_CONF_SKIP
 #define LV_CONF_SKIP
 #endif
 
@@ -51,15 +51,15 @@
 
 /* Maximal horizontal and vertical resolution to support by the library.*/
 #ifndef LV_HOR_RES_MAX
-#  ifdef CONFIG_HOR_RES_MAX
-#    define LV_HOR_RES_MAX CONFIG_HOR_RES_MAX
+#  ifdef CONFIG_LV_HOR_RES_MAX
+#    define LV_HOR_RES_MAX CONFIG_LV_HOR_RES_MAX
 #  else
 #    define  LV_HOR_RES_MAX          (480)
 #  endif
 #endif
 #ifndef LV_VER_RES_MAX
-#  ifdef CONFIG_VER_RES_MAX
-#    define LV_VER_RES_MAX CONFIG_VER_RES_MAX
+#  ifdef CONFIG_LV_VER_RES_MAX
+#    define LV_VER_RES_MAX CONFIG_LV_VER_RES_MAX
 #  else
 #    define  LV_VER_RES_MAX          (320)
 #  endif
@@ -72,8 +72,8 @@
  * - 32: ARGB8888
  */
 #ifndef LV_COLOR_DEPTH
-#  ifdef CONFIG_COLOR_DEPTH
-#    define LV_COLOR_DEPTH CONFIG_COLOR_DEPTH
+#  ifdef CONFIG_LV_COLOR_DEPTH
+#    define LV_COLOR_DEPTH CONFIG_LV_COLOR_DEPTH
 #  else
 #    define  LV_COLOR_DEPTH     16
 #  endif
@@ -82,8 +82,8 @@
 /* Swap the 2 bytes of RGB565 color.
  * Useful if the display has a 8 bit interface (e.g. SPI)*/
 #ifndef LV_COLOR_16_SWAP
-#  ifdef CONFIG_COLOR_16_SWAP
-#    define LV_COLOR_16_SWAP CONFIG_COLOR_16_SWAP
+#  ifdef CONFIG_LV_COLOR_16_SWAP
+#    define LV_COLOR_16_SWAP CONFIG_LV_COLOR_16_SWAP
 #  else
 #    define  LV_COLOR_16_SWAP   0
 #  endif
@@ -93,8 +93,8 @@
  * Useful for OSD or other overlapping GUIs.
  * Requires `LV_COLOR_DEPTH = 32` colors and the screen's style should be modified: `style.body.opa = ...`*/
 #ifndef LV_COLOR_SCREEN_TRANSP
-#  ifdef CONFIG_COLOR_SCREEN_TRANSP
-#    define LV_COLOR_SCREEN_TRANSP CONFIG_COLOR_SCREEN_TRANSP
+#  ifdef CONFIG_LV_COLOR_SCREEN_TRANSP
+#    define LV_COLOR_SCREEN_TRANSP CONFIG_LV_COLOR_SCREEN_TRANSP
 #  else
 #    define  LV_COLOR_SCREEN_TRANSP    0
 #  endif
@@ -102,8 +102,8 @@
 
 /*Images pixels with this color will not be drawn (with chroma keying)*/
 #ifndef LV_COLOR_TRANSP
-#  ifdef CONFIG_COLOR_TRANSP
-#    define LV_COLOR_TRANSP CONFIG_COLOR_TRANSP
+#  ifdef CONFIG_LV_COLOR_TRANSP
+#    define LV_COLOR_TRANSP CONFIG_LV_COLOR_TRANSP
 #  else
 #    define  LV_COLOR_TRANSP    LV_COLOR_LIME         /*LV_COLOR_LIME: pure green*/
 #  endif
@@ -111,8 +111,8 @@
 
 /* Enable anti-aliasing (lines, and radiuses will be smoothed) */
 #ifndef LV_ANTIALIAS
-#  ifdef CONFIG_ANTIALIAS
-#    define LV_ANTIALIAS CONFIG_ANTIALIAS
+#  ifdef CONFIG_LV_ANTIALIAS
+#    define LV_ANTIALIAS CONFIG_LV_ANTIALIAS
 #  else
 #    define  LV_ANTIALIAS        1
 #  endif
@@ -121,8 +121,8 @@
 /* Default display refresh period.
  * Can be changed in the display driver (`lv_disp_drv_t`).*/
 #ifndef LV_DISP_DEF_REFR_PERIOD
-#  ifdef CONFIG_DISP_DEF_REFR_PERIOD
-#    define LV_DISP_DEF_REFR_PERIOD CONFIG_DISP_DEF_REFR_PERIOD
+#  ifdef CONFIG_LV_DISP_DEF_REFR_PERIOD
+#    define LV_DISP_DEF_REFR_PERIOD CONFIG_LV_DISP_DEF_REFR_PERIOD
 #  else
 #    define  LV_DISP_DEF_REFR_PERIOD      30      /*[ms]*/
 #  endif
@@ -132,8 +132,8 @@
  * E.g. a button with width = LV_DPI / 2 -> half inch wide
  * (Not so important, you can adjust it to modify default sizes and spaces)*/
 #ifndef LV_DPI
-#  ifdef CONFIG_DPI
-#    define LV_DPI CONFIG_DPI
+#  ifdef CONFIG_LV_DPI
+#    define LV_DPI CONFIG_LV_DPI
 #  else
 #    define  LV_DPI              130     /*[px]*/
 #  endif
@@ -147,22 +147,22 @@
  * The upper limit of the categories are set below in 0.1 inch unit.
  */
 #ifndef LV_DISP_SMALL_LIMIT
-#  ifdef CONFIG_DISP_SMALL_LIMIT
-#    define LV_DISP_SMALL_LIMIT CONFIG_DISP_SMALL_LIMIT
+#  ifdef CONFIG_LV_DISP_SMALL_LIMIT
+#    define LV_DISP_SMALL_LIMIT CONFIG_LV_DISP_SMALL_LIMIT
 #  else
 #    define  LV_DISP_SMALL_LIMIT  30
 #  endif
 #endif
 #ifndef LV_DISP_MEDIUM_LIMIT
-#  ifdef CONFIG_DISP_MEDIUM_LIMIT
-#    define LV_DISP_MEDIUM_LIMIT CONFIG_DISP_MEDIUM_LIMIT
+#  ifdef CONFIG_LV_DISP_MEDIUM_LIMIT
+#    define LV_DISP_MEDIUM_LIMIT CONFIG_LV_DISP_MEDIUM_LIMIT
 #  else
 #    define  LV_DISP_MEDIUM_LIMIT 50
 #  endif
 #endif
 #ifndef LV_DISP_LARGE_LIMIT
-#  ifdef CONFIG_DISP_LARGE_LIMIT
-#    define LV_DISP_LARGE_LIMIT CONFIG_DISP_LARGE_LIMIT
+#  ifdef CONFIG_LV_DISP_LARGE_LIMIT
+#    define LV_DISP_LARGE_LIMIT CONFIG_LV_DISP_LARGE_LIMIT
 #  else
 #    define  LV_DISP_LARGE_LIMIT  70
 #  endif
@@ -172,8 +172,8 @@
 
 /* Maximum buffer size to allocate for rotation. Only used if software rotation is enabled. */
 #ifndef LV_DISP_ROT_MAX_BUF
-#  ifdef CONFIG_DISP_ROT_MAX_BUF
-#    define LV_DISP_ROT_MAX_BUF CONFIG_DISP_ROT_MAX_BUF
+#  ifdef CONFIG_LV_DISP_ROT_MAX_BUF
+#    define LV_DISP_ROT_MAX_BUF CONFIG_LV_DISP_ROT_MAX_BUF
 #  else
 #    define  LV_DISP_ROT_MAX_BUF  (10U * 1024U)
 #  endif
@@ -188,8 +188,8 @@
 
 /* 1: use custom malloc/free, 0: use the built-in `lv_mem_alloc` and `lv_mem_free` */
 #ifndef LV_MEM_CUSTOM
-#  ifdef CONFIG_MEM_CUSTOM
-#    define LV_MEM_CUSTOM CONFIG_MEM_CUSTOM
+#  ifdef CONFIG_LV_MEM_CUSTOM
+#    define LV_MEM_CUSTOM CONFIG_LV_MEM_CUSTOM
 #  else
 #    define  LV_MEM_CUSTOM      0
 #  endif
@@ -197,8 +197,8 @@
 #if LV_MEM_CUSTOM == 0
 /* Size of the memory used by `lv_mem_alloc` in bytes (>= 2kB)*/
 #ifndef LV_MEM_SIZE
-#  ifdef CONFIG_MEM_SIZE
-#    define LV_MEM_SIZE CONFIG_MEM_SIZE
+#  ifdef CONFIG_LV_MEM_SIZE
+#    define LV_MEM_SIZE CONFIG_LV_MEM_SIZE
 #  else
 #    define  LV_MEM_SIZE    (32U * 1024U)
 #  endif
@@ -206,8 +206,8 @@
 
 /* Compiler prefix for a big array declaration */
 #ifndef LV_MEM_ATTR
-#  ifdef CONFIG_MEM_ATTR
-#    define LV_MEM_ATTR CONFIG_MEM_ATTR
+#  ifdef CONFIG_LV_MEM_ATTR
+#    define LV_MEM_ATTR CONFIG_LV_MEM_ATTR
 #  else
 #    define  LV_MEM_ATTR
 #  endif
@@ -216,8 +216,8 @@
 /* Set an address for the memory pool instead of allocating it as an array.
  * Can be in external SRAM too. */
 #ifndef LV_MEM_ADR
-#  ifdef CONFIG_MEM_ADR
-#    define LV_MEM_ADR CONFIG_MEM_ADR
+#  ifdef CONFIG_LV_MEM_ADR
+#    define LV_MEM_ADR CONFIG_LV_MEM_ADR
 #  else
 #    define  LV_MEM_ADR          0
 #  endif
@@ -225,30 +225,30 @@
 
 /* Automatically defrag. on free. Defrag. means joining the adjacent free cells. */
 #ifndef LV_MEM_AUTO_DEFRAG
-#  ifdef CONFIG_MEM_AUTO_DEFRAG
-#    define LV_MEM_AUTO_DEFRAG CONFIG_MEM_AUTO_DEFRAG
+#  ifdef CONFIG_LV_MEM_AUTO_DEFRAG
+#    define LV_MEM_AUTO_DEFRAG CONFIG_LV_MEM_AUTO_DEFRAG
 #  else
 #    define  LV_MEM_AUTO_DEFRAG  1
 #  endif
 #endif
 #else       /*LV_MEM_CUSTOM*/
 #ifndef LV_MEM_CUSTOM_INCLUDE
-#  ifdef CONFIG_MEM_CUSTOM_INCLUDE
-#    define LV_MEM_CUSTOM_INCLUDE CONFIG_MEM_CUSTOM_INCLUDE
+#  ifdef CONFIG_LV_MEM_CUSTOM_INCLUDE
+#    define LV_MEM_CUSTOM_INCLUDE CONFIG_LV_MEM_CUSTOM_INCLUDE
 #  else
 #    define  LV_MEM_CUSTOM_INCLUDE <stdlib.h>   /*Header for the dynamic memory function*/
 #  endif
 #endif
 #ifndef LV_MEM_CUSTOM_ALLOC
-#  ifdef CONFIG_MEM_CUSTOM_ALLOC
-#    define LV_MEM_CUSTOM_ALLOC CONFIG_MEM_CUSTOM_ALLOC
+#  ifdef CONFIG_LV_MEM_CUSTOM_ALLOC
+#    define LV_MEM_CUSTOM_ALLOC CONFIG_LV_MEM_CUSTOM_ALLOC
 #  else
 #    define  LV_MEM_CUSTOM_ALLOC   malloc       /*Wrapper to malloc*/
 #  endif
 #endif
 #ifndef LV_MEM_CUSTOM_FREE
-#  ifdef CONFIG_MEM_CUSTOM_FREE
-#    define LV_MEM_CUSTOM_FREE CONFIG_MEM_CUSTOM_FREE
+#  ifdef CONFIG_LV_MEM_CUSTOM_FREE
+#    define LV_MEM_CUSTOM_FREE CONFIG_LV_MEM_CUSTOM_FREE
 #  else
 #    define  LV_MEM_CUSTOM_FREE    free         /*Wrapper to free*/
 #  endif
@@ -258,8 +258,8 @@
 /* Use the standard memcpy and memset instead of LVGL's own functions.
  * The standard functions might or might not be faster depending on their implementation. */
 #ifndef LV_MEMCPY_MEMSET_STD
-#  ifdef CONFIG_MEMCPY_MEMSET_STD
-#    define LV_MEMCPY_MEMSET_STD CONFIG_MEMCPY_MEMSET_STD
+#  ifdef CONFIG_LV_MEMCPY_MEMSET_STD
+#    define LV_MEMCPY_MEMSET_STD CONFIG_LV_MEMCPY_MEMSET_STD
 #  else
 #    define  LV_MEMCPY_MEMSET_STD    0
 #  endif
@@ -268,30 +268,30 @@
 /* Garbage Collector settings
  * Used if lvgl is binded to higher level language and the memory is managed by that language */
 #ifndef LV_ENABLE_GC
-#  ifdef CONFIG_ENABLE_GC
-#    define LV_ENABLE_GC CONFIG_ENABLE_GC
+#  ifdef CONFIG_LV_ENABLE_GC
+#    define LV_ENABLE_GC CONFIG_LV_ENABLE_GC
 #  else
 #    define  LV_ENABLE_GC 0
 #  endif
 #endif
 #if LV_ENABLE_GC != 0
 #ifndef LV_GC_INCLUDE
-#  ifdef CONFIG_GC_INCLUDE
-#    define LV_GC_INCLUDE CONFIG_GC_INCLUDE
+#  ifdef CONFIG_LV_GC_INCLUDE
+#    define LV_GC_INCLUDE CONFIG_LV_GC_INCLUDE
 #  else
 #    define  LV_GC_INCLUDE "gc.h"                           /*Include Garbage Collector related things*/
 #  endif
 #endif
 #ifndef LV_MEM_CUSTOM_REALLOC
-#  ifdef CONFIG_MEM_CUSTOM_REALLOC
-#    define LV_MEM_CUSTOM_REALLOC CONFIG_MEM_CUSTOM_REALLOC
+#  ifdef CONFIG_LV_MEM_CUSTOM_REALLOC
+#    define LV_MEM_CUSTOM_REALLOC CONFIG_LV_MEM_CUSTOM_REALLOC
 #  else
 #    define  LV_MEM_CUSTOM_REALLOC   your_realloc           /*Wrapper to realloc*/
 #  endif
 #endif
 #ifndef LV_MEM_CUSTOM_GET_SIZE
-#  ifdef CONFIG_MEM_CUSTOM_GET_SIZE
-#    define LV_MEM_CUSTOM_GET_SIZE CONFIG_MEM_CUSTOM_GET_SIZE
+#  ifdef CONFIG_LV_MEM_CUSTOM_GET_SIZE
+#    define LV_MEM_CUSTOM_GET_SIZE CONFIG_LV_MEM_CUSTOM_GET_SIZE
 #  else
 #    define  LV_MEM_CUSTOM_GET_SIZE  your_mem_get_size      /*Wrapper to lv_mem_get_size*/
 #  endif
@@ -307,8 +307,8 @@
 
 /* Input device read period in milliseconds */
 #ifndef LV_INDEV_DEF_READ_PERIOD
-#  ifdef CONFIG_INDEV_DEF_READ_PERIOD
-#    define LV_INDEV_DEF_READ_PERIOD CONFIG_INDEV_DEF_READ_PERIOD
+#  ifdef CONFIG_LV_INDEV_DEF_READ_PERIOD
+#    define LV_INDEV_DEF_READ_PERIOD CONFIG_LV_INDEV_DEF_READ_PERIOD
 #  else
 #    define  LV_INDEV_DEF_READ_PERIOD          30
 #  endif
@@ -316,8 +316,8 @@
 
 /* Drag threshold in pixels */
 #ifndef LV_INDEV_DEF_DRAG_LIMIT
-#  ifdef CONFIG_INDEV_DEF_DRAG_LIMIT
-#    define LV_INDEV_DEF_DRAG_LIMIT CONFIG_INDEV_DEF_DRAG_LIMIT
+#  ifdef CONFIG_LV_INDEV_DEF_DRAG_LIMIT
+#    define LV_INDEV_DEF_DRAG_LIMIT CONFIG_LV_INDEV_DEF_DRAG_LIMIT
 #  else
 #    define  LV_INDEV_DEF_DRAG_LIMIT           10
 #  endif
@@ -325,8 +325,8 @@
 
 /* Drag throw slow-down in [%]. Greater value -> faster slow-down */
 #ifndef LV_INDEV_DEF_DRAG_THROW
-#  ifdef CONFIG_INDEV_DEF_DRAG_THROW
-#    define LV_INDEV_DEF_DRAG_THROW CONFIG_INDEV_DEF_DRAG_THROW
+#  ifdef CONFIG_LV_INDEV_DEF_DRAG_THROW
+#    define LV_INDEV_DEF_DRAG_THROW CONFIG_LV_INDEV_DEF_DRAG_THROW
 #  else
 #    define  LV_INDEV_DEF_DRAG_THROW           10
 #  endif
@@ -335,8 +335,8 @@
 /* Long press time in milliseconds.
  * Time to send `LV_EVENT_LONG_PRESSED`) */
 #ifndef LV_INDEV_DEF_LONG_PRESS_TIME
-#  ifdef CONFIG_INDEV_DEF_LONG_PRESS_TIME
-#    define LV_INDEV_DEF_LONG_PRESS_TIME CONFIG_INDEV_DEF_LONG_PRESS_TIME
+#  ifdef CONFIG_LV_INDEV_DEF_LONG_PRESS_TIME
+#    define LV_INDEV_DEF_LONG_PRESS_TIME CONFIG_LV_INDEV_DEF_LONG_PRESS_TIME
 #  else
 #    define  LV_INDEV_DEF_LONG_PRESS_TIME      400
 #  endif
@@ -345,8 +345,8 @@
 /* Repeated trigger period in long press [ms]
  * Time between `LV_EVENT_LONG_PRESSED_REPEAT */
 #ifndef LV_INDEV_DEF_LONG_PRESS_REP_TIME
-#  ifdef CONFIG_INDEV_DEF_LONG_PRESS_REP_TIME
-#    define LV_INDEV_DEF_LONG_PRESS_REP_TIME CONFIG_INDEV_DEF_LONG_PRESS_REP_TIME
+#  ifdef CONFIG_LV_INDEV_DEF_LONG_PRESS_REP_TIME
+#    define LV_INDEV_DEF_LONG_PRESS_REP_TIME CONFIG_LV_INDEV_DEF_LONG_PRESS_REP_TIME
 #  else
 #    define  LV_INDEV_DEF_LONG_PRESS_REP_TIME  100
 #  endif
@@ -354,8 +354,8 @@
 
 /* Gesture threshold in pixels */
 #ifndef LV_INDEV_DEF_GESTURE_LIMIT
-#  ifdef CONFIG_INDEV_DEF_GESTURE_LIMIT
-#    define LV_INDEV_DEF_GESTURE_LIMIT CONFIG_INDEV_DEF_GESTURE_LIMIT
+#  ifdef CONFIG_LV_INDEV_DEF_GESTURE_LIMIT
+#    define LV_INDEV_DEF_GESTURE_LIMIT CONFIG_LV_INDEV_DEF_GESTURE_LIMIT
 #  else
 #    define  LV_INDEV_DEF_GESTURE_LIMIT        50
 #  endif
@@ -363,8 +363,8 @@
 
 /* Gesture min velocity at release before swipe (pixels)*/
 #ifndef LV_INDEV_DEF_GESTURE_MIN_VELOCITY
-#  ifdef CONFIG_INDEV_DEF_GESTURE_MIN_VELOCITY
-#    define LV_INDEV_DEF_GESTURE_MIN_VELOCITY CONFIG_INDEV_DEF_GESTURE_MIN_VELOCITY
+#  ifdef CONFIG_LV_INDEV_DEF_GESTURE_MIN_VELOCITY
+#    define LV_INDEV_DEF_GESTURE_MIN_VELOCITY CONFIG_LV_INDEV_DEF_GESTURE_MIN_VELOCITY
 #  else
 #    define  LV_INDEV_DEF_GESTURE_MIN_VELOCITY 3
 #  endif
@@ -376,8 +376,8 @@
 
 /*1: Enable the Animations */
 #ifndef LV_USE_ANIMATION
-#  ifdef CONFIG_USE_ANIMATION
-#    define LV_USE_ANIMATION CONFIG_USE_ANIMATION
+#  ifdef CONFIG_LV_USE_ANIMATION
+#    define LV_USE_ANIMATION CONFIG_LV_USE_ANIMATION
 #  else
 #    define  LV_USE_ANIMATION        1
 #  endif
@@ -390,8 +390,8 @@
 
 /* 1: Enable shadow drawing on rectangles*/
 #ifndef LV_USE_SHADOW
-#  ifdef CONFIG_USE_SHADOW
-#    define LV_USE_SHADOW CONFIG_USE_SHADOW
+#  ifdef CONFIG_LV_USE_SHADOW
+#    define LV_USE_SHADOW CONFIG_LV_USE_SHADOW
 #  else
 #    define  LV_USE_SHADOW           1
 #  endif
@@ -402,8 +402,8 @@
  * where shadow size is `shadow_width + radius`
  * Caching has LV_SHADOW_CACHE_SIZE^2 RAM cost*/
 #ifndef LV_SHADOW_CACHE_SIZE
-#  ifdef CONFIG_SHADOW_CACHE_SIZE
-#    define LV_SHADOW_CACHE_SIZE CONFIG_SHADOW_CACHE_SIZE
+#  ifdef CONFIG_LV_SHADOW_CACHE_SIZE
+#    define LV_SHADOW_CACHE_SIZE CONFIG_LV_SHADOW_CACHE_SIZE
 #  else
 #    define  LV_SHADOW_CACHE_SIZE    0
 #  endif
@@ -412,8 +412,8 @@
 
 /*1: enable outline drawing on rectangles*/
 #ifndef LV_USE_OUTLINE
-#  ifdef CONFIG_USE_OUTLINE
-#    define LV_USE_OUTLINE CONFIG_USE_OUTLINE
+#  ifdef CONFIG_LV_USE_OUTLINE
+#    define LV_USE_OUTLINE CONFIG_LV_USE_OUTLINE
 #  else
 #    define  LV_USE_OUTLINE  1
 #  endif
@@ -421,8 +421,8 @@
 
 /*1: enable pattern drawing on rectangles*/
 #ifndef LV_USE_PATTERN
-#  ifdef CONFIG_USE_PATTERN
-#    define LV_USE_PATTERN CONFIG_USE_PATTERN
+#  ifdef CONFIG_LV_USE_PATTERN
+#    define LV_USE_PATTERN CONFIG_LV_USE_PATTERN
 #  else
 #    define  LV_USE_PATTERN  1
 #  endif
@@ -430,8 +430,8 @@
 
 /*1: enable value string drawing on rectangles*/
 #ifndef LV_USE_VALUE_STR
-#  ifdef CONFIG_USE_VALUE_STR
-#    define LV_USE_VALUE_STR CONFIG_USE_VALUE_STR
+#  ifdef CONFIG_LV_USE_VALUE_STR
+#    define LV_USE_VALUE_STR CONFIG_LV_USE_VALUE_STR
 #  else
 #    define  LV_USE_VALUE_STR    1
 #  endif
@@ -439,8 +439,8 @@
 
 /* 1: Use other blend modes than normal (`LV_BLEND_MODE_...`)*/
 #ifndef LV_USE_BLEND_MODES
-#  ifdef CONFIG_USE_BLEND_MODES
-#    define LV_USE_BLEND_MODES CONFIG_USE_BLEND_MODES
+#  ifdef CONFIG_LV_USE_BLEND_MODES
+#    define LV_USE_BLEND_MODES CONFIG_LV_USE_BLEND_MODES
 #  else
 #    define  LV_USE_BLEND_MODES      1
 #  endif
@@ -448,8 +448,8 @@
 
 /* 1: Use the `opa_scale` style property to set the opacity of an object and its children at once*/
 #ifndef LV_USE_OPA_SCALE
-#  ifdef CONFIG_USE_OPA_SCALE
-#    define LV_USE_OPA_SCALE CONFIG_USE_OPA_SCALE
+#  ifdef CONFIG_LV_USE_OPA_SCALE
+#    define LV_USE_OPA_SCALE CONFIG_LV_USE_OPA_SCALE
 #  else
 #    define  LV_USE_OPA_SCALE        1
 #  endif
@@ -457,8 +457,8 @@
 
 /* 1: Use image zoom and rotation*/
 #ifndef LV_USE_IMG_TRANSFORM
-#  ifdef CONFIG_USE_IMG_TRANSFORM
-#    define LV_USE_IMG_TRANSFORM CONFIG_USE_IMG_TRANSFORM
+#  ifdef CONFIG_LV_USE_IMG_TRANSFORM
+#    define LV_USE_IMG_TRANSFORM CONFIG_LV_USE_IMG_TRANSFORM
 #  else
 #    define  LV_USE_IMG_TRANSFORM    1
 #  endif
@@ -466,8 +466,8 @@
 
 /* 1: Enable object groups (for keyboard/encoder navigation) */
 #ifndef LV_USE_GROUP
-#  ifdef CONFIG_USE_GROUP
-#    define LV_USE_GROUP CONFIG_USE_GROUP
+#  ifdef CONFIG_LV_USE_GROUP
+#    define LV_USE_GROUP CONFIG_LV_USE_GROUP
 #  else
 #    define  LV_USE_GROUP            1
 #  endif
@@ -477,15 +477,15 @@
 
 /* 1: Enable GPU interface*/
 #ifndef LV_USE_GPU
-#  ifdef CONFIG_USE_GPU
-#    define LV_USE_GPU CONFIG_USE_GPU
+#  ifdef CONFIG_LV_USE_GPU
+#    define LV_USE_GPU CONFIG_LV_USE_GPU
 #  else
 #    define  LV_USE_GPU              1   /*Only enables `gpu_fill_cb` and `gpu_blend_cb` in the disp. drv- */
 #  endif
 #endif
 #ifndef LV_USE_GPU_STM32_DMA2D
-#  ifdef CONFIG_USE_GPU_STM32_DMA2D
-#    define LV_USE_GPU_STM32_DMA2D CONFIG_USE_GPU_STM32_DMA2D
+#  ifdef CONFIG_LV_USE_GPU_STM32_DMA2D
+#    define LV_USE_GPU_STM32_DMA2D CONFIG_LV_USE_GPU_STM32_DMA2D
 #  else
 #    define  LV_USE_GPU_STM32_DMA2D  0
 #  endif
@@ -493,8 +493,8 @@
 /*If enabling LV_USE_GPU_STM32_DMA2D, LV_GPU_DMA2D_CMSIS_INCLUDE must be defined to include path of CMSIS header of target processor
 e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 #ifndef LV_GPU_DMA2D_CMSIS_INCLUDE
-#  ifdef CONFIG_GPU_DMA2D_CMSIS_INCLUDE
-#    define LV_GPU_DMA2D_CMSIS_INCLUDE CONFIG_GPU_DMA2D_CMSIS_INCLUDE
+#  ifdef CONFIG_LV_GPU_DMA2D_CMSIS_INCLUDE
+#    define LV_GPU_DMA2D_CMSIS_INCLUDE CONFIG_LV_GPU_DMA2D_CMSIS_INCLUDE
 #  else
 #    define  LV_GPU_DMA2D_CMSIS_INCLUDE
 #  endif
@@ -502,8 +502,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*1: Use PXP for CPU off-load on NXP RTxxx platforms */
 #ifndef LV_USE_GPU_NXP_PXP
-#  ifdef CONFIG_USE_GPU_NXP_PXP
-#    define LV_USE_GPU_NXP_PXP CONFIG_USE_GPU_NXP_PXP
+#  ifdef CONFIG_LV_USE_GPU_NXP_PXP
+#    define LV_USE_GPU_NXP_PXP CONFIG_LV_USE_GPU_NXP_PXP
 #  else
 #    define  LV_USE_GPU_NXP_PXP      0
 #  endif
@@ -515,8 +515,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  *0: lv_gpu_nxp_pxp_init() has to be called manually before lv_init()
  * */
 #ifndef LV_USE_GPU_NXP_PXP_AUTO_INIT
-#  ifdef CONFIG_USE_GPU_NXP_PXP_AUTO_INIT
-#    define LV_USE_GPU_NXP_PXP_AUTO_INIT CONFIG_USE_GPU_NXP_PXP_AUTO_INIT
+#  ifdef CONFIG_LV_USE_GPU_NXP_PXP_AUTO_INIT
+#    define LV_USE_GPU_NXP_PXP_AUTO_INIT CONFIG_LV_USE_GPU_NXP_PXP_AUTO_INIT
 #  else
 #    define  LV_USE_GPU_NXP_PXP_AUTO_INIT 0
 #  endif
@@ -524,8 +524,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*1: Use VG-Lite for CPU offload on NXP RTxxx platforms */
 #ifndef LV_USE_GPU_NXP_VG_LITE
-#  ifdef CONFIG_USE_GPU_NXP_VG_LITE
-#    define LV_USE_GPU_NXP_VG_LITE CONFIG_USE_GPU_NXP_VG_LITE
+#  ifdef CONFIG_LV_USE_GPU_NXP_VG_LITE
+#    define LV_USE_GPU_NXP_VG_LITE CONFIG_LV_USE_GPU_NXP_VG_LITE
 #  else
 #    define  LV_USE_GPU_NXP_VG_LITE   0
 #  endif
@@ -533,8 +533,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* 1: Enable file system (might be required for images */
 #ifndef LV_USE_FILESYSTEM
-#  ifdef CONFIG_USE_FILESYSTEM
-#    define LV_USE_FILESYSTEM CONFIG_USE_FILESYSTEM
+#  ifdef CONFIG_LV_USE_FILESYSTEM
+#    define LV_USE_FILESYSTEM CONFIG_LV_USE_FILESYSTEM
 #  else
 #    define  LV_USE_FILESYSTEM       1
 #  endif
@@ -545,8 +545,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*1: Add a `user_data` to drivers and objects*/
 #ifndef LV_USE_USER_DATA
-#  ifdef CONFIG_USE_USER_DATA
-#    define LV_USE_USER_DATA CONFIG_USE_USER_DATA
+#  ifdef CONFIG_LV_USE_USER_DATA
+#    define LV_USE_USER_DATA CONFIG_LV_USE_USER_DATA
 #  else
 #    define  LV_USE_USER_DATA        0
 #  endif
@@ -554,8 +554,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*1: Show CPU usage and FPS count in the right bottom corner*/
 #ifndef LV_USE_PERF_MONITOR
-#  ifdef CONFIG_USE_PERF_MONITOR
-#    define LV_USE_PERF_MONITOR CONFIG_USE_PERF_MONITOR
+#  ifdef CONFIG_LV_USE_PERF_MONITOR
+#    define LV_USE_PERF_MONITOR CONFIG_LV_USE_PERF_MONITOR
 #  else
 #    define  LV_USE_PERF_MONITOR     0
 #  endif
@@ -563,15 +563,15 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*1: Use the functions and types from the older API if possible */
 #ifndef LV_USE_API_EXTENSION_V6
-#  ifdef CONFIG_USE_API_EXTENSION_V6
-#    define LV_USE_API_EXTENSION_V6 CONFIG_USE_API_EXTENSION_V6
+#  ifdef CONFIG_LV_USE_API_EXTENSION_V6
+#    define LV_USE_API_EXTENSION_V6 CONFIG_LV_USE_API_EXTENSION_V6
 #  else
 #    define  LV_USE_API_EXTENSION_V6  1
 #  endif
 #endif
 #ifndef LV_USE_API_EXTENSION_V7
-#  ifdef CONFIG_USE_API_EXTENSION_V7
-#    define LV_USE_API_EXTENSION_V7 CONFIG_USE_API_EXTENSION_V7
+#  ifdef CONFIG_LV_USE_API_EXTENSION_V7
+#    define LV_USE_API_EXTENSION_V7 CONFIG_LV_USE_API_EXTENSION_V7
 #  else
 #    define  LV_USE_API_EXTENSION_V7  1
 #  endif
@@ -583,8 +583,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* 1: Enable indexed (palette) images */
 #ifndef LV_IMG_CF_INDEXED
-#  ifdef CONFIG_IMG_CF_INDEXED
-#    define LV_IMG_CF_INDEXED CONFIG_IMG_CF_INDEXED
+#  ifdef CONFIG_LV_IMG_CF_INDEXED
+#    define LV_IMG_CF_INDEXED CONFIG_LV_IMG_CF_INDEXED
 #  else
 #    define  LV_IMG_CF_INDEXED       1
 #  endif
@@ -592,8 +592,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* 1: Enable alpha indexed images */
 #ifndef LV_IMG_CF_ALPHA
-#  ifdef CONFIG_IMG_CF_ALPHA
-#    define LV_IMG_CF_ALPHA CONFIG_IMG_CF_ALPHA
+#  ifdef CONFIG_LV_IMG_CF_ALPHA
+#    define LV_IMG_CF_ALPHA CONFIG_LV_IMG_CF_ALPHA
 #  else
 #    define  LV_IMG_CF_ALPHA         1
 #  endif
@@ -606,8 +606,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * However the opened images might consume additional RAM.
  * Set it to 0 to disable caching */
 #ifndef LV_IMG_CACHE_DEF_SIZE
-#  ifdef CONFIG_IMG_CACHE_DEF_SIZE
-#    define LV_IMG_CACHE_DEF_SIZE CONFIG_IMG_CACHE_DEF_SIZE
+#  ifdef CONFIG_LV_IMG_CACHE_DEF_SIZE
+#    define LV_IMG_CACHE_DEF_SIZE CONFIG_LV_IMG_CACHE_DEF_SIZE
 #  else
 #    define  LV_IMG_CACHE_DEF_SIZE       1
 #  endif
@@ -621,8 +621,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* For big endian systems set to 1 */
 #ifndef LV_BIG_ENDIAN_SYSTEM
-#  ifdef CONFIG_BIG_ENDIAN_SYSTEM
-#    define LV_BIG_ENDIAN_SYSTEM CONFIG_BIG_ENDIAN_SYSTEM
+#  ifdef CONFIG_LV_BIG_ENDIAN_SYSTEM
+#    define LV_BIG_ENDIAN_SYSTEM CONFIG_LV_BIG_ENDIAN_SYSTEM
 #  else
 #    define  LV_BIG_ENDIAN_SYSTEM    0
 #  endif
@@ -630,8 +630,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* Define a custom attribute to `lv_tick_inc` function */
 #ifndef LV_ATTRIBUTE_TICK_INC
-#  ifdef CONFIG_ATTRIBUTE_TICK_INC
-#    define LV_ATTRIBUTE_TICK_INC CONFIG_ATTRIBUTE_TICK_INC
+#  ifdef CONFIG_LV_ATTRIBUTE_TICK_INC
+#    define LV_ATTRIBUTE_TICK_INC CONFIG_LV_ATTRIBUTE_TICK_INC
 #  else
 #    define  LV_ATTRIBUTE_TICK_INC
 #  endif
@@ -639,8 +639,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* Define a custom attribute to `lv_task_handler` function */
 #ifndef LV_ATTRIBUTE_TASK_HANDLER
-#  ifdef CONFIG_ATTRIBUTE_TASK_HANDLER
-#    define LV_ATTRIBUTE_TASK_HANDLER CONFIG_ATTRIBUTE_TASK_HANDLER
+#  ifdef CONFIG_LV_ATTRIBUTE_TASK_HANDLER
+#    define LV_ATTRIBUTE_TASK_HANDLER CONFIG_LV_ATTRIBUTE_TASK_HANDLER
 #  else
 #    define  LV_ATTRIBUTE_TASK_HANDLER
 #  endif
@@ -648,8 +648,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* Define a custom attribute to `lv_disp_flush_ready` function */
 #ifndef LV_ATTRIBUTE_FLUSH_READY
-#  ifdef CONFIG_ATTRIBUTE_FLUSH_READY
-#    define LV_ATTRIBUTE_FLUSH_READY CONFIG_ATTRIBUTE_FLUSH_READY
+#  ifdef CONFIG_LV_ATTRIBUTE_FLUSH_READY
+#    define LV_ATTRIBUTE_FLUSH_READY CONFIG_LV_ATTRIBUTE_FLUSH_READY
 #  else
 #    define  LV_ATTRIBUTE_FLUSH_READY
 #  endif
@@ -657,8 +657,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* Required alignment size for buffers */
 #ifndef LV_ATTRIBUTE_MEM_ALIGN_SIZE
-#  ifdef CONFIG_ATTRIBUTE_MEM_ALIGN_SIZE
-#    define LV_ATTRIBUTE_MEM_ALIGN_SIZE CONFIG_ATTRIBUTE_MEM_ALIGN_SIZE
+#  ifdef CONFIG_LV_ATTRIBUTE_MEM_ALIGN_SIZE
+#    define LV_ATTRIBUTE_MEM_ALIGN_SIZE CONFIG_LV_ATTRIBUTE_MEM_ALIGN_SIZE
 #  else
 #    define  LV_ATTRIBUTE_MEM_ALIGN_SIZE
 #  endif
@@ -670,8 +670,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * LV_ATTRIBUTE_MEM_ALIGN_SIZE should be used to specify required align size.
  * E.g. __attribute__((aligned(LV_ATTRIBUTE_MEM_ALIGN_SIZE))) */
 #ifndef LV_ATTRIBUTE_MEM_ALIGN
-#  ifdef CONFIG_ATTRIBUTE_MEM_ALIGN
-#    define LV_ATTRIBUTE_MEM_ALIGN CONFIG_ATTRIBUTE_MEM_ALIGN
+#  ifdef CONFIG_LV_ATTRIBUTE_MEM_ALIGN
+#    define LV_ATTRIBUTE_MEM_ALIGN CONFIG_LV_ATTRIBUTE_MEM_ALIGN
 #  else
 #    define  LV_ATTRIBUTE_MEM_ALIGN
 #  endif
@@ -680,8 +680,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* Attribute to mark large constant arrays for example
  * font's bitmaps */
 #ifndef LV_ATTRIBUTE_LARGE_CONST
-#  ifdef CONFIG_ATTRIBUTE_LARGE_CONST
-#    define LV_ATTRIBUTE_LARGE_CONST CONFIG_ATTRIBUTE_LARGE_CONST
+#  ifdef CONFIG_LV_ATTRIBUTE_LARGE_CONST
+#    define LV_ATTRIBUTE_LARGE_CONST CONFIG_LV_ATTRIBUTE_LARGE_CONST
 #  else
 #    define  LV_ATTRIBUTE_LARGE_CONST
 #  endif
@@ -690,8 +690,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* Prefix performance critical functions to place them into a faster memory (e.g RAM)
  * Uses 15-20 kB extra memory */
 #ifndef LV_ATTRIBUTE_FAST_MEM
-#  ifdef CONFIG_ATTRIBUTE_FAST_MEM
-#    define LV_ATTRIBUTE_FAST_MEM CONFIG_ATTRIBUTE_FAST_MEM
+#  ifdef CONFIG_LV_ATTRIBUTE_FAST_MEM
+#    define LV_ATTRIBUTE_FAST_MEM CONFIG_LV_ATTRIBUTE_FAST_MEM
 #  else
 #    define  LV_ATTRIBUTE_FAST_MEM
 #  endif
@@ -704,8 +704,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * The default value just prevents a GCC warning.
  */
 #ifndef LV_EXPORT_CONST_INT
-#  ifdef CONFIG_EXPORT_CONST_INT
-#    define LV_EXPORT_CONST_INT CONFIG_EXPORT_CONST_INT
+#  ifdef CONFIG_LV_EXPORT_CONST_INT
+#    define LV_EXPORT_CONST_INT CONFIG_LV_EXPORT_CONST_INT
 #  else
 #    define  LV_EXPORT_CONST_INT(int_value) struct _silence_gcc_warning
 #  endif
@@ -714,8 +714,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* Prefix variables that are used in GPU accelerated operations, often these need to be
  * placed in RAM sections that are DMA accessible */
 #ifndef LV_ATTRIBUTE_DMA
-#  ifdef CONFIG_ATTRIBUTE_DMA
-#    define LV_ATTRIBUTE_DMA CONFIG_ATTRIBUTE_DMA
+#  ifdef CONFIG_LV_ATTRIBUTE_DMA
+#    define LV_ATTRIBUTE_DMA CONFIG_LV_ATTRIBUTE_DMA
 #  else
 #    define  LV_ATTRIBUTE_DMA
 #  endif
@@ -728,23 +728,23 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* 1: use a custom tick source.
  * It removes the need to manually update the tick with `lv_tick_inc`) */
 #ifndef LV_TICK_CUSTOM
-#  ifdef CONFIG_TICK_CUSTOM
-#    define LV_TICK_CUSTOM CONFIG_TICK_CUSTOM
+#  ifdef CONFIG_LV_TICK_CUSTOM
+#    define LV_TICK_CUSTOM CONFIG_LV_TICK_CUSTOM
 #  else
 #    define  LV_TICK_CUSTOM     0
 #  endif
 #endif
 #if LV_TICK_CUSTOM == 1
 #ifndef LV_TICK_CUSTOM_INCLUDE
-#  ifdef CONFIG_TICK_CUSTOM_INCLUDE
-#    define LV_TICK_CUSTOM_INCLUDE CONFIG_TICK_CUSTOM_INCLUDE
+#  ifdef CONFIG_LV_TICK_CUSTOM_INCLUDE
+#    define LV_TICK_CUSTOM_INCLUDE CONFIG_LV_TICK_CUSTOM_INCLUDE
 #  else
 #    define  LV_TICK_CUSTOM_INCLUDE  "Arduino.h"         /*Header for the system time function*/
 #  endif
 #endif
 #ifndef LV_TICK_CUSTOM_SYS_TIME_EXPR
-#  ifdef CONFIG_TICK_CUSTOM_SYS_TIME_EXPR
-#    define LV_TICK_CUSTOM_SYS_TIME_EXPR CONFIG_TICK_CUSTOM_SYS_TIME_EXPR
+#  ifdef CONFIG_LV_TICK_CUSTOM_SYS_TIME_EXPR
+#    define LV_TICK_CUSTOM_SYS_TIME_EXPR CONFIG_LV_TICK_CUSTOM_SYS_TIME_EXPR
 #  else
 #    define  LV_TICK_CUSTOM_SYS_TIME_EXPR (millis())     /*Expression evaluating to current system time in ms*/
 #  endif
@@ -758,8 +758,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*1: Enable the log module*/
 #ifndef LV_USE_LOG
-#  ifdef CONFIG_USE_LOG
-#    define LV_USE_LOG CONFIG_USE_LOG
+#  ifdef CONFIG_LV_USE_LOG
+#    define LV_USE_LOG CONFIG_LV_USE_LOG
 #  else
 #    define  LV_USE_LOG      0
 #  endif
@@ -773,8 +773,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * LV_LOG_LEVEL_NONE        Do not log anything
  */
 #ifndef LV_LOG_LEVEL
-#  ifdef CONFIG_LOG_LEVEL
-#    define LV_LOG_LEVEL CONFIG_LOG_LEVEL
+#  ifdef CONFIG_LV_LOG_LEVEL
+#    define LV_LOG_LEVEL CONFIG_LV_LOG_LEVEL
 #  else
 #    define  LV_LOG_LEVEL    LV_LOG_LEVEL_WARN
 #  endif
@@ -783,8 +783,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* 1: Print the log with 'printf';
  * 0: user need to register a callback with `lv_log_register_print_cb`*/
 #ifndef LV_LOG_PRINTF
-#  ifdef CONFIG_LOG_PRINTF
-#    define LV_LOG_PRINTF CONFIG_LOG_PRINTF
+#  ifdef CONFIG_LV_LOG_PRINTF
+#    define LV_LOG_PRINTF CONFIG_LV_LOG_PRINTF
 #  else
 #    define  LV_LOG_PRINTF   0
 #  endif
@@ -805,8 +805,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * E.g. #define LV_ASSERT_MEM(p)  <my_assert_code>
  */
 #ifndef LV_USE_DEBUG
-#  ifdef CONFIG_USE_DEBUG
-#    define LV_USE_DEBUG CONFIG_USE_DEBUG
+#  ifdef CONFIG_LV_USE_DEBUG
+#    define LV_USE_DEBUG CONFIG_LV_USE_DEBUG
 #  else
 #    define  LV_USE_DEBUG        1
 #  endif
@@ -815,8 +815,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Check if the parameter is NULL. (Quite fast) */
 #ifndef LV_USE_ASSERT_NULL
-#  ifdef CONFIG_USE_ASSERT_NULL
-#    define LV_USE_ASSERT_NULL CONFIG_USE_ASSERT_NULL
+#  ifdef CONFIG_LV_USE_ASSERT_NULL
+#    define LV_USE_ASSERT_NULL CONFIG_LV_USE_ASSERT_NULL
 #  else
 #    define  LV_USE_ASSERT_NULL      1
 #  endif
@@ -824,8 +824,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Checks is the memory is successfully allocated or no. (Quite fast)*/
 #ifndef LV_USE_ASSERT_MEM
-#  ifdef CONFIG_USE_ASSERT_MEM
-#    define LV_USE_ASSERT_MEM CONFIG_USE_ASSERT_MEM
+#  ifdef CONFIG_LV_USE_ASSERT_MEM
+#    define LV_USE_ASSERT_MEM CONFIG_LV_USE_ASSERT_MEM
 #  else
 #    define  LV_USE_ASSERT_MEM       1
 #  endif
@@ -833,8 +833,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Check the integrity of `lv_mem` after critical operations. (Slow)*/
 #ifndef LV_USE_ASSERT_MEM_INTEGRITY
-#  ifdef CONFIG_USE_ASSERT_MEM_INTEGRITY
-#    define LV_USE_ASSERT_MEM_INTEGRITY CONFIG_USE_ASSERT_MEM_INTEGRITY
+#  ifdef CONFIG_LV_USE_ASSERT_MEM_INTEGRITY
+#    define LV_USE_ASSERT_MEM_INTEGRITY CONFIG_LV_USE_ASSERT_MEM_INTEGRITY
 #  else
 #    define  LV_USE_ASSERT_MEM_INTEGRITY       0
 #  endif
@@ -844,8 +844,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * Search for NULL, very long strings, invalid characters, and unnatural repetitions. (Slow)
  * If disabled `LV_USE_ASSERT_NULL` will be performed instead (if it's enabled) */
 #ifndef LV_USE_ASSERT_STR
-#  ifdef CONFIG_USE_ASSERT_STR
-#    define LV_USE_ASSERT_STR CONFIG_USE_ASSERT_STR
+#  ifdef CONFIG_LV_USE_ASSERT_STR
+#    define LV_USE_ASSERT_STR CONFIG_LV_USE_ASSERT_STR
 #  else
 #    define  LV_USE_ASSERT_STR       0
 #  endif
@@ -854,8 +854,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* Check NULL, the object's type and existence (e.g. not deleted). (Quite slow)
  * If disabled `LV_USE_ASSERT_NULL` will be performed instead (if it's enabled) */
 #ifndef LV_USE_ASSERT_OBJ
-#  ifdef CONFIG_USE_ASSERT_OBJ
-#    define LV_USE_ASSERT_OBJ CONFIG_USE_ASSERT_OBJ
+#  ifdef CONFIG_LV_USE_ASSERT_OBJ
+#    define LV_USE_ASSERT_OBJ CONFIG_LV_USE_ASSERT_OBJ
 #  else
 #    define  LV_USE_ASSERT_OBJ       0
 #  endif
@@ -863,8 +863,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Check if the styles are properly initialized. (Fast)*/
 #ifndef LV_USE_ASSERT_STYLE
-#  ifdef CONFIG_USE_ASSERT_STYLE
-#    define LV_USE_ASSERT_STYLE CONFIG_USE_ASSERT_STYLE
+#  ifdef CONFIG_LV_USE_ASSERT_STYLE
+#    define LV_USE_ASSERT_STYLE CONFIG_LV_USE_ASSERT_STYLE
 #  else
 #    define  LV_USE_ASSERT_STYLE     0
 #  endif
@@ -885,148 +885,148 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* Montserrat fonts with bpp = 4
  * https://fonts.google.com/specimen/Montserrat  */
 #ifndef LV_FONT_MONTSERRAT_8
-#  ifdef CONFIG_FONT_MONTSERRAT_8
-#    define LV_FONT_MONTSERRAT_8 CONFIG_FONT_MONTSERRAT_8
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_8
+#    define LV_FONT_MONTSERRAT_8 CONFIG_LV_FONT_MONTSERRAT_8
 #  else
 #    define  LV_FONT_MONTSERRAT_8     0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_10
-#  ifdef CONFIG_FONT_MONTSERRAT_10
-#    define LV_FONT_MONTSERRAT_10 CONFIG_FONT_MONTSERRAT_10
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_10
+#    define LV_FONT_MONTSERRAT_10 CONFIG_LV_FONT_MONTSERRAT_10
 #  else
 #    define  LV_FONT_MONTSERRAT_10    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_12
-#  ifdef CONFIG_FONT_MONTSERRAT_12
-#    define LV_FONT_MONTSERRAT_12 CONFIG_FONT_MONTSERRAT_12
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_12
+#    define LV_FONT_MONTSERRAT_12 CONFIG_LV_FONT_MONTSERRAT_12
 #  else
 #    define  LV_FONT_MONTSERRAT_12    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_14
-#  ifdef CONFIG_FONT_MONTSERRAT_14
-#    define LV_FONT_MONTSERRAT_14 CONFIG_FONT_MONTSERRAT_14
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_14
+#    define LV_FONT_MONTSERRAT_14 CONFIG_LV_FONT_MONTSERRAT_14
 #  else
 #    define  LV_FONT_MONTSERRAT_14    1
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_16
-#  ifdef CONFIG_FONT_MONTSERRAT_16
-#    define LV_FONT_MONTSERRAT_16 CONFIG_FONT_MONTSERRAT_16
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_16
+#    define LV_FONT_MONTSERRAT_16 CONFIG_LV_FONT_MONTSERRAT_16
 #  else
 #    define  LV_FONT_MONTSERRAT_16    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_18
-#  ifdef CONFIG_FONT_MONTSERRAT_18
-#    define LV_FONT_MONTSERRAT_18 CONFIG_FONT_MONTSERRAT_18
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_18
+#    define LV_FONT_MONTSERRAT_18 CONFIG_LV_FONT_MONTSERRAT_18
 #  else
 #    define  LV_FONT_MONTSERRAT_18    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_20
-#  ifdef CONFIG_FONT_MONTSERRAT_20
-#    define LV_FONT_MONTSERRAT_20 CONFIG_FONT_MONTSERRAT_20
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_20
+#    define LV_FONT_MONTSERRAT_20 CONFIG_LV_FONT_MONTSERRAT_20
 #  else
 #    define  LV_FONT_MONTSERRAT_20    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_22
-#  ifdef CONFIG_FONT_MONTSERRAT_22
-#    define LV_FONT_MONTSERRAT_22 CONFIG_FONT_MONTSERRAT_22
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_22
+#    define LV_FONT_MONTSERRAT_22 CONFIG_LV_FONT_MONTSERRAT_22
 #  else
 #    define  LV_FONT_MONTSERRAT_22    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_24
-#  ifdef CONFIG_FONT_MONTSERRAT_24
-#    define LV_FONT_MONTSERRAT_24 CONFIG_FONT_MONTSERRAT_24
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_24
+#    define LV_FONT_MONTSERRAT_24 CONFIG_LV_FONT_MONTSERRAT_24
 #  else
 #    define  LV_FONT_MONTSERRAT_24    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_26
-#  ifdef CONFIG_FONT_MONTSERRAT_26
-#    define LV_FONT_MONTSERRAT_26 CONFIG_FONT_MONTSERRAT_26
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_26
+#    define LV_FONT_MONTSERRAT_26 CONFIG_LV_FONT_MONTSERRAT_26
 #  else
 #    define  LV_FONT_MONTSERRAT_26    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_28
-#  ifdef CONFIG_FONT_MONTSERRAT_28
-#    define LV_FONT_MONTSERRAT_28 CONFIG_FONT_MONTSERRAT_28
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_28
+#    define LV_FONT_MONTSERRAT_28 CONFIG_LV_FONT_MONTSERRAT_28
 #  else
 #    define  LV_FONT_MONTSERRAT_28    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_30
-#  ifdef CONFIG_FONT_MONTSERRAT_30
-#    define LV_FONT_MONTSERRAT_30 CONFIG_FONT_MONTSERRAT_30
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_30
+#    define LV_FONT_MONTSERRAT_30 CONFIG_LV_FONT_MONTSERRAT_30
 #  else
 #    define  LV_FONT_MONTSERRAT_30    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_32
-#  ifdef CONFIG_FONT_MONTSERRAT_32
-#    define LV_FONT_MONTSERRAT_32 CONFIG_FONT_MONTSERRAT_32
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_32
+#    define LV_FONT_MONTSERRAT_32 CONFIG_LV_FONT_MONTSERRAT_32
 #  else
 #    define  LV_FONT_MONTSERRAT_32    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_34
-#  ifdef CONFIG_FONT_MONTSERRAT_34
-#    define LV_FONT_MONTSERRAT_34 CONFIG_FONT_MONTSERRAT_34
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_34
+#    define LV_FONT_MONTSERRAT_34 CONFIG_LV_FONT_MONTSERRAT_34
 #  else
 #    define  LV_FONT_MONTSERRAT_34    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_36
-#  ifdef CONFIG_FONT_MONTSERRAT_36
-#    define LV_FONT_MONTSERRAT_36 CONFIG_FONT_MONTSERRAT_36
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_36
+#    define LV_FONT_MONTSERRAT_36 CONFIG_LV_FONT_MONTSERRAT_36
 #  else
 #    define  LV_FONT_MONTSERRAT_36    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_38
-#  ifdef CONFIG_FONT_MONTSERRAT_38
-#    define LV_FONT_MONTSERRAT_38 CONFIG_FONT_MONTSERRAT_38
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_38
+#    define LV_FONT_MONTSERRAT_38 CONFIG_LV_FONT_MONTSERRAT_38
 #  else
 #    define  LV_FONT_MONTSERRAT_38    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_40
-#  ifdef CONFIG_FONT_MONTSERRAT_40
-#    define LV_FONT_MONTSERRAT_40 CONFIG_FONT_MONTSERRAT_40
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_40
+#    define LV_FONT_MONTSERRAT_40 CONFIG_LV_FONT_MONTSERRAT_40
 #  else
 #    define  LV_FONT_MONTSERRAT_40    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_42
-#  ifdef CONFIG_FONT_MONTSERRAT_42
-#    define LV_FONT_MONTSERRAT_42 CONFIG_FONT_MONTSERRAT_42
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_42
+#    define LV_FONT_MONTSERRAT_42 CONFIG_LV_FONT_MONTSERRAT_42
 #  else
 #    define  LV_FONT_MONTSERRAT_42    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_44
-#  ifdef CONFIG_FONT_MONTSERRAT_44
-#    define LV_FONT_MONTSERRAT_44 CONFIG_FONT_MONTSERRAT_44
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_44
+#    define LV_FONT_MONTSERRAT_44 CONFIG_LV_FONT_MONTSERRAT_44
 #  else
 #    define  LV_FONT_MONTSERRAT_44    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_46
-#  ifdef CONFIG_FONT_MONTSERRAT_46
-#    define LV_FONT_MONTSERRAT_46 CONFIG_FONT_MONTSERRAT_46
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_46
+#    define LV_FONT_MONTSERRAT_46 CONFIG_LV_FONT_MONTSERRAT_46
 #  else
 #    define  LV_FONT_MONTSERRAT_46    0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_48
-#  ifdef CONFIG_FONT_MONTSERRAT_48
-#    define LV_FONT_MONTSERRAT_48 CONFIG_FONT_MONTSERRAT_48
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_48
+#    define LV_FONT_MONTSERRAT_48 CONFIG_LV_FONT_MONTSERRAT_48
 #  else
 #    define  LV_FONT_MONTSERRAT_48    0
 #  endif
@@ -1034,29 +1034,29 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* Demonstrate special features */
 #ifndef LV_FONT_MONTSERRAT_12_SUBPX
-#  ifdef CONFIG_FONT_MONTSERRAT_12_SUBPX
-#    define LV_FONT_MONTSERRAT_12_SUBPX CONFIG_FONT_MONTSERRAT_12_SUBPX
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_12_SUBPX
+#    define LV_FONT_MONTSERRAT_12_SUBPX CONFIG_LV_FONT_MONTSERRAT_12_SUBPX
 #  else
 #    define  LV_FONT_MONTSERRAT_12_SUBPX      0
 #  endif
 #endif
 #ifndef LV_FONT_MONTSERRAT_28_COMPRESSED
-#  ifdef CONFIG_FONT_MONTSERRAT_28_COMPRESSED
-#    define LV_FONT_MONTSERRAT_28_COMPRESSED CONFIG_FONT_MONTSERRAT_28_COMPRESSED
+#  ifdef CONFIG_LV_FONT_MONTSERRAT_28_COMPRESSED
+#    define LV_FONT_MONTSERRAT_28_COMPRESSED CONFIG_LV_FONT_MONTSERRAT_28_COMPRESSED
 #  else
 #    define  LV_FONT_MONTSERRAT_28_COMPRESSED 0  /*bpp = 3*/
 #  endif
 #endif
 #ifndef LV_FONT_DEJAVU_16_PERSIAN_HEBREW
-#  ifdef CONFIG_FONT_DEJAVU_16_PERSIAN_HEBREW
-#    define LV_FONT_DEJAVU_16_PERSIAN_HEBREW CONFIG_FONT_DEJAVU_16_PERSIAN_HEBREW
+#  ifdef CONFIG_LV_FONT_DEJAVU_16_PERSIAN_HEBREW
+#    define LV_FONT_DEJAVU_16_PERSIAN_HEBREW CONFIG_LV_FONT_DEJAVU_16_PERSIAN_HEBREW
 #  else
 #    define  LV_FONT_DEJAVU_16_PERSIAN_HEBREW 0  /*Hebrew, Arabic, PErisan letters and all their forms*/
 #  endif
 #endif
 #ifndef LV_FONT_SIMSUN_16_CJK
-#  ifdef CONFIG_FONT_SIMSUN_16_CJK
-#    define LV_FONT_SIMSUN_16_CJK CONFIG_FONT_SIMSUN_16_CJK
+#  ifdef CONFIG_LV_FONT_SIMSUN_16_CJK
+#    define LV_FONT_SIMSUN_16_CJK CONFIG_LV_FONT_SIMSUN_16_CJK
 #  else
 #    define  LV_FONT_SIMSUN_16_CJK            0  /*1000 most common CJK radicals*/
 #  endif
@@ -1065,15 +1065,15 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /*Pixel perfect monospace font
  * http://pelulamu.net/unscii/ */
 #ifndef LV_FONT_UNSCII_8
-#  ifdef CONFIG_FONT_UNSCII_8
-#    define LV_FONT_UNSCII_8 CONFIG_FONT_UNSCII_8
+#  ifdef CONFIG_LV_FONT_UNSCII_8
+#    define LV_FONT_UNSCII_8 CONFIG_LV_FONT_UNSCII_8
 #  else
 #    define  LV_FONT_UNSCII_8     0
 #  endif
 #endif
 #ifndef LV_FONT_UNSCII_16
-#  ifdef CONFIG_FONT_UNSCII_16
-#    define LV_FONT_UNSCII_16 CONFIG_FONT_UNSCII_16
+#  ifdef CONFIG_LV_FONT_UNSCII_16
+#    define LV_FONT_UNSCII_16 CONFIG_LV_FONT_UNSCII_16
 #  else
 #    define  LV_FONT_UNSCII_16     0
 #  endif
@@ -1086,8 +1086,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  *                                LV_FONT_DECLARE(my_font_2)
  */
 #ifndef LV_FONT_CUSTOM_DECLARE
-#  ifdef CONFIG_FONT_CUSTOM_DECLARE
-#    define LV_FONT_CUSTOM_DECLARE CONFIG_FONT_CUSTOM_DECLARE
+#  ifdef CONFIG_LV_FONT_CUSTOM_DECLARE
+#    define LV_FONT_CUSTOM_DECLARE CONFIG_LV_FONT_CUSTOM_DECLARE
 #  else
 #    define  LV_FONT_CUSTOM_DECLARE
 #  endif
@@ -1097,8 +1097,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * The limit depends on the font size, font face and bpp
  * but with > 10,000 characters if you see issues probably you need to enable it.*/
 #ifndef LV_FONT_FMT_TXT_LARGE
-#  ifdef CONFIG_FONT_FMT_TXT_LARGE
-#    define LV_FONT_FMT_TXT_LARGE CONFIG_FONT_FMT_TXT_LARGE
+#  ifdef CONFIG_LV_FONT_FMT_TXT_LARGE
+#    define LV_FONT_FMT_TXT_LARGE CONFIG_LV_FONT_FMT_TXT_LARGE
 #  else
 #    define  LV_FONT_FMT_TXT_LARGE   0
 #  endif
@@ -1108,8 +1108,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * glyphs cannot be processed by the library and won't be rendered.
  */
 #ifndef LV_USE_FONT_COMPRESSED
-#  ifdef CONFIG_USE_FONT_COMPRESSED
-#    define LV_USE_FONT_COMPRESSED CONFIG_USE_FONT_COMPRESSED
+#  ifdef CONFIG_LV_USE_FONT_COMPRESSED
+#    define LV_USE_FONT_COMPRESSED CONFIG_LV_USE_FONT_COMPRESSED
 #  else
 #    define  LV_USE_FONT_COMPRESSED 1
 #  endif
@@ -1117,8 +1117,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* Enable subpixel rendering */
 #ifndef LV_USE_FONT_SUBPX
-#  ifdef CONFIG_USE_FONT_SUBPX
-#    define LV_USE_FONT_SUBPX CONFIG_USE_FONT_SUBPX
+#  ifdef CONFIG_LV_USE_FONT_SUBPX
+#    define LV_USE_FONT_SUBPX CONFIG_LV_USE_FONT_SUBPX
 #  else
 #    define  LV_USE_FONT_SUBPX 1
 #  endif
@@ -1129,8 +1129,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * With "normal" font it doesn't matter.
  */
 #ifndef LV_FONT_SUBPX_BGR
-#  ifdef CONFIG_FONT_SUBPX_BGR
-#    define LV_FONT_SUBPX_BGR CONFIG_FONT_SUBPX_BGR
+#  ifdef CONFIG_LV_FONT_SUBPX_BGR
+#    define LV_FONT_SUBPX_BGR CONFIG_LV_FONT_SUBPX_BGR
 #  else
 #    define  LV_FONT_SUBPX_BGR    0
 #  endif
@@ -1148,8 +1148,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* No theme, you can apply your styles as you need
  * No flags. Set LV_THEME_DEFAULT_FLAG 0 */
 #ifndef LV_USE_THEME_EMPTY
-#  ifdef CONFIG_USE_THEME_EMPTY
-#    define LV_USE_THEME_EMPTY CONFIG_USE_THEME_EMPTY
+#  ifdef CONFIG_LV_USE_THEME_EMPTY
+#    define LV_USE_THEME_EMPTY CONFIG_LV_USE_THEME_EMPTY
 #  else
 #    define  LV_USE_THEME_EMPTY       1
 #  endif
@@ -1158,8 +1158,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /*Simple to the create your theme based on it
  * No flags. Set LV_THEME_DEFAULT_FLAG 0 */
 #ifndef LV_USE_THEME_TEMPLATE
-#  ifdef CONFIG_USE_THEME_TEMPLATE
-#    define LV_USE_THEME_TEMPLATE CONFIG_USE_THEME_TEMPLATE
+#  ifdef CONFIG_LV_USE_THEME_TEMPLATE
+#    define LV_USE_THEME_TEMPLATE CONFIG_LV_USE_THEME_TEMPLATE
 #  else
 #    define  LV_USE_THEME_TEMPLATE    1
 #  endif
@@ -1173,8 +1173,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * LV_THEME_MATERIAL_FLAG_NO_FOCUS: disable indication of focused state)
  * */
 #ifndef LV_USE_THEME_MATERIAL
-#  ifdef CONFIG_USE_THEME_MATERIAL
-#    define LV_USE_THEME_MATERIAL CONFIG_USE_THEME_MATERIAL
+#  ifdef CONFIG_LV_USE_THEME_MATERIAL
+#    define LV_USE_THEME_MATERIAL CONFIG_LV_USE_THEME_MATERIAL
 #  else
 #    define  LV_USE_THEME_MATERIAL    1
 #  endif
@@ -1186,72 +1186,72 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * white. Else the colors are inverted.
  * No flags. Set LV_THEME_DEFAULT_FLAG 0 */
 #ifndef LV_USE_THEME_MONO
-#  ifdef CONFIG_USE_THEME_MONO
-#    define LV_USE_THEME_MONO CONFIG_USE_THEME_MONO
+#  ifdef CONFIG_LV_USE_THEME_MONO
+#    define LV_USE_THEME_MONO CONFIG_LV_USE_THEME_MONO
 #  else
 #    define  LV_USE_THEME_MONO        1
 #  endif
 #endif
 
 #ifndef LV_THEME_DEFAULT_INCLUDE
-#  ifdef CONFIG_THEME_DEFAULT_INCLUDE
-#    define LV_THEME_DEFAULT_INCLUDE CONFIG_THEME_DEFAULT_INCLUDE
+#  ifdef CONFIG_LV_THEME_DEFAULT_INCLUDE
+#    define LV_THEME_DEFAULT_INCLUDE CONFIG_LV_THEME_DEFAULT_INCLUDE
 #  else
 #    define  LV_THEME_DEFAULT_INCLUDE            <stdint.h>      /*Include a header for the init. function*/
 #  endif
 #endif
 #ifndef LV_THEME_DEFAULT_INIT
-#  ifdef CONFIG_THEME_DEFAULT_INIT
-#    define LV_THEME_DEFAULT_INIT CONFIG_THEME_DEFAULT_INIT
+#  ifdef CONFIG_LV_THEME_DEFAULT_INIT
+#    define LV_THEME_DEFAULT_INIT CONFIG_LV_THEME_DEFAULT_INIT
 #  else
 #    define  LV_THEME_DEFAULT_INIT               lv_theme_material_init
 #  endif
 #endif
 #ifndef LV_THEME_DEFAULT_COLOR_PRIMARY
-#  ifdef CONFIG_THEME_DEFAULT_COLOR_PRIMARY
-#    define LV_THEME_DEFAULT_COLOR_PRIMARY CONFIG_THEME_DEFAULT_COLOR_PRIMARY
+#  ifdef CONFIG_LV_THEME_DEFAULT_COLOR_PRIMARY
+#    define LV_THEME_DEFAULT_COLOR_PRIMARY CONFIG_LV_THEME_DEFAULT_COLOR_PRIMARY
 #  else
 #    define  LV_THEME_DEFAULT_COLOR_PRIMARY      lv_color_hex(0x01a2b1)
 #  endif
 #endif
 #ifndef LV_THEME_DEFAULT_COLOR_SECONDARY
-#  ifdef CONFIG_THEME_DEFAULT_COLOR_SECONDARY
-#    define LV_THEME_DEFAULT_COLOR_SECONDARY CONFIG_THEME_DEFAULT_COLOR_SECONDARY
+#  ifdef CONFIG_LV_THEME_DEFAULT_COLOR_SECONDARY
+#    define LV_THEME_DEFAULT_COLOR_SECONDARY CONFIG_LV_THEME_DEFAULT_COLOR_SECONDARY
 #  else
 #    define  LV_THEME_DEFAULT_COLOR_SECONDARY    lv_color_hex(0x44d1b6)
 #  endif
 #endif
 #ifndef LV_THEME_DEFAULT_FLAG
-#  ifdef CONFIG_THEME_DEFAULT_FLAG
-#    define LV_THEME_DEFAULT_FLAG CONFIG_THEME_DEFAULT_FLAG
+#  ifdef CONFIG_LV_THEME_DEFAULT_FLAG
+#    define LV_THEME_DEFAULT_FLAG CONFIG_LV_THEME_DEFAULT_FLAG
 #  else
 #    define  LV_THEME_DEFAULT_FLAG               LV_THEME_MATERIAL_FLAG_LIGHT
 #  endif
 #endif
 #ifndef LV_THEME_DEFAULT_FONT_SMALL
-#  ifdef CONFIG_THEME_DEFAULT_FONT_SMALL
-#    define LV_THEME_DEFAULT_FONT_SMALL CONFIG_THEME_DEFAULT_FONT_SMALL
+#  ifdef CONFIG_LV_THEME_DEFAULT_FONT_SMALL
+#    define LV_THEME_DEFAULT_FONT_SMALL CONFIG_LV_THEME_DEFAULT_FONT_SMALL
 #  else
 #    define  LV_THEME_DEFAULT_FONT_SMALL         &lv_font_montserrat_14
 #  endif
 #endif
 #ifndef LV_THEME_DEFAULT_FONT_NORMAL
-#  ifdef CONFIG_THEME_DEFAULT_FONT_NORMAL
-#    define LV_THEME_DEFAULT_FONT_NORMAL CONFIG_THEME_DEFAULT_FONT_NORMAL
+#  ifdef CONFIG_LV_THEME_DEFAULT_FONT_NORMAL
+#    define LV_THEME_DEFAULT_FONT_NORMAL CONFIG_LV_THEME_DEFAULT_FONT_NORMAL
 #  else
 #    define  LV_THEME_DEFAULT_FONT_NORMAL        &lv_font_montserrat_14
 #  endif
 #endif
 #ifndef LV_THEME_DEFAULT_FONT_SUBTITLE
-#  ifdef CONFIG_THEME_DEFAULT_FONT_SUBTITLE
-#    define LV_THEME_DEFAULT_FONT_SUBTITLE CONFIG_THEME_DEFAULT_FONT_SUBTITLE
+#  ifdef CONFIG_LV_THEME_DEFAULT_FONT_SUBTITLE
+#    define LV_THEME_DEFAULT_FONT_SUBTITLE CONFIG_LV_THEME_DEFAULT_FONT_SUBTITLE
 #  else
 #    define  LV_THEME_DEFAULT_FONT_SUBTITLE      &lv_font_montserrat_14
 #  endif
 #endif
 #ifndef LV_THEME_DEFAULT_FONT_TITLE
-#  ifdef CONFIG_THEME_DEFAULT_FONT_TITLE
-#    define LV_THEME_DEFAULT_FONT_TITLE CONFIG_THEME_DEFAULT_FONT_TITLE
+#  ifdef CONFIG_LV_THEME_DEFAULT_FONT_TITLE
+#    define LV_THEME_DEFAULT_FONT_TITLE CONFIG_LV_THEME_DEFAULT_FONT_TITLE
 #  else
 #    define  LV_THEME_DEFAULT_FONT_TITLE         &lv_font_montserrat_14
 #  endif
@@ -1267,8 +1267,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * - LV_TXT_ENC_ASCII
  * */
 #ifndef LV_TXT_ENC
-#  ifdef CONFIG_TXT_ENC
-#    define LV_TXT_ENC CONFIG_TXT_ENC
+#  ifdef CONFIG_LV_TXT_ENC
+#    define LV_TXT_ENC CONFIG_LV_TXT_ENC
 #  else
 #    define  LV_TXT_ENC LV_TXT_ENC_UTF8
 #  endif
@@ -1276,8 +1276,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
  /*Can break (wrap) texts on these chars*/
 #ifndef LV_TXT_BREAK_CHARS
-#  ifdef CONFIG_TXT_BREAK_CHARS
-#    define LV_TXT_BREAK_CHARS CONFIG_TXT_BREAK_CHARS
+#  ifdef CONFIG_LV_TXT_BREAK_CHARS
+#    define LV_TXT_BREAK_CHARS CONFIG_LV_TXT_BREAK_CHARS
 #  else
 #    define  LV_TXT_BREAK_CHARS                  " ,.;:-_"
 #  endif
@@ -1286,8 +1286,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* If a word is at least this long, will break wherever "prettiest"
  * To disable, set to a value <= 0 */
 #ifndef LV_TXT_LINE_BREAK_LONG_LEN
-#  ifdef CONFIG_TXT_LINE_BREAK_LONG_LEN
-#    define LV_TXT_LINE_BREAK_LONG_LEN CONFIG_TXT_LINE_BREAK_LONG_LEN
+#  ifdef CONFIG_LV_TXT_LINE_BREAK_LONG_LEN
+#    define LV_TXT_LINE_BREAK_LONG_LEN CONFIG_LV_TXT_LINE_BREAK_LONG_LEN
 #  else
 #    define  LV_TXT_LINE_BREAK_LONG_LEN          0
 #  endif
@@ -1296,8 +1296,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* Minimum number of characters in a long word to put on a line before a break.
  * Depends on LV_TXT_LINE_BREAK_LONG_LEN. */
 #ifndef LV_TXT_LINE_BREAK_LONG_PRE_MIN_LEN
-#  ifdef CONFIG_TXT_LINE_BREAK_LONG_PRE_MIN_LEN
-#    define LV_TXT_LINE_BREAK_LONG_PRE_MIN_LEN CONFIG_TXT_LINE_BREAK_LONG_PRE_MIN_LEN
+#  ifdef CONFIG_LV_TXT_LINE_BREAK_LONG_PRE_MIN_LEN
+#    define LV_TXT_LINE_BREAK_LONG_PRE_MIN_LEN CONFIG_LV_TXT_LINE_BREAK_LONG_PRE_MIN_LEN
 #  else
 #    define  LV_TXT_LINE_BREAK_LONG_PRE_MIN_LEN  3
 #  endif
@@ -1306,8 +1306,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /* Minimum number of characters in a long word to put on a line after a break.
  * Depends on LV_TXT_LINE_BREAK_LONG_LEN. */
 #ifndef LV_TXT_LINE_BREAK_LONG_POST_MIN_LEN
-#  ifdef CONFIG_TXT_LINE_BREAK_LONG_POST_MIN_LEN
-#    define LV_TXT_LINE_BREAK_LONG_POST_MIN_LEN CONFIG_TXT_LINE_BREAK_LONG_POST_MIN_LEN
+#  ifdef CONFIG_LV_TXT_LINE_BREAK_LONG_POST_MIN_LEN
+#    define LV_TXT_LINE_BREAK_LONG_POST_MIN_LEN CONFIG_LV_TXT_LINE_BREAK_LONG_POST_MIN_LEN
 #  else
 #    define  LV_TXT_LINE_BREAK_LONG_POST_MIN_LEN 3
 #  endif
@@ -1315,8 +1315,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* The control character to use for signalling text recoloring. */
 #ifndef LV_TXT_COLOR_CMD
-#  ifdef CONFIG_TXT_COLOR_CMD
-#    define LV_TXT_COLOR_CMD CONFIG_TXT_COLOR_CMD
+#  ifdef CONFIG_LV_TXT_COLOR_CMD
+#    define LV_TXT_COLOR_CMD CONFIG_LV_TXT_COLOR_CMD
 #  else
 #    define  LV_TXT_COLOR_CMD "#"
 #  endif
@@ -1327,8 +1327,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * The direction will be processed according to the Unicode Bidirectional Algorithm:
  * https://www.w3.org/International/articles/inline-bidi-markup/uba-basics*/
 #ifndef LV_USE_BIDI
-#  ifdef CONFIG_USE_BIDI
-#    define LV_USE_BIDI CONFIG_USE_BIDI
+#  ifdef CONFIG_LV_USE_BIDI
+#    define LV_USE_BIDI CONFIG_LV_USE_BIDI
 #  else
 #    define  LV_USE_BIDI     0
 #  endif
@@ -1339,8 +1339,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * `LV_BIDI_DIR_RTL` Right-to-Left
  * `LV_BIDI_DIR_AUTO` detect texts base direction */
 #ifndef LV_BIDI_BASE_DIR_DEF
-#  ifdef CONFIG_BIDI_BASE_DIR_DEF
-#    define LV_BIDI_BASE_DIR_DEF CONFIG_BIDI_BASE_DIR_DEF
+#  ifdef CONFIG_LV_BIDI_BASE_DIR_DEF
+#    define LV_BIDI_BASE_DIR_DEF CONFIG_LV_BIDI_BASE_DIR_DEF
 #  else
 #    define  LV_BIDI_BASE_DIR_DEF  LV_BIDI_DIR_AUTO
 #  endif
@@ -1351,8 +1351,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * In these languages characters should be replaced with
  * an other form based on their position in the text */
 #ifndef LV_USE_ARABIC_PERSIAN_CHARS
-#  ifdef CONFIG_USE_ARABIC_PERSIAN_CHARS
-#    define LV_USE_ARABIC_PERSIAN_CHARS CONFIG_USE_ARABIC_PERSIAN_CHARS
+#  ifdef CONFIG_LV_USE_ARABIC_PERSIAN_CHARS
+#    define LV_USE_ARABIC_PERSIAN_CHARS CONFIG_LV_USE_ARABIC_PERSIAN_CHARS
 #  else
 #    define  LV_USE_ARABIC_PERSIAN_CHARS 0
 #  endif
@@ -1360,38 +1360,38 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Change the built in (v)snprintf functions*/
 #ifndef LV_SPRINTF_CUSTOM
-#  ifdef CONFIG_SPRINTF_CUSTOM
-#    define LV_SPRINTF_CUSTOM CONFIG_SPRINTF_CUSTOM
+#  ifdef CONFIG_LV_SPRINTF_CUSTOM
+#    define LV_SPRINTF_CUSTOM CONFIG_LV_SPRINTF_CUSTOM
 #  else
 #    define  LV_SPRINTF_CUSTOM   0
 #  endif
 #endif
 #if LV_SPRINTF_CUSTOM
 #ifndef LV_SPRINTF_INCLUDE
-#  ifdef CONFIG_SPRINTF_INCLUDE
-#    define LV_SPRINTF_INCLUDE CONFIG_SPRINTF_INCLUDE
+#  ifdef CONFIG_LV_SPRINTF_INCLUDE
+#    define LV_SPRINTF_INCLUDE CONFIG_LV_SPRINTF_INCLUDE
 #  else
 #    define  LV_SPRINTF_INCLUDE <stdio.h>
 #  endif
 #endif
 #ifndef lv_snprintf
-#  ifdef CONFIG_SNPRINTF
-#    define lv_snprintf CONFIG_SNPRINTF
+#  ifdef CONFIG_LV_SNPRINTF
+#    define lv_snprintf CONFIG_LV_SNPRINTF
 #  else
 #    define  lv_snprintf     snprintf
 #  endif
 #endif
 #ifndef lv_vsnprintf
-#  ifdef CONFIG_VSNPRINTF
-#    define lv_vsnprintf CONFIG_VSNPRINTF
+#  ifdef CONFIG_LV_VSNPRINTF
+#    define lv_vsnprintf CONFIG_LV_VSNPRINTF
 #  else
 #    define  lv_vsnprintf    vsnprintf
 #  endif
 #endif
 #else   /*!LV_SPRINTF_CUSTOM*/
 #ifndef LV_SPRINTF_DISABLE_FLOAT
-#  ifdef CONFIG_SPRINTF_DISABLE_FLOAT
-#    define LV_SPRINTF_DISABLE_FLOAT CONFIG_SPRINTF_DISABLE_FLOAT
+#  ifdef CONFIG_LV_SPRINTF_DISABLE_FLOAT
+#    define LV_SPRINTF_DISABLE_FLOAT CONFIG_LV_SPRINTF_DISABLE_FLOAT
 #  else
 #    define  LV_SPRINTF_DISABLE_FLOAT 1
 #  endif
@@ -1406,24 +1406,24 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 /*Declare the type of the user data of object (can be e.g. `void *`, `int`, `struct`)*/
 /*Provide a function to free user data*/
 #ifndef LV_USE_USER_DATA_FREE
-#  ifdef CONFIG_USE_USER_DATA_FREE
-#    define LV_USE_USER_DATA_FREE CONFIG_USE_USER_DATA_FREE
+#  ifdef CONFIG_LV_USE_USER_DATA_FREE
+#    define LV_USE_USER_DATA_FREE CONFIG_LV_USE_USER_DATA_FREE
 #  else
 #    define  LV_USE_USER_DATA_FREE 0
 #  endif
 #endif
 #if LV_USE_USER_DATA_FREE
 #ifndef LV_USER_DATA_FREE_INCLUDE
-#  ifdef CONFIG_USER_DATA_FREE_INCLUDE
-#    define LV_USER_DATA_FREE_INCLUDE CONFIG_USER_DATA_FREE_INCLUDE
+#  ifdef CONFIG_LV_USER_DATA_FREE_INCLUDE
+#    define LV_USER_DATA_FREE_INCLUDE CONFIG_LV_USER_DATA_FREE_INCLUDE
 #  else
 #    define  LV_USER_DATA_FREE_INCLUDE  "something.h"  /*Header for user data free function*/
 #  endif
 #endif
 /* Function prototype : void user_data_free(lv_obj_t * obj); */
 #ifndef LV_USER_DATA_FREE
-#  ifdef CONFIG_USER_DATA_FREE
-#    define LV_USER_DATA_FREE CONFIG_USER_DATA_FREE
+#  ifdef CONFIG_LV_USER_DATA_FREE
+#    define LV_USER_DATA_FREE CONFIG_LV_USER_DATA_FREE
 #  else
 #    define  LV_USER_DATA_FREE  (user_data_free)       /*Invoking for user data free function*/
 #  endif
@@ -1433,8 +1433,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*1: enable `lv_obj_realign()` based on `lv_obj_align()` parameters*/
 #ifndef LV_USE_OBJ_REALIGN
-#  ifdef CONFIG_USE_OBJ_REALIGN
-#    define LV_USE_OBJ_REALIGN CONFIG_USE_OBJ_REALIGN
+#  ifdef CONFIG_LV_USE_OBJ_REALIGN
+#    define LV_USE_OBJ_REALIGN CONFIG_LV_USE_OBJ_REALIGN
 #  else
 #    define  LV_USE_OBJ_REALIGN          1
 #  endif
@@ -1446,8 +1446,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * LV_EXT_CLICK_AREA_FULL: The extra area can be adjusted in all 4 directions (-32k..+32k px)
  */
 #ifndef LV_USE_EXT_CLICK_AREA
-#  ifdef CONFIG_USE_EXT_CLICK_AREA
-#    define LV_USE_EXT_CLICK_AREA CONFIG_USE_EXT_CLICK_AREA
+#  ifdef CONFIG_LV_USE_EXT_CLICK_AREA
+#    define LV_USE_EXT_CLICK_AREA CONFIG_LV_USE_EXT_CLICK_AREA
 #  else
 #    define  LV_USE_EXT_CLICK_AREA  LV_EXT_CLICK_AREA_TINY
 #  endif
@@ -1462,8 +1462,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Arc (dependencies: -)*/
 #ifndef LV_USE_ARC
-#  ifdef CONFIG_USE_ARC
-#    define LV_USE_ARC CONFIG_USE_ARC
+#  ifdef CONFIG_LV_USE_ARC
+#    define LV_USE_ARC CONFIG_LV_USE_ARC
 #  else
 #    define  LV_USE_ARC      1
 #  endif
@@ -1471,8 +1471,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Bar (dependencies: -)*/
 #ifndef LV_USE_BAR
-#  ifdef CONFIG_USE_BAR
-#    define LV_USE_BAR CONFIG_USE_BAR
+#  ifdef CONFIG_LV_USE_BAR
+#    define LV_USE_BAR CONFIG_LV_USE_BAR
 #  else
 #    define  LV_USE_BAR      1
 #  endif
@@ -1480,8 +1480,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Button (dependencies: lv_cont*/
 #ifndef LV_USE_BTN
-#  ifdef CONFIG_USE_BTN
-#    define LV_USE_BTN CONFIG_USE_BTN
+#  ifdef CONFIG_LV_USE_BTN
+#    define LV_USE_BTN CONFIG_LV_USE_BTN
 #  else
 #    define  LV_USE_BTN      1
 #  endif
@@ -1489,8 +1489,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Button matrix (dependencies: -)*/
 #ifndef LV_USE_BTNMATRIX
-#  ifdef CONFIG_USE_BTNMATRIX
-#    define LV_USE_BTNMATRIX CONFIG_USE_BTNMATRIX
+#  ifdef CONFIG_LV_USE_BTNMATRIX
+#    define LV_USE_BTNMATRIX CONFIG_LV_USE_BTNMATRIX
 #  else
 #    define  LV_USE_BTNMATRIX     1
 #  endif
@@ -1498,16 +1498,16 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Calendar (dependencies: -)*/
 #ifndef LV_USE_CALENDAR
-#  ifdef CONFIG_USE_CALENDAR
-#    define LV_USE_CALENDAR CONFIG_USE_CALENDAR
+#  ifdef CONFIG_LV_USE_CALENDAR
+#    define LV_USE_CALENDAR CONFIG_LV_USE_CALENDAR
 #  else
 #    define  LV_USE_CALENDAR 1
 #  endif
 #endif
 #if LV_USE_CALENDAR
 #ifndef LV_CALENDAR_WEEK_STARTS_MONDAY
-#  ifdef CONFIG_CALENDAR_WEEK_STARTS_MONDAY
-#    define LV_CALENDAR_WEEK_STARTS_MONDAY CONFIG_CALENDAR_WEEK_STARTS_MONDAY
+#  ifdef CONFIG_LV_CALENDAR_WEEK_STARTS_MONDAY
+#    define LV_CALENDAR_WEEK_STARTS_MONDAY CONFIG_LV_CALENDAR_WEEK_STARTS_MONDAY
 #  else
 #    define  LV_CALENDAR_WEEK_STARTS_MONDAY    0
 #  endif
@@ -1516,8 +1516,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Canvas (dependencies: lv_img)*/
 #ifndef LV_USE_CANVAS
-#  ifdef CONFIG_USE_CANVAS
-#    define LV_USE_CANVAS CONFIG_USE_CANVAS
+#  ifdef CONFIG_LV_USE_CANVAS
+#    define LV_USE_CANVAS CONFIG_LV_USE_CANVAS
 #  else
 #    define  LV_USE_CANVAS   1
 #  endif
@@ -1525,8 +1525,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Check box (dependencies: lv_btn, lv_label)*/
 #ifndef LV_USE_CHECKBOX
-#  ifdef CONFIG_USE_CHECKBOX
-#    define LV_USE_CHECKBOX CONFIG_USE_CHECKBOX
+#  ifdef CONFIG_LV_USE_CHECKBOX
+#    define LV_USE_CHECKBOX CONFIG_LV_USE_CHECKBOX
 #  else
 #    define  LV_USE_CHECKBOX       1
 #  endif
@@ -1534,16 +1534,16 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Chart (dependencies: -)*/
 #ifndef LV_USE_CHART
-#  ifdef CONFIG_USE_CHART
-#    define LV_USE_CHART CONFIG_USE_CHART
+#  ifdef CONFIG_LV_USE_CHART
+#    define LV_USE_CHART CONFIG_LV_USE_CHART
 #  else
 #    define  LV_USE_CHART    1
 #  endif
 #endif
 #if LV_USE_CHART
 #ifndef LV_CHART_AXIS_TICK_LABEL_MAX_LEN
-#  ifdef CONFIG_CHART_AXIS_TICK_LABEL_MAX_LEN
-#    define LV_CHART_AXIS_TICK_LABEL_MAX_LEN CONFIG_CHART_AXIS_TICK_LABEL_MAX_LEN
+#  ifdef CONFIG_LV_CHART_AXIS_TICK_LABEL_MAX_LEN
+#    define LV_CHART_AXIS_TICK_LABEL_MAX_LEN CONFIG_LV_CHART_AXIS_TICK_LABEL_MAX_LEN
 #  else
 #    define  LV_CHART_AXIS_TICK_LABEL_MAX_LEN    256
 #  endif
@@ -1552,8 +1552,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Container (dependencies: -*/
 #ifndef LV_USE_CONT
-#  ifdef CONFIG_USE_CONT
-#    define LV_USE_CONT CONFIG_USE_CONT
+#  ifdef CONFIG_LV_USE_CONT
+#    define LV_USE_CONT CONFIG_LV_USE_CONT
 #  else
 #    define  LV_USE_CONT     1
 #  endif
@@ -1561,8 +1561,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Color picker (dependencies: -*/
 #ifndef LV_USE_CPICKER
-#  ifdef CONFIG_USE_CPICKER
-#    define LV_USE_CPICKER CONFIG_USE_CPICKER
+#  ifdef CONFIG_LV_USE_CPICKER
+#    define LV_USE_CPICKER CONFIG_LV_USE_CPICKER
 #  else
 #    define  LV_USE_CPICKER   1
 #  endif
@@ -1570,8 +1570,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Drop down list (dependencies: lv_page, lv_label, lv_symbol_def.h)*/
 #ifndef LV_USE_DROPDOWN
-#  ifdef CONFIG_USE_DROPDOWN
-#    define LV_USE_DROPDOWN CONFIG_USE_DROPDOWN
+#  ifdef CONFIG_LV_USE_DROPDOWN
+#    define LV_USE_DROPDOWN CONFIG_LV_USE_DROPDOWN
 #  else
 #    define  LV_USE_DROPDOWN    1
 #  endif
@@ -1579,8 +1579,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 #if LV_USE_DROPDOWN != 0
 /*Open and close default animation time [ms] (0: no animation)*/
 #ifndef LV_DROPDOWN_DEF_ANIM_TIME
-#  ifdef CONFIG_DROPDOWN_DEF_ANIM_TIME
-#    define LV_DROPDOWN_DEF_ANIM_TIME CONFIG_DROPDOWN_DEF_ANIM_TIME
+#  ifdef CONFIG_LV_DROPDOWN_DEF_ANIM_TIME
+#    define LV_DROPDOWN_DEF_ANIM_TIME CONFIG_LV_DROPDOWN_DEF_ANIM_TIME
 #  else
 #    define  LV_DROPDOWN_DEF_ANIM_TIME     200
 #  endif
@@ -1589,8 +1589,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Gauge (dependencies:lv_bar, lv_linemeter)*/
 #ifndef LV_USE_GAUGE
-#  ifdef CONFIG_USE_GAUGE
-#    define LV_USE_GAUGE CONFIG_USE_GAUGE
+#  ifdef CONFIG_LV_USE_GAUGE
+#    define LV_USE_GAUGE CONFIG_LV_USE_GAUGE
 #  else
 #    define  LV_USE_GAUGE    1
 #  endif
@@ -1598,8 +1598,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Image (dependencies: lv_label*/
 #ifndef LV_USE_IMG
-#  ifdef CONFIG_USE_IMG
-#    define LV_USE_IMG CONFIG_USE_IMG
+#  ifdef CONFIG_LV_USE_IMG
+#    define LV_USE_IMG CONFIG_LV_USE_IMG
 #  else
 #    define  LV_USE_IMG      1
 #  endif
@@ -1607,8 +1607,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Image Button (dependencies: lv_btn*/
 #ifndef LV_USE_IMGBTN
-#  ifdef CONFIG_USE_IMGBTN
-#    define LV_USE_IMGBTN CONFIG_USE_IMGBTN
+#  ifdef CONFIG_LV_USE_IMGBTN
+#    define LV_USE_IMGBTN CONFIG_LV_USE_IMGBTN
 #  else
 #    define  LV_USE_IMGBTN   1
 #  endif
@@ -1616,8 +1616,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 #if LV_USE_IMGBTN
 /*1: The imgbtn requires left, mid and right parts and the width can be set freely*/
 #ifndef LV_IMGBTN_TILED
-#  ifdef CONFIG_IMGBTN_TILED
-#    define LV_IMGBTN_TILED CONFIG_IMGBTN_TILED
+#  ifdef CONFIG_LV_IMGBTN_TILED
+#    define LV_IMGBTN_TILED CONFIG_LV_IMGBTN_TILED
 #  else
 #    define  LV_IMGBTN_TILED 0
 #  endif
@@ -1626,8 +1626,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Keyboard (dependencies: lv_btnm)*/
 #ifndef LV_USE_KEYBOARD
-#  ifdef CONFIG_USE_KEYBOARD
-#    define LV_USE_KEYBOARD CONFIG_USE_KEYBOARD
+#  ifdef CONFIG_LV_USE_KEYBOARD
+#    define LV_USE_KEYBOARD CONFIG_LV_USE_KEYBOARD
 #  else
 #    define  LV_USE_KEYBOARD       1
 #  endif
@@ -1635,8 +1635,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Label (dependencies: -*/
 #ifndef LV_USE_LABEL
-#  ifdef CONFIG_USE_LABEL
-#    define LV_USE_LABEL CONFIG_USE_LABEL
+#  ifdef CONFIG_LV_USE_LABEL
+#    define LV_USE_LABEL CONFIG_LV_USE_LABEL
 #  else
 #    define  LV_USE_LABEL    1
 #  endif
@@ -1644,8 +1644,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 #if LV_USE_LABEL != 0
 /*Hor, or ver. scroll speed [px/sec] in 'LV_LABEL_LONG_ROLL/ROLL_CIRC' mode*/
 #ifndef LV_LABEL_DEF_SCROLL_SPEED
-#  ifdef CONFIG_LABEL_DEF_SCROLL_SPEED
-#    define LV_LABEL_DEF_SCROLL_SPEED CONFIG_LABEL_DEF_SCROLL_SPEED
+#  ifdef CONFIG_LV_LABEL_DEF_SCROLL_SPEED
+#    define LV_LABEL_DEF_SCROLL_SPEED CONFIG_LV_LABEL_DEF_SCROLL_SPEED
 #  else
 #    define  LV_LABEL_DEF_SCROLL_SPEED       25
 #  endif
@@ -1653,8 +1653,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /* Waiting period at beginning/end of animation cycle */
 #ifndef LV_LABEL_WAIT_CHAR_COUNT
-#  ifdef CONFIG_LABEL_WAIT_CHAR_COUNT
-#    define LV_LABEL_WAIT_CHAR_COUNT CONFIG_LABEL_WAIT_CHAR_COUNT
+#  ifdef CONFIG_LV_LABEL_WAIT_CHAR_COUNT
+#    define LV_LABEL_WAIT_CHAR_COUNT CONFIG_LV_LABEL_WAIT_CHAR_COUNT
 #  else
 #    define  LV_LABEL_WAIT_CHAR_COUNT        3
 #  endif
@@ -1662,8 +1662,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Enable selecting text of the label */
 #ifndef LV_LABEL_TEXT_SEL
-#  ifdef CONFIG_LABEL_TEXT_SEL
-#    define LV_LABEL_TEXT_SEL CONFIG_LABEL_TEXT_SEL
+#  ifdef CONFIG_LV_LABEL_TEXT_SEL
+#    define LV_LABEL_TEXT_SEL CONFIG_LV_LABEL_TEXT_SEL
 #  else
 #    define  LV_LABEL_TEXT_SEL               0
 #  endif
@@ -1671,8 +1671,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Store extra some info in labels (12 bytes) to speed up drawing of very long texts*/
 #ifndef LV_LABEL_LONG_TXT_HINT
-#  ifdef CONFIG_LABEL_LONG_TXT_HINT
-#    define LV_LABEL_LONG_TXT_HINT CONFIG_LABEL_LONG_TXT_HINT
+#  ifdef CONFIG_LV_LABEL_LONG_TXT_HINT
+#    define LV_LABEL_LONG_TXT_HINT CONFIG_LV_LABEL_LONG_TXT_HINT
 #  else
 #    define  LV_LABEL_LONG_TXT_HINT          0
 #  endif
@@ -1681,23 +1681,23 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*LED (dependencies: -)*/
 #ifndef LV_USE_LED
-#  ifdef CONFIG_USE_LED
-#    define LV_USE_LED CONFIG_USE_LED
+#  ifdef CONFIG_LV_USE_LED
+#    define LV_USE_LED CONFIG_LV_USE_LED
 #  else
 #    define  LV_USE_LED      1
 #  endif
 #endif
 #if LV_USE_LED
 #ifndef LV_LED_BRIGHT_MIN
-#  ifdef CONFIG_LED_BRIGHT_MIN
-#    define LV_LED_BRIGHT_MIN CONFIG_LED_BRIGHT_MIN
+#  ifdef CONFIG_LV_LED_BRIGHT_MIN
+#    define LV_LED_BRIGHT_MIN CONFIG_LV_LED_BRIGHT_MIN
 #  else
 #    define  LV_LED_BRIGHT_MIN  120      /*Minimal brightness*/
 #  endif
 #endif
 #ifndef LV_LED_BRIGHT_MAX
-#  ifdef CONFIG_LED_BRIGHT_MAX
-#    define LV_LED_BRIGHT_MAX CONFIG_LED_BRIGHT_MAX
+#  ifdef CONFIG_LV_LED_BRIGHT_MAX
+#    define LV_LED_BRIGHT_MAX CONFIG_LV_LED_BRIGHT_MAX
 #  else
 #    define  LV_LED_BRIGHT_MAX  255     /*Maximal brightness*/
 #  endif
@@ -1706,8 +1706,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Line (dependencies: -*/
 #ifndef LV_USE_LINE
-#  ifdef CONFIG_USE_LINE
-#    define LV_USE_LINE CONFIG_USE_LINE
+#  ifdef CONFIG_LV_USE_LINE
+#    define LV_USE_LINE CONFIG_LV_USE_LINE
 #  else
 #    define  LV_USE_LINE     1
 #  endif
@@ -1715,8 +1715,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*List (dependencies: lv_page, lv_btn, lv_label, (lv_img optionally for icons ))*/
 #ifndef LV_USE_LIST
-#  ifdef CONFIG_USE_LIST
-#    define LV_USE_LIST CONFIG_USE_LIST
+#  ifdef CONFIG_LV_USE_LIST
+#    define LV_USE_LIST CONFIG_LV_USE_LIST
 #  else
 #    define  LV_USE_LIST     1
 #  endif
@@ -1724,8 +1724,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 #if LV_USE_LIST != 0
 /*Default animation time of focusing to a list element [ms] (0: no animation)  */
 #ifndef LV_LIST_DEF_ANIM_TIME
-#  ifdef CONFIG_LIST_DEF_ANIM_TIME
-#    define LV_LIST_DEF_ANIM_TIME CONFIG_LIST_DEF_ANIM_TIME
+#  ifdef CONFIG_LV_LIST_DEF_ANIM_TIME
+#    define LV_LIST_DEF_ANIM_TIME CONFIG_LV_LIST_DEF_ANIM_TIME
 #  else
 #    define  LV_LIST_DEF_ANIM_TIME  100
 #  endif
@@ -1734,8 +1734,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Line meter (dependencies: *;)*/
 #ifndef LV_USE_LINEMETER
-#  ifdef CONFIG_USE_LINEMETER
-#    define LV_USE_LINEMETER CONFIG_USE_LINEMETER
+#  ifdef CONFIG_LV_USE_LINEMETER
+#    define LV_USE_LINEMETER CONFIG_LV_USE_LINEMETER
 #  else
 #    define  LV_USE_LINEMETER   1
 #  endif
@@ -1748,8 +1748,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
  * 2: Best precision
  */
 #ifndef LV_LINEMETER_PRECISE
-#  ifdef CONFIG_LINEMETER_PRECISE
-#    define LV_LINEMETER_PRECISE CONFIG_LINEMETER_PRECISE
+#  ifdef CONFIG_LV_LINEMETER_PRECISE
+#    define LV_LINEMETER_PRECISE CONFIG_LV_LINEMETER_PRECISE
 #  else
 #    define  LV_LINEMETER_PRECISE    1
 #  endif
@@ -1758,8 +1758,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Mask (dependencies: -)*/
 #ifndef LV_USE_OBJMASK
-#  ifdef CONFIG_USE_OBJMASK
-#    define LV_USE_OBJMASK CONFIG_USE_OBJMASK
+#  ifdef CONFIG_LV_USE_OBJMASK
+#    define LV_USE_OBJMASK CONFIG_LV_USE_OBJMASK
 #  else
 #    define  LV_USE_OBJMASK  1
 #  endif
@@ -1767,8 +1767,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Message box (dependencies: lv_rect, lv_btnm, lv_label)*/
 #ifndef LV_USE_MSGBOX
-#  ifdef CONFIG_USE_MSGBOX
-#    define LV_USE_MSGBOX CONFIG_USE_MSGBOX
+#  ifdef CONFIG_LV_USE_MSGBOX
+#    define LV_USE_MSGBOX CONFIG_LV_USE_MSGBOX
 #  else
 #    define  LV_USE_MSGBOX     1
 #  endif
@@ -1776,8 +1776,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Page (dependencies: lv_cont)*/
 #ifndef LV_USE_PAGE
-#  ifdef CONFIG_USE_PAGE
-#    define LV_USE_PAGE CONFIG_USE_PAGE
+#  ifdef CONFIG_LV_USE_PAGE
+#    define LV_USE_PAGE CONFIG_LV_USE_PAGE
 #  else
 #    define  LV_USE_PAGE     1
 #  endif
@@ -1785,8 +1785,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 #if LV_USE_PAGE != 0
 /*Focus default animation time [ms] (0: no animation)*/
 #ifndef LV_PAGE_DEF_ANIM_TIME
-#  ifdef CONFIG_PAGE_DEF_ANIM_TIME
-#    define LV_PAGE_DEF_ANIM_TIME CONFIG_PAGE_DEF_ANIM_TIME
+#  ifdef CONFIG_LV_PAGE_DEF_ANIM_TIME
+#    define LV_PAGE_DEF_ANIM_TIME CONFIG_LV_PAGE_DEF_ANIM_TIME
 #  else
 #    define  LV_PAGE_DEF_ANIM_TIME     400
 #  endif
@@ -1795,30 +1795,30 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Preload (dependencies: lv_arc, lv_anim)*/
 #ifndef LV_USE_SPINNER
-#  ifdef CONFIG_USE_SPINNER
-#    define LV_USE_SPINNER CONFIG_USE_SPINNER
+#  ifdef CONFIG_LV_USE_SPINNER
+#    define LV_USE_SPINNER CONFIG_LV_USE_SPINNER
 #  else
 #    define  LV_USE_SPINNER      1
 #  endif
 #endif
 #if LV_USE_SPINNER != 0
 #ifndef LV_SPINNER_DEF_ARC_LENGTH
-#  ifdef CONFIG_SPINNER_DEF_ARC_LENGTH
-#    define LV_SPINNER_DEF_ARC_LENGTH CONFIG_SPINNER_DEF_ARC_LENGTH
+#  ifdef CONFIG_LV_SPINNER_DEF_ARC_LENGTH
+#    define LV_SPINNER_DEF_ARC_LENGTH CONFIG_LV_SPINNER_DEF_ARC_LENGTH
 #  else
 #    define  LV_SPINNER_DEF_ARC_LENGTH   60      /*[deg]*/
 #  endif
 #endif
 #ifndef LV_SPINNER_DEF_SPIN_TIME
-#  ifdef CONFIG_SPINNER_DEF_SPIN_TIME
-#    define LV_SPINNER_DEF_SPIN_TIME CONFIG_SPINNER_DEF_SPIN_TIME
+#  ifdef CONFIG_LV_SPINNER_DEF_SPIN_TIME
+#    define LV_SPINNER_DEF_SPIN_TIME CONFIG_LV_SPINNER_DEF_SPIN_TIME
 #  else
 #    define  LV_SPINNER_DEF_SPIN_TIME    1000    /*[ms]*/
 #  endif
 #endif
 #ifndef LV_SPINNER_DEF_ANIM
-#  ifdef CONFIG_SPINNER_DEF_ANIM
-#    define LV_SPINNER_DEF_ANIM CONFIG_SPINNER_DEF_ANIM
+#  ifdef CONFIG_LV_SPINNER_DEF_ANIM
+#    define LV_SPINNER_DEF_ANIM CONFIG_LV_SPINNER_DEF_ANIM
 #  else
 #    define  LV_SPINNER_DEF_ANIM         LV_SPINNER_TYPE_SPINNING_ARC
 #  endif
@@ -1827,8 +1827,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Roller (dependencies: lv_ddlist)*/
 #ifndef LV_USE_ROLLER
-#  ifdef CONFIG_USE_ROLLER
-#    define LV_USE_ROLLER CONFIG_USE_ROLLER
+#  ifdef CONFIG_LV_USE_ROLLER
+#    define LV_USE_ROLLER CONFIG_LV_USE_ROLLER
 #  else
 #    define  LV_USE_ROLLER    1
 #  endif
@@ -1836,8 +1836,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 #if LV_USE_ROLLER != 0
 /*Focus animation time [ms] (0: no animation)*/
 #ifndef LV_ROLLER_DEF_ANIM_TIME
-#  ifdef CONFIG_ROLLER_DEF_ANIM_TIME
-#    define LV_ROLLER_DEF_ANIM_TIME CONFIG_ROLLER_DEF_ANIM_TIME
+#  ifdef CONFIG_LV_ROLLER_DEF_ANIM_TIME
+#    define LV_ROLLER_DEF_ANIM_TIME CONFIG_LV_ROLLER_DEF_ANIM_TIME
 #  else
 #    define  LV_ROLLER_DEF_ANIM_TIME     200
 #  endif
@@ -1845,8 +1845,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Number of extra "pages" when the roller is infinite*/
 #ifndef LV_ROLLER_INF_PAGES
-#  ifdef CONFIG_ROLLER_INF_PAGES
-#    define LV_ROLLER_INF_PAGES CONFIG_ROLLER_INF_PAGES
+#  ifdef CONFIG_LV_ROLLER_INF_PAGES
+#    define LV_ROLLER_INF_PAGES CONFIG_LV_ROLLER_INF_PAGES
 #  else
 #    define  LV_ROLLER_INF_PAGES         7
 #  endif
@@ -1855,8 +1855,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Slider (dependencies: lv_bar)*/
 #ifndef LV_USE_SLIDER
-#  ifdef CONFIG_USE_SLIDER
-#    define LV_USE_SLIDER CONFIG_USE_SLIDER
+#  ifdef CONFIG_LV_USE_SLIDER
+#    define LV_USE_SLIDER CONFIG_LV_USE_SLIDER
 #  else
 #    define  LV_USE_SLIDER    1
 #  endif
@@ -1864,8 +1864,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Spinbox (dependencies: lv_ta)*/
 #ifndef LV_USE_SPINBOX
-#  ifdef CONFIG_USE_SPINBOX
-#    define LV_USE_SPINBOX CONFIG_USE_SPINBOX
+#  ifdef CONFIG_LV_USE_SPINBOX
+#    define LV_USE_SPINBOX CONFIG_LV_USE_SPINBOX
 #  else
 #    define  LV_USE_SPINBOX       1
 #  endif
@@ -1873,8 +1873,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Switch (dependencies: lv_slider)*/
 #ifndef LV_USE_SWITCH
-#  ifdef CONFIG_USE_SWITCH
-#    define LV_USE_SWITCH CONFIG_USE_SWITCH
+#  ifdef CONFIG_LV_USE_SWITCH
+#    define LV_USE_SWITCH CONFIG_LV_USE_SWITCH
 #  else
 #    define  LV_USE_SWITCH       1
 #  endif
@@ -1882,23 +1882,23 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Text area (dependencies: lv_label, lv_page)*/
 #ifndef LV_USE_TEXTAREA
-#  ifdef CONFIG_USE_TEXTAREA
-#    define LV_USE_TEXTAREA CONFIG_USE_TEXTAREA
+#  ifdef CONFIG_LV_USE_TEXTAREA
+#    define LV_USE_TEXTAREA CONFIG_LV_USE_TEXTAREA
 #  else
 #    define  LV_USE_TEXTAREA       1
 #  endif
 #endif
 #if LV_USE_TEXTAREA != 0
 #ifndef LV_TEXTAREA_DEF_CURSOR_BLINK_TIME
-#  ifdef CONFIG_TEXTAREA_DEF_CURSOR_BLINK_TIME
-#    define LV_TEXTAREA_DEF_CURSOR_BLINK_TIME CONFIG_TEXTAREA_DEF_CURSOR_BLINK_TIME
+#  ifdef CONFIG_LV_TEXTAREA_DEF_CURSOR_BLINK_TIME
+#    define LV_TEXTAREA_DEF_CURSOR_BLINK_TIME CONFIG_LV_TEXTAREA_DEF_CURSOR_BLINK_TIME
 #  else
 #    define  LV_TEXTAREA_DEF_CURSOR_BLINK_TIME 400     /*ms*/
 #  endif
 #endif
 #ifndef LV_TEXTAREA_DEF_PWD_SHOW_TIME
-#  ifdef CONFIG_TEXTAREA_DEF_PWD_SHOW_TIME
-#    define LV_TEXTAREA_DEF_PWD_SHOW_TIME CONFIG_TEXTAREA_DEF_PWD_SHOW_TIME
+#  ifdef CONFIG_LV_TEXTAREA_DEF_PWD_SHOW_TIME
+#    define LV_TEXTAREA_DEF_PWD_SHOW_TIME CONFIG_LV_TEXTAREA_DEF_PWD_SHOW_TIME
 #  else
 #    define  LV_TEXTAREA_DEF_PWD_SHOW_TIME     1500    /*ms*/
 #  endif
@@ -1907,23 +1907,23 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Table (dependencies: lv_label)*/
 #ifndef LV_USE_TABLE
-#  ifdef CONFIG_USE_TABLE
-#    define LV_USE_TABLE CONFIG_USE_TABLE
+#  ifdef CONFIG_LV_USE_TABLE
+#    define LV_USE_TABLE CONFIG_LV_USE_TABLE
 #  else
 #    define  LV_USE_TABLE    1
 #  endif
 #endif
 #if LV_USE_TABLE
 #ifndef LV_TABLE_COL_MAX
-#  ifdef CONFIG_TABLE_COL_MAX
-#    define LV_TABLE_COL_MAX CONFIG_TABLE_COL_MAX
+#  ifdef CONFIG_LV_TABLE_COL_MAX
+#    define LV_TABLE_COL_MAX CONFIG_LV_TABLE_COL_MAX
 #  else
 #    define  LV_TABLE_COL_MAX    12
 #  endif
 #endif
 #ifndef LV_TABLE_CELL_STYLE_CNT
-#  ifdef CONFIG_TABLE_CELL_STYLE_CNT
-#    define LV_TABLE_CELL_STYLE_CNT CONFIG_TABLE_CELL_STYLE_CNT
+#  ifdef CONFIG_LV_TABLE_CELL_STYLE_CNT
+#    define LV_TABLE_CELL_STYLE_CNT CONFIG_LV_TABLE_CELL_STYLE_CNT
 #  else
 #    define  LV_TABLE_CELL_STYLE_CNT 4
 #  endif
@@ -1932,8 +1932,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Tab (dependencies: lv_page, lv_btnm)*/
 #ifndef LV_USE_TABVIEW
-#  ifdef CONFIG_USE_TABVIEW
-#    define LV_USE_TABVIEW CONFIG_USE_TABVIEW
+#  ifdef CONFIG_LV_USE_TABVIEW
+#    define LV_USE_TABVIEW CONFIG_LV_USE_TABVIEW
 #  else
 #    define  LV_USE_TABVIEW      1
 #  endif
@@ -1941,8 +1941,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 #  if LV_USE_TABVIEW != 0
 /*Time of slide animation [ms] (0: no animation)*/
 #ifndef LV_TABVIEW_DEF_ANIM_TIME
-#  ifdef CONFIG_TABVIEW_DEF_ANIM_TIME
-#    define LV_TABVIEW_DEF_ANIM_TIME CONFIG_TABVIEW_DEF_ANIM_TIME
+#  ifdef CONFIG_LV_TABVIEW_DEF_ANIM_TIME
+#    define LV_TABVIEW_DEF_ANIM_TIME CONFIG_LV_TABVIEW_DEF_ANIM_TIME
 #  else
 #    define  LV_TABVIEW_DEF_ANIM_TIME    300
 #  endif
@@ -1951,8 +1951,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Tileview (dependencies: lv_page) */
 #ifndef LV_USE_TILEVIEW
-#  ifdef CONFIG_USE_TILEVIEW
-#    define LV_USE_TILEVIEW CONFIG_USE_TILEVIEW
+#  ifdef CONFIG_LV_USE_TILEVIEW
+#    define LV_USE_TILEVIEW CONFIG_LV_USE_TILEVIEW
 #  else
 #    define  LV_USE_TILEVIEW     1
 #  endif
@@ -1960,8 +1960,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 #if LV_USE_TILEVIEW
 /*Time of slide animation [ms] (0: no animation)*/
 #ifndef LV_TILEVIEW_DEF_ANIM_TIME
-#  ifdef CONFIG_TILEVIEW_DEF_ANIM_TIME
-#    define LV_TILEVIEW_DEF_ANIM_TIME CONFIG_TILEVIEW_DEF_ANIM_TIME
+#  ifdef CONFIG_LV_TILEVIEW_DEF_ANIM_TIME
+#    define LV_TILEVIEW_DEF_ANIM_TIME CONFIG_LV_TILEVIEW_DEF_ANIM_TIME
 #  else
 #    define  LV_TILEVIEW_DEF_ANIM_TIME   300
 #  endif
@@ -1970,8 +1970,8 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
 
 /*Window (dependencies: lv_cont, lv_btn, lv_label, lv_img, lv_page)*/
 #ifndef LV_USE_WIN
-#  ifdef CONFIG_USE_WIN
-#    define LV_USE_WIN CONFIG_USE_WIN
+#  ifdef CONFIG_LV_USE_WIN
+#    define LV_USE_WIN CONFIG_LV_USE_WIN
 #  else
 #    define  LV_USE_WIN      1
 #  endif

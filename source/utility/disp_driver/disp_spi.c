@@ -46,6 +46,7 @@ void disp_spi_transaction(const uint8_t *data, size_t length, disp_spi_send_flag
         cmd_bits = 16;
     }
 
+    //hspi.writeBytes(&hspi, GB_SPI_DEV_0, addr, length, data);
     hspi.readWriteBytesWithConfig(&hspi, GB_SPI_DEV_0, addr, length, out, data, cmd_bits, addr_bits, dummy_bits);
 #if 0
     /* Poll/Complete/Queue transaction */

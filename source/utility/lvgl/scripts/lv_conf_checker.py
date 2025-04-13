@@ -30,7 +30,7 @@ fout.write(
 /* Handle special Kconfig options */
 #include "lv_conf_kconfig.h"
 
-#ifdef CONFIG_CONF_SKIP
+#ifdef CONFIG_LV_CONF_SKIP
 #define LV_CONF_SKIP
 #endif
 
@@ -76,8 +76,8 @@ for i in fin.read().splitlines():
   r = re.search(r'^ *# *define ([^\s]+).*$', i)
 
 #ifndef LV_USE_BTN               /*Only if not defined in lv_conf.h*/
-#  ifdef CONFIG_USE_BTN    /*Use KConfig value if set*/
-#    define LV_USE_BTN  CONFIG_USE_BTN
+#  ifdef CONFIG_LV_USE_BTN    /*Use KConfig value if set*/
+#    define LV_USE_BTN  CONFIG_LV_USE_BTN
 #  else
 #    define LV_USE_BTN      1      /*Use default value*/
 #  endif
@@ -87,7 +87,7 @@ for i in fin.read().splitlines():
     line = re.sub('\(.*?\)', '', r[1], 1)    #remove parentheses from macros
     dr = re.sub('.*# *define', '', i, 1)
     d = "#    define " + dr
-
+		
     fout.write(
       f'#ifndef {line}\n'
       f'#  ifdef CONFIG_{line.upper()}\n'

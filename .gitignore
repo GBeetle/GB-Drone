@@ -94,6 +94,7 @@ source/remote/components/file_system
 source/remote/components/lvgl
 source/remote/components/disp_driver
 source/remote/components/gpio_setting
+source/remote/components/lv_examples
 
 # tools
 tools/esp-idf-ftpServer/build

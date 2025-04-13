@@ -1,3 +1,4 @@
+include $(LVGL_DIR)/$(LVGL_DIR_NAME)/porting/lv_porting.mk
 include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_core/lv_core.mk
 include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_hal/lv_hal.mk
 include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_widgets/lv_widgets.mk
