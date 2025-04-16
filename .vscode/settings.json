@@ -31,6 +31,7 @@
         "source/remote/components/disp_driver": true,
         "source/remote/components/gpio_setting": true,
         "source/remote/components/lv_examples": true,
+        "source/remote/components/tinygl": true,
     },
 
     "search.exclude": {
@@ -62,6 +63,7 @@
         "source/remote/components/disp_driver": true,
         "source/remote/components/gpio_setting": true,
         "source/remote/components/lv_examples": true,
+        "source/remote/components/tinygl": true,
     },
     "files.associations": {
         "cdc.h": "c",
@@ -90,7 +92,8 @@
         "type_traits": "cpp",
         "disp_driver.h": "c",
         "lv_conf_kconfig.h": "c",
-        "lv_demo_widgets.h": "c"
+        "lv_demo_widgets.h": "c",
+        "stdarg.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

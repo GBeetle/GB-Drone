@@ -1,0 +1,5 @@
+# Define sources and include dirs
+
+COMPONENT_ADD_INCLUDEDIRS := .
+COMPONENT_ADD_INCLUDEDIRS += src
+COMPONENT_ADD_INCLUDEDIRS += include

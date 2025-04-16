@@ -6,7 +6,7 @@ set "vendorSourceDir=%cd%\..\vendor\esp32"
 set "utilitySourceDir=%cd%\..\utility"
 set "targetDir=%cd%\components"
 set "vendorSourceFolders=i2c_bus log_sys spi_bus gb_timer file_system gpio_setting"
-set "utilitySourceFolders=error_handle disp_driver tft_driver lvgl lv_examples"
+set "utilitySourceFolders=error_handle disp_driver tft_driver lvgl lv_examples tinygl"
 
 rem create target dir
 if not exist "%targetDir%" (

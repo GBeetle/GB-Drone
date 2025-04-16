@@ -1,0 +1,27 @@
+*.config
+*.creator*
+*.files
+*.includes
+
+# working files
+.DS_Store
+*~
+
+# Ignore build outputs
+*.o
+.*.o.d
+lib/*.a
+
+# Examples
+examples/raw/render.png
+examples/raw/gears
+examples/sdl/game
+examples/sdl/gears
+examples/sdl/hello
+examples/sdl/menu
+examples/sdl/model
+examples/sdl/texture
+
+# Downloaded files
+examples/stb_image.h
+examples/stb_image_write.h

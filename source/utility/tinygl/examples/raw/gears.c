@@ -1,19 +1,4 @@
-/*
- * This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
- * Copyright (c) 2022 GBeetle.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 3.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+/* 3D gear wheels written by Brian Paul. */
 
 #include <math.h>
 #include <stdarg.h>
@@ -23,12 +8,11 @@
 #include <string.h>
 
 #include <TGL/gl.h>
-
 #include "zbuffer.h"
-#include "log_sys.h"
-#include "tft_sprite.h"
-#include "file_system.h"
-#include "disp_driver.h"
+
+#define STBIW_ASSERT(x)
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 static int override_drawmodes = 0;
 static GLubyte stipplepattern[128] = {
@@ -48,9 +32,6 @@ static GLubyte stipplepattern[128] = {
     0xAA, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55,
     0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55,
 };
-
-struct TFT_eSPI tft;
-struct TFT_eSprite sprite;
 
 /*
  * Draw a gear wheel.  You'll probably want to call this function when
@@ -294,17 +275,41 @@ static void init_scene()
     glEndList();
 }
 
-void draw_loop()
+int main(int argc, char **argv)
 {
-    int winSizeX = 240, winSizeY = 240;
+    int winSizeX = 640, winSizeY = 480;
     unsigned int flat = 0;
     unsigned int setenspec = 1;
     unsigned int dotext = 1;
     unsigned int blending = 0;
 
+    if (argc > 1) {
+        char *larg = "";
+        for (int i = 1; i < argc; i++) {
+            if (!strcmp(larg, "-w"))
+                winSizeX = atoi(argv[i]);
+            if (!strcmp(larg, "-h"))
+                winSizeY = atoi(argv[i]);
+            if (!strcmp(argv[i], "-flat"))
+                flat = 1;
+            if (!strcmp(argv[i], "-smooth"))
+                flat = 0;
+            if (!strcmp(argv[i], "-blend"))
+                blending = 1;
+            if (!strcmp(argv[i], "-nospecular"))
+                setenspec = 0;
+            if (!strcmp(argv[i], "-lines"))
+                override_drawmodes = 1;
+            if (!strcmp(argv[i], "-points"))
+                override_drawmodes = 2;
+            if (!strcmp(argv[i], "-notext"))
+                dotext = 0;
+            larg = argv[i];
+        }
+    }
+
+    fflush(stdout);
     PIXEL *imbuf = calloc(1, sizeof(PIXEL) * winSizeX * winSizeY);
-    uint32_t buffer_size = LV_HOR_RES_MAX * LV_VER_RES_MAX * 2;
-    uint16_t *buffer = (uint16_t *)heap_caps_malloc(buffer_size, MALLOC_CAP_DMA);
 
     // initialize TinyGL
     ZBuffer *frameBuffer = ZB_open(winSizeX, winSizeY,
@@ -376,19 +381,20 @@ void draw_loop()
         // swap buffers:
         // Quickly convert all pixels to the correct format
         ZB_copyFrameBuffer(frameBuffer, imbuf, winSizeX * sizeof(PIXEL));
+        if (frames > 0)
+            break;
+    }
 
+    {
+        uint8_t *pbuf = malloc(3 * winSizeX * winSizeY);
         for (int i = 0; i < winSizeX * winSizeY; i++) {
-            uint8_t red = GET_RED(imbuf[i]);
-            uint8_t green = GET_GREEN(imbuf[i]);
-            uint8_t blue = GET_BLUE(imbuf[i]);
-
-            buffer[i] = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3);
-            buffer[i] = buffer[i] << 8 | buffer[i] >> 8;
+            pbuf[3 * i + 0] = GET_RED(imbuf[i]);
+            pbuf[3 * i + 1] = GET_GREEN(imbuf[i]);
+            pbuf[3 * i + 2] = GET_BLUE(imbuf[i]);
         }
-
-        tft.pushImage(&tft, 0, 0, LV_HOR_RES_MAX, LV_VER_RES_MAX, buffer);
-
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+        stbi_write_png("render.png", winSizeX, winSizeY, 3, pbuf, 0);
+        free(imbuf);
+        free(pbuf);
     }
 
     // cleanup:
@@ -398,15 +404,6 @@ void draw_loop()
 
     ZB_close(frameBuffer);
     glClose();
-}
 
-void app_main(void)
-{
-    GB_LogSystemInit();
-
-    disp_driver_init();
-    TFT_eSpi_init(&tft, LV_HOR_RES_MAX, LV_VER_RES_MAX, 0);
-    TFT_eSprite_init(&sprite, &tft);
-
-    xTaskCreate(draw_loop, "draw_loop", 5120, NULL, 4 | portPRIVILEGE_BIT, NULL);
+    return 0;
 }
