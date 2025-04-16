@@ -101,3 +101,5 @@ source/remote/components/tinygl
 tools/esp-idf-ftpServer/build
 tools/esp-idf-ftpServer/managed_components
 tools/esp-idf-ftpServer/dependencies.lock
+
+source/utility/tinygl/assets
