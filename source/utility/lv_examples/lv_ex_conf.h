@@ -7,6 +7,10 @@
  * COPY THIS FILE AS lv_ex_conf.h
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if 1 /*Set it to "1" to enable the content*/
 
 #ifndef LV_EX_CONF_H
@@ -65,9 +69,9 @@
 
 /*Stress test for LVGL*/
 #ifdef CONFIG_LV_USE_DEMO_STRESS
-#define LV_USE_DEMO_STRESS  1 
+#define LV_USE_DEMO_STRESS  1
 #else
-#define LV_USE_DEMO_STRESS  0 
+#define LV_USE_DEMO_STRESS  0
 
 #endif
 
@@ -75,3 +79,6 @@
 
 #endif /*End of "Content enable"*/
 
+#ifdef __cplusplus
+} /* extern "C" */
+#endif

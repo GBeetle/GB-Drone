@@ -7,6 +7,10 @@
  * COPY THIS FILE AS lv_ex_conf.h
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if 0 /*Set it to "1" to enable the content*/
 
 #ifndef LV_EX_CONF_H
@@ -52,3 +56,6 @@
 
 #endif /*End of "Content enable"*/
 
+#ifdef __cplusplus
+} /* extern "C" */
+#endif

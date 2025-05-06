@@ -1,5 +1,5 @@
 /*
- * This file is part of welkin project (https://github.com/GBeetle/welkin).
+ * This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
  * Copyright (c) 2022 GBeetle.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "driver/uart.h"
 #include "soc/uart_struct.h"
 #include "hal/uart_ll.h"

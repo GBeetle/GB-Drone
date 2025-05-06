@@ -93,7 +93,12 @@
         "disp_driver.h": "c",
         "lv_conf_kconfig.h": "c",
         "lv_demo_widgets.h": "c",
-        "stdarg.h": "c"
+        "stdarg.h": "c",
+        "lvgl.h": "c",
+        "lvgl_example.h": "c",
+        "task_manager.h": "c",
+        "isr_manager.h": "c",
+        "string.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

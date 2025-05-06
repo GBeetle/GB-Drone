@@ -8,6 +8,10 @@
 #define LV_CONF_INTERNAL_H
 /* clang-format off */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 /* Handle special Kconfig options */
@@ -2023,6 +2027,10 @@ e.g. "stm32f769xx.h" or "stm32f429xx.h" */
   typedef void * lv_obj_user_data_t;
 #  endif
 
+#endif
+
+#ifdef __cplusplus
+} /* extern "C" */
 #endif
 
 #endif  /*LV_CONF_INTERNAL_H*/

@@ -155,14 +155,14 @@ static inline objraw tobj_load(const char *fn)
                 char *t = line + 2;
                 // sb_last(retval.positions).d[0] = atof(t);
                 retval.positions[retval.npos - 1].d[0] = atof(t);
-                while (!isspace(*t) && *t != '\0')
+                while (!isspace((unsigned char) *t) && *t != '\0')
                     t++;
                 if (*t == '\0')
                     continue;
                 t++;
                 // sb_last(retval.positions).d[1] = atof(t);
                 retval.positions[retval.npos - 1].d[1] = atof(t);
-                while (!isspace(*t) && *t != '\0')
+                while (!isspace((unsigned char) *t) && *t != '\0')
                     t++;
                 if (*t == '\0')
                     continue;
@@ -177,7 +177,7 @@ static inline objraw tobj_load(const char *fn)
                 char *t = line + 3;
                 // sb_last(retval.texcoords).d[0] = atof(t);
                 retval.texcoords[retval.ntexcoords - 1].d[0] = atof(t);
-                while (!isspace(*t) && *t != '\0')
+                while (!isspace((unsigned char) *t) && *t != '\0')
                     t++;
                 if (*t == '\0')
                     continue;
@@ -193,14 +193,14 @@ static inline objraw tobj_load(const char *fn)
                 char *t = line + 3;
                 // sb_last(retval.colors).d[0] = atof(t);
                 retval.colors[retval.ncolors - 1].d[0] = atof(t);
-                while (!isspace(*t) && *t != '\0')
+                while (!isspace((unsigned char) *t) && *t != '\0')
                     t++;
                 if (*t == '\0')
                     continue;
                 t++;
                 // sb_last(retval.colors).d[1] = atof(t);
                 retval.colors[retval.ncolors - 1].d[1] = atof(t);
-                while (!isspace(*t) && *t != '\0')
+                while (!isspace((unsigned char) *t) && *t != '\0')
                     t++;
                 if (*t == '\0')
                     continue;
@@ -217,14 +217,14 @@ static inline objraw tobj_load(const char *fn)
                 char *t = line + 3;
                 // sb_last(retval.normals).d[0] = atof(t);
                 retval.normals[retval.nnorm - 1].d[0] = atof(t);
-                while (!isspace(*t) && *t != '\0')
+                while (!isspace((unsigned char) *t) && *t != '\0')
                     t++;
                 if (*t == '\0')
                     continue;
                 t++;
                 // sb_last(retval.normals).d[1] = atof(t);
                 retval.normals[retval.nnorm - 1].d[1] = atof(t);
-                while (!isspace(*t) && *t != '\0')
+                while (!isspace((unsigned char) *t) && *t != '\0')
                     t++;
                 if (*t == '\0')
                     continue;
@@ -245,14 +245,14 @@ static inline objraw tobj_load(const char *fn)
                     char *t = line + 2;
                     frick0.p = strtoull(t, NULL, 10);
                     // printf("\nf[0].p is %llu",frick0.p);
-                    while (!isspace(*t) && *t != '\0')
+                    while (!isspace((unsigned char) *t) && *t != '\0')
                         t++;
                     if (*t == '\0')
                         continue;
                     t++;
                     frick1.p = strtoull(t, NULL, 10);
                     // printf("\nf[1].p is %llu",frick1.p);
-                    while (!isspace(*t) && *t != '\0')
+                    while (!isspace((unsigned char) *t) && *t != '\0')
                         t++;
                     if (*t == '\0')
                         continue;
@@ -264,31 +264,34 @@ static inline objraw tobj_load(const char *fn)
                 // slash!)
                 if (retval.texcoords) {
                     char *t = line + 2;
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to first slash
                     t++;      // next character
                     frick0.tc = strtoull(t, NULL, 10);
                     // printf("\nf[0].tc is %llu",frick0.tc);
                     // Jump to the next group of numbers
-                    while (!isspace(*t) && *t != '\0')
+                    while (!isspace((unsigned char) *t) && *t != '\0')
                         t++;
                     if (*t == '\0')
                         continue;
                     t++;
                     // first slash
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to next slash
                     t++;      // next character
                     frick1.tc = strtoull(t, NULL, 10);
                     // printf("\nf[1].tc is %llu",frick1.tc);
                     // Jump to the next group of numbers
-                    while (!isspace(*t) && *t != '\0')
+                    while (!isspace((unsigned char) *t) && *t != '\0')
                         t++;
                     if (*t == '\0')
                         continue;
                     t++;
                     // first slash
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to next slash
                     t++;      // next character
                     frick2.tc = strtoull(t, NULL, 10);
@@ -296,88 +299,103 @@ static inline objraw tobj_load(const char *fn)
                 }
                 if (retval.normals) {
                     char *t = line + 2;
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to first slash
                     t++;      // next character
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to second slash
                     t++;      // next character
                     frick0.n = strtoull(t, NULL, 10);
                     // Jump to the next group of numbers
-                    while (!isspace(*t) && *t != '\0')
+                    while (!isspace((unsigned char) *t) && *t != '\0')
                         t++;
                     if (*t == '\0')
                         continue;
                     t++;
                     // first slash
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to first slash
                     t++;      // next character
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to second slash
                     t++;      // next character
                     frick1.n = strtoull(t, NULL, 10);
 
                     // Jump to the next group of numbers
-                    while (!isspace(*t) && *t != '\0')
+                    while (!isspace((unsigned char) *t) && *t != '\0')
                         t++;
                     if (*t == '\0')
                         continue;
                     t++;
                     // first slash
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to first slash
                     t++;      // next character
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to second slash
                     t++;      // next character
                     frick2.n = strtoull(t, NULL, 10);
                 }
                 if (retval.colors) {
                     char *t = line + 2;
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to first slash
                     t++;      // next character
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to second slash
                     t++;      // next character
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to third slash
                     t++;      // next character
                     frick0.vc = strtoull(t, NULL, 10);
                     // printf("\nf[0].vc is %llu",frick0.vc);
                     // Jump to the next group of numbers
-                    while (!isspace(*t) && *t != '\0')
+                    while (!isspace((unsigned char) *t) && *t != '\0')
                         t++;
                     if (*t == '\0')
                         continue;
                     t++;
                     // first slash
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to first slash
                     t++;      // next character
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to second slash
                     t++;      // next character
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to third slash
                     t++;      // next character
                     frick1.vc = strtoull(t, NULL, 10);
                     // printf("\nf[1].vc is %llu",frick1.vc);
                     // Jump to the next group of numbers
-                    while (!isspace(*t) && *t != '\0')
+                    while (!isspace((unsigned char) *t) && *t != '\0')
                         t++;
                     if (*t == '\0')
                         continue;
                     t++;
                     // first slash
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to first slash
                     t++;      // next character
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to second slash
                     t++;      // next character
-                    while (!isspace(*t) && *t != '\0' && *t != '/')
+                    while (!isspace((unsigned char) *t) && *t != '\0' &&
+                           *t != '/')
                         t++;  // jump to third slash
                     t++;      // next character
                     frick2.vc = strtoull(t, NULL, 10);

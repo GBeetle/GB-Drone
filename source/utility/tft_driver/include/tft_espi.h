@@ -351,7 +351,9 @@ typedef uint16_t (*getColorCallback)(uint16_t x, uint16_t y);
 
 // Class functions and variables
 struct TFT_eSPI {
-  tft_bus_t *bus;            //!< SPI device descriptor
+  bool _is_init;
+
+  tft_bus_t *bus; //!< SPI device descriptor
 
   uint8_t  spiBusyCheck;      // Number of ESP32 transfer buffers to check
 

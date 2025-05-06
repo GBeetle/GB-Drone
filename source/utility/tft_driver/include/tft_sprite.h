@@ -24,13 +24,15 @@ struct TFT_eSprite;
 void TFT_eSprite_init(struct TFT_eSprite* sprite, struct TFT_eSPI *tft);
 
 struct TFT_eSprite{
-           // Create a sprite of width x height pixels, return a pointer to the RAM area
-           // Sketch can cast returned value to (uint16_t*) for 16 bit depth if needed
-           // RAM required is:
-           //  - 1 bit per pixel for 1 bit colour depth
-           //  - 1 nibble per pixel for 4 bit colour (with palette table)
-           //  - 1 byte per pixel for 8 bit colour (332 RGB format)
-           //  - 2 bytes per pixel for 16 bit color depth (565 RGB format)
+  bool _is_init;
+
+  // Create a sprite of width x height pixels, return a pointer to the RAM area
+  // Sketch can cast returned value to (uint16_t*) for 16 bit depth if needed
+  // RAM required is:
+  //  - 1 bit per pixel for 1 bit colour depth
+  //  - 1 nibble per pixel for 4 bit colour (with palette table)
+  //  - 1 byte per pixel for 8 bit colour (332 RGB format)
+  //  - 2 bytes per pixel for 16 bit color depth (565 RGB format)
   void*    (*createSprite)(struct TFT_eSprite* sprite, int16_t width, int16_t height, uint8_t frames); //default frames=1
 
            // Returns a pointer to the sprite or nullptr if not created, user must cast to pointer type

@@ -289,6 +289,9 @@ static GB_RESULT initBus(struct TFT_eSPI * tft_dev)
 ***************************************************************************************/
 void TFT_eSpi_init(struct TFT_eSPI * tft_dev, int16_t w, int16_t h, uint8_t tc)
 {
+    if (tft_dev->_is_init)
+        return;
+
     tft_dev->_init_width    = tft_dev->_width  = w; // Set by specific xxxxx_Defines.h file or by users sketch
     tft_dev->_init_height   = tft_dev->_height = h; // Set by specific xxxxx_Defines.h file or by users sketch
 
@@ -529,6 +532,7 @@ void TFT_eSpi_init(struct TFT_eSPI * tft_dev, int16_t w, int16_t h, uint8_t tc)
         tft_dev->end_tft_write(tft_dev);
     } // end of: if just _booted
 
+    tft_dev->_is_init = true;
     GB_DEBUGI(DISP_TAG, "TFT_eSpi_init Done");
 }
 

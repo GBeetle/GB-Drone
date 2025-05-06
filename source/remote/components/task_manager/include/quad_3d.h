@@ -15,23 +15,13 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TASK_MANAGER__
-#define _TASK_MANAGER__
+#ifndef _GB_QUAD_3D__
+#define _GB_QUAD_3D__
 
-#include "isr_manager.h"
-#include "mpu_driver.h"
-#include "anotic_debug.h"
+#include <stdint.h>
 
-#define MPU_DATA_QUEUE_SIZE 10
+void quad3d_init();
+void quad3d_get_image(uint16_t *image_buffer);
+void quad3d_set_angle(float roll, float pitch, float yaw);
 
-void gb_sensor_fusion(void* arg);
-void gb_read_sensor_data(void* arg);
-void uart_rx_task(void *arg);
-void nrf24_interrupt_func(void *arg);
-
-extern struct mpu mpu;
-extern QueueHandle_t gyroQueue, accelQueue, magQueue, baroQueue;
-extern SemaphoreHandle_t mpuDataQueueReady;
-extern SemaphoreHandle_t mpuSensorReady;
-
-#endif /* end of include guard: _TASK_MANAGER__ */
+#endif /* end of include guard: _GB_QUAD_3D__ */

@@ -102,6 +102,9 @@ static void*    callocSprite(struct TFT_eSprite* sprite, int16_t width, int16_t 
 ***************************************************************************************/
 void TFT_eSprite_init(struct TFT_eSprite *sprite, struct TFT_eSPI *tft)
 {
+  if (sprite->_is_init)
+    return;
+
   sprite->_tft = tft;  // Pointer to tft class so we can call member functions
 
   sprite->_iwidth   = 0;      // Initialise width and height to 0 (it does not exist yet)
@@ -171,6 +174,8 @@ void TFT_eSprite_init(struct TFT_eSprite *sprite, struct TFT_eSPI *tft)
   sprite->printToSpriteXy       = &printToSpriteXy;
   #endif
   sprite->callocSprite          = &callocSprite;
+
+  sprite->_is_init = true;
 }
 
 /***************************************************************************************
