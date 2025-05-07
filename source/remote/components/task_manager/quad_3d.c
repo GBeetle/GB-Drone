@@ -14,6 +14,7 @@
 #include "tobjparse.h"
 #include "log_sys.h"
 #include "disp_driver.h"
+#include "gb_timer.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265
@@ -25,14 +26,15 @@
 vec3 campos = (vec3){.d[0] = 8, .d[1] = 8, .d[2] = 8};     // camera position
 vec3 camforw = (vec3){.d[0] = -1, .d[1] = -1, .d[2] = -1}; // camera forward direction
 vec3 camup = (vec3){.d[0] = 0, .d[1] = 1, .d[2] = 0};      // camera up direction
-uint wasdstate[4] = {0, 0, 0, 0};
 float yaw = 0.0f;
 float pitch = 0.0f;
 float roll = 0.0f;
 
-PIXEL *imbuf = NULL;
-ZBuffer *frameBuffer = NULL;
-GLuint modelDisplayList = 0;
+static PIXEL *imbuf = NULL;
+static ZBuffer *frameBuffer = NULL;
+static GLuint modelDisplayList = 0;
+static mat4 projection_matrix;
+static mat4 view_matrix;
 
 SemaphoreHandle_t angleProtected;
 
@@ -163,6 +165,9 @@ void quad3d_init()
         freeobjraw(&omodel);
     }
 
+    projection_matrix = perspective(70, (float)winSizeX / (float)winSizeY, 0.1, 100.0);
+    view_matrix = lookAt(campos, addv3(campos, camforw), camup);
+
     angleProtected = xSemaphoreCreateMutex();
 }
 
@@ -173,49 +178,31 @@ void quad3d_get_image(uint16_t *image_buffer)
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    mat4 matrix = perspective(70, (float)winSizeX / (float)winSizeY, 0.1, 100.0);
-    glLoadMatrixf(matrix.d);
+    glLoadMatrixf(projection_matrix.d);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glPushMatrix(); // Pushing on the LookAt Matrix.
 
-    vec3 right = normalizev3(crossv3(camforw, camup));
-    matrix = (lookAt(campos, addv3(campos, camforw), camup));
-    glLoadMatrixf(matrix.d);
-    if (wasdstate[0])
-        campos = addv3(campos, scalev3(0.1, camforw));
-    if (wasdstate[2])
-        campos = addv3(campos, scalev3(-0.1, camforw));
-    if (wasdstate[1])
-        campos = addv3(campos, scalev3(-0.1, right));
-    if (wasdstate[3])
-        campos = addv3(campos, scalev3(0.1, right));
+    glLoadMatrixf(view_matrix.d);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
+    if (xSemaphoreTake(angleProtected, portMAX_DELAY) == pdTRUE)
     {
-        if (xSemaphoreTake(angleProtected, portMAX_DELAY) == pdTRUE)
-        {
-            // glDisable(GL_TEXTURE_2D);
-            // glDisable(GL_COLOR_MATERIAL);
+        glPushMatrix();
+        mat4 total_translation = translate((vec3){{0.0, 0.0, 0.0}});
+        glMultMatrixf(total_translation.d);
+        glRotatef(pitch, 1.0f, 0.0f, 0.0f);
+        glRotatef(yaw, 0.0f, 1.0f, 0.0f);
+        glRotatef(roll, 0.0f, 0.0f, 1.0f);
+        // glMultMatrixf(total_rotation.d);
+        glCallList(modelDisplayList);
+        glPopMatrix();
 
-            glPushMatrix();
-            mat4 total_translation = translate((vec3){{0.0, 0.0, 0.0}});
-            glMultMatrixf(total_translation.d);
-            glRotatef(pitch, 1.0f, 0.0f, 0.0f);
-            glRotatef(yaw, 0.0f, 1.0f, 0.0f);
-            glRotatef(roll, 0.0f, 0.0f, 1.0f);
-            // glMultMatrixf(total_rotation.d);
-            glCallList(modelDisplayList);
-            glPopMatrix();
-
-            xSemaphoreGive(angleProtected);
-        }
+        xSemaphoreGive(angleProtected);
     }
-    // draw();
-    glPopMatrix(); // The view transform.
 
-    // rotateCamera();
+    glPopMatrix(); // The view transform.
 
     // Quickly convert all pixels to the correct format
 #if TGL_FEATURE_RENDER_BITS == 32

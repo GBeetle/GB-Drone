@@ -182,12 +182,16 @@ void controller_task(void *pvParameter)
                 control_waittime = 0;
             }
         }
+        else if (throttle_adc != 0 || pitch_adc != 0)
+        {
+            control_waittime = 0;
+        }
 
         if (LORA_SEND_CONTROL_COMMAND != lora_send_config) // not fly mode, only control UI
         {
             // set angle
-            quad3d_set_angle(_scale_to(roll_adc, 0, ADC_CONSTRAIN_MAX, -180, 180),
-                             _scale_to(pitch_adc, 0, ADC_CONSTRAIN_MAX, -180, 180),
+            quad3d_set_angle(_scale_to(roll_adc, 0, ADC_CONSTRAIN_MAX, -30, 30),
+                             _scale_to(pitch_adc, 0, ADC_CONSTRAIN_MAX, -30, 30),
                              _scale_to(yaw_adc, 0, ADC_CONSTRAIN_MAX, -180, 180));
 
             // 右摇杆左右滑动

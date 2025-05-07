@@ -259,12 +259,10 @@ void remote_controller_event_cb(lv_obj_t *remote_controller, lv_event_t event)
                     {
                         lv_event_send(model_3d_btn, LV_EVENT_CLICKED, NULL);
                     }
-#if 0 // can not stop 3d model draw now !
                     else
                     {
                         lv_event_send(model_3d_btn, LV_EVENT_RELEASED, NULL);
                     }
-#endif
                 }
                 break;
             case L_DOWN_R_DOWN:
@@ -286,12 +284,10 @@ void remote_controller_event_cb(lv_obj_t *remote_controller, lv_event_t event)
                     {
                         lv_event_send(model_3d_btn, LV_EVENT_CLICKED, NULL);
                     }
-#if 0 // can not stop 3d model draw now !
                     else
                     {
                         lv_event_send(model_3d_btn, LV_EVENT_RELEASED, NULL);
                     }
-#endif
                 }
                 break;
             case L_UP_R_UP:
