@@ -2345,7 +2345,7 @@ static GB_RESULT baroGetData(struct mpu *mpu, baro_t *baro)
         goto error_exit;
     }
     CHK_RES(mpu->readBytes(mpu, EXT_SENS_DATA_06, 6, mpu->buffer));
-    //GB_DUMMPI(SENSOR_TAG, mpu->buffer, 6);
+    //GB_DUMPI(SENSOR_TAG, mpu->buffer, 6);
     adc_pressure = mpu->buffer[0] << 12 | mpu->buffer[1] << 4 | mpu->buffer[2] >> 4;
     adc_temp     = mpu->buffer[3] << 12 | mpu->buffer[4] << 4 | mpu->buffer[5] >> 4;
 

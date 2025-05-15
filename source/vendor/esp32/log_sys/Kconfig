@@ -1,11 +1,16 @@
 menu "log_system"
 
-config UART_LOG_ENABLE
-    bool "enable UART log"
-    default "n"
+choice LOG_PORT
+    prompt "LOG PORT"
+    default UART_LOG_ENABLE
+    help
+        This helps to choose log port
 
-config USB_LOG_ENABLE
-    bool "enable USB log"
-    default "y"
+    config UART_LOG_ENABLE
+        bool "UART"
+    config USB_LOG_ENABLE
+        bool "USB"
+
+endchoice
 
 endmenu

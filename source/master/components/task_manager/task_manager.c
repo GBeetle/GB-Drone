@@ -320,14 +320,14 @@ void uart_rx_task(void *arg)
             uint8_t ack[9] = {0x00};
             anotc_init_data(ack, 0x00, 3, sizeof(uint8_t), data[2], sizeof(uint8_t), data[15], sizeof(uint8_t), data[16]);
 
-            GB_DUMMPI(CHK_TAG, data, rxBytes);
-            GB_DUMMPI(CHK_TAG, ack, sizeof(ack));
+            GB_DUMPI(CHK_TAG, data, rxBytes);
+            GB_DUMPI(CHK_TAG, ack, sizeof(ack));
             GB_WriteBytes((const uint8_t *)ack, sizeof(ack));
         }
         else
         {
             GB_DEBUGE(ERROR_TAG, "Receve data format error, length: %d", rxBytes);
-            GB_DUMMPE(ERROR_TAG, data, rxBytes);
+            GB_DUMPE(ERROR_TAG, data, rxBytes);
         }
         rxBytes = 0;
         memset(data, 0, 128);
@@ -335,7 +335,7 @@ void uart_rx_task(void *arg)
         if (rxBytes > 0) {
             data[rxBytes] = 0;
             GB_DEBUGI(RX_TASK_TAG, "Read %d bytes: '%s'", rxBytes, data);
-            GB_DUMMPI(RX_TASK_TAG, data, rxBytes);
+            GB_DUMPI(RX_TASK_TAG, data, rxBytes);
         }
         */
     }

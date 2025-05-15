@@ -18,6 +18,7 @@
         "source/master/components/bmp280": true,
         "source/master/components/gb_timer": true,
         "source/master/components/gpio_setting": true,
+        "source/master/components/nrf24": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
@@ -32,6 +33,7 @@
         "source/remote/components/gpio_setting": true,
         "source/remote/components/lv_examples": true,
         "source/remote/components/tinygl": true,
+        "source/remote/components/nrf24": true,
     },
 
     "search.exclude": {
@@ -50,6 +52,7 @@
         "source/master/components/bmp280": true,
         "source/master/components/gb_timer": true,
         "source/master/components/gpio_setting": true,
+        "source/master/components/nrf24": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
@@ -64,6 +67,7 @@
         "source/remote/components/gpio_setting": true,
         "source/remote/components/lv_examples": true,
         "source/remote/components/tinygl": true,
+        "source/remote/components/nrf24": true,
     },
     "files.associations": {
         "cdc.h": "c",
@@ -98,7 +102,8 @@
         "lvgl_example.h": "c",
         "task_manager.h": "c",
         "isr_manager.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "nrf24_config.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

@@ -19,7 +19,7 @@
 #include "log_sys.h"
 #include "mpu_driver.h"
 #include "task_manager.h"
-#include "gb_timer.h"
+#include "lora_state.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -27,6 +27,7 @@
 void app_main(void)
 {
     GB_LogSystemInit();
+    GB_LoraSystemInit(LORA_RECEIVE, 0);
 
     mpuDataQueueReady = xSemaphoreCreateBinary();
     mpuSensorReady = xSemaphoreCreateBinary();

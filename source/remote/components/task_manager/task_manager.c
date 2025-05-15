@@ -32,15 +32,6 @@
 
 typedef enum
 {
-    LORA_SEND_NA,
-    LORA_SEND_SKY_WAL_CONFIG,
-    LORA_SEND_CONTROL_COMMAND,
-    LORA_SEND_PID_SET_INFO,
-    LORA_SEND_PID_GET_INFO,
-} GB_SEND_CONFIG;
-
-typedef enum
-{
     GB_THROTTLE,
     GB_YAW,
     GB_PITCH,

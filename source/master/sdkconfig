@@ -2129,6 +2129,15 @@ CONFIG_AUX_BMP280=y
 # end of mpu_driver
 
 #
+# NRF24
+#
+# CONFIG_NRF24_I2C is not set
+CONFIG_NRF24_SPI=y
+# CONFIG_NRF24_FSPI is not set
+CONFIG_NRF24_HSPI=y
+# end of NRF24
+
+#
 # TinyUSB Stack
 #
 CONFIG_TINYUSB_DEBUG_LEVEL=1

@@ -36,11 +36,11 @@ typedef enum
 #define GB_DEBUGD(tag, format, ...) GB_PrintLog(GB_LOG_LEVEL_DEBUG, tag, #format, ##__VA_ARGS__)
 #define GB_DEBUGV(tag, format, ...) GB_PrintLog(GB_LOG_LEVEL_VERBOSE, tag, #format, ##__VA_ARGS__)
 
-#define GB_DUMMPE(tag, data, size) GB_DumpLog(GB_LOG_LEVEL_ERROR, tag, data, size)
-#define GB_DUMMPW(tag, data, size) GB_DumpLog(GB_LOG_LEVEL_WARNING, tag, data, size)
-#define GB_DUMMPI(tag, data, size) GB_DumpLog(GB_LOG_LEVEL_INFO, tag, data, size)
-#define GB_DUMMPD(tag, data, size) GB_DumpLog(GB_LOG_LEVEL_DEBUG, tag, data, size)
-#define GB_DUMMPV(tag, data, size) GB_DumpLog(GB_LOG_LEVEL_VERBOSE, tag, data, size)
+#define GB_DUMPE(tag, data, size) GB_DumpLog(GB_LOG_LEVEL_ERROR, tag, data, size)
+#define GB_DUMPW(tag, data, size) GB_DumpLog(GB_LOG_LEVEL_WARNING, tag, data, size)
+#define GB_DUMPI(tag, data, size) GB_DumpLog(GB_LOG_LEVEL_INFO, tag, data, size)
+#define GB_DUMPD(tag, data, size) GB_DumpLog(GB_LOG_LEVEL_DEBUG, tag, data, size)
+#define GB_DUMPV(tag, data, size) GB_DumpLog(GB_LOG_LEVEL_VERBOSE, tag, data, size)
 
 extern const char* SENSOR_TAG;
 extern const char* ERROR_TAG;

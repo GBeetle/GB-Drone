@@ -50,10 +50,10 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define BMP_I2C_CLOCK_SPEED 400000  // range from 100 KHz ~ 400Hz
 
 // NRF24
-#define NRF24_HSPI_MOSI 7
-#define NRF24_HSPI_MISO 16
-#define NRF24_HSPI_SCLK 6
-#define NRF24_HSPI_CS 5
+#define NRF24_SPI_MOSI 7
+#define NRF24_SPI_MISO 16
+#define NRF24_SPI_SCLK 6
+#define NRF24_SPI_CS 5
 #define NRF24_SPI_CLOCK_SPEED SPI_MASTER_FREQ_10M
 
 #define NRF24_CE 4

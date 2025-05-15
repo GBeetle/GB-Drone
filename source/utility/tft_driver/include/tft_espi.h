@@ -200,7 +200,6 @@ typedef struct {
 } fontinfo;
 
 typedef struct spi tft_bus_t;
-typedef spi_device_handle_t tft_addr_handle_t;
 
 /***************************************************************************************
 **                         Section 5: Font datum enumeration

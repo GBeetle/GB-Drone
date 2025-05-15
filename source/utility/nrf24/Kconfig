@@ -1,0 +1,30 @@
+menu "NRF24"
+
+    choice NRF24_RROTOCAL
+        prompt "NRF24 Connection Protocol"
+        default NRF24_SPI
+        help
+            This helps to choose NRF24 connection protocol
+
+        config NRF24_I2C
+            bool "NRF24_I2C"
+
+        config NRF24_SPI
+            bool "NRF24_SPI"
+
+        choice NRF24_SPI_PORT
+            prompt "NRF24 SPI PORT"
+            default NRF24_FSPI
+            help
+                This helps to choose NRF24 SPI Port
+            depends on NRF24_SPI
+
+            config NRF24_FSPI
+                bool "FSPI"
+            config NRF24_HSPI
+                bool "HSPI"
+        endchoice
+
+    endchoice
+
+endmenu
