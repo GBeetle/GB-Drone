@@ -18,6 +18,7 @@
 #include "controller.h"
 #include "driver/adc.h"
 #include "esp_adc_cal.h"
+#include "lora_state.h"
 
 #define DEFAULT_VREF 0
 #define ADC_12BITS_SAMPLE_MAX 0xfff

@@ -47,4 +47,6 @@
 #define CONFIG_DISP_PIN_SCL  -1
 #define SPI_TFT_CLOCK_SPEED_HZ  SPI_MASTER_FREQ_40M
 
+#define TEST_IMU_IO 17
+
 #endif /* end of include guard: _IO_DEFINE__ */

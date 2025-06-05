@@ -84,6 +84,7 @@ source/master/components/lis3mdl
 source/master/components/gb_timer
 source/master/components/gpio_setting
 source/master/components/nrf24
+source/master/components/esc
 
 source/remote/components/error_handle
 source/remote/components/i2c_bus

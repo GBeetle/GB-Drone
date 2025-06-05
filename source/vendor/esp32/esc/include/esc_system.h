@@ -1,5 +1,5 @@
 /*
- * This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
+ * This file is part of welkin project (https://github.com/GBeetle/welkin).
  * Copyright (c) 2022 GBeetle.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,22 +15,20 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TASK_MANAGER__
-#define _TASK_MANAGER__
+#ifndef _ESC_SYSTEM__
+#define _ESC_SYSTEM__
 
-#include "isr_manager.h"
-#include "mpu_driver.h"
-#include "anotic_debug.h"
+#include "results.h"
+#include "driver/mcpwm.h"
 
-#define MPU_DATA_QUEUE_SIZE 10
+typedef struct{
+    mcpwm_unit_t unit;
+    mcpwm_io_signals_t ports;
+    mcpwm_timer_t timer;
+    int pin;
+} ESC_MOTOR_T;
 
-void gb_sensor_fusion(void* arg);
-void gb_read_sensor_data(void* arg);
-void uart_rx_task(void *arg);
-void nrf24_interrupt_func(void *arg);
-void GB_MutexInitialize();
+GB_RESULT esc_system_init(int gpio_s0, int gpio_s1, int gpio_s2, int gpio_s3);
+GB_RESULT esc_set_duty(int idx, float duty);
 
-extern struct mpu mpu;
-extern SemaphoreHandle_t mpuSensorReady;
-
-#endif /* end of include guard: _TASK_MANAGER__ */
+#endif /* end of include guard: _ESC_SYSTEM__ */

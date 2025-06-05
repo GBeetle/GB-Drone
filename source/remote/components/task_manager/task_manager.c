@@ -27,31 +27,15 @@
 #include "controller.h"
 #include "esp_timer.h"
 #include "quad_3d.h"
+#include "lora_state.h"
 
 #define LV_TICK_PERIOD_MS 10
-
-typedef enum
-{
-    GB_THROTTLE,
-    GB_YAW,
-    GB_PITCH,
-    GB_ROLL,
-    GB_TYPE_MAX,
-} GB_SAMPLE_ITEM;
 
 extern void welkin_widgets();
 typedef void (*create_demo)(void);
 
 SemaphoreHandle_t xGuiSemaphore;
-static GB_SEND_CONFIG lora_send_config = LORA_SEND_NA;
-
-/*
- * G = ((S - Smin) * (Gmax - Gmin)) / (Smax - Smin) + Gmin
- */
-static float _scale_to(float val, float src_min, float src_max, float dst_min, float dst_max)
-{
-    return ((val - src_min) * (dst_max - dst_min)) / (src_max - src_min) + dst_min;
-}
+GB_SEND_CONFIG lora_send_config = LORA_SEND_NA;
 
 static void lv_tick_task(void *arg)
 {
@@ -143,6 +127,7 @@ void gui_task(void *pvParameter)
 void controller_task(void *pvParameter)
 {
     uint64_t control_waittime = 0;
+    uint64_t time_now = 0;
     uint8_t ui_operation_mode = 0;
     uint8_t left_up_op = 0;
     uint16_t throttle_adc, pitch_adc, roll_adc, yaw_adc;
@@ -163,8 +148,9 @@ void controller_task(void *pvParameter)
         if (GB_FLY_MODE == gb_get_user_mode() && throttle_adc == 0 && pitch_adc == 0)
         {
             if (control_waittime == 0)
-                control_waittime = esp_timer_get_time();
-            if (esp_timer_get_time() - control_waittime > NRF24_CONTROL_WAITTING_TIME && throttle_adc == 0 && pitch_adc == 0)
+                GB_GetTimerUs(&control_waittime);
+            GB_GetTimerUs(&time_now);
+            if (time_now - control_waittime > NRF24_CONTROL_WAITTING_TIME && throttle_adc == 0 && pitch_adc == 0)
             {
                 GB_DEBUGI(GB_INFO, "Ready to send control command, should reset right controller");
                 while (pitch_adc < ADC_CONSTRAIN_MIDDLE - 50 || pitch_adc > ADC_CONSTRAIN_MIDDLE + 50)
@@ -180,10 +166,12 @@ void controller_task(void *pvParameter)
 
         if (LORA_SEND_CONTROL_COMMAND != lora_send_config) // not fly mode, only control UI
         {
+#if 0
             // set angle
             quad3d_set_angle(_scale_to(roll_adc, 0, ADC_CONSTRAIN_MAX, -30, 30),
                              _scale_to(pitch_adc, 0, ADC_CONSTRAIN_MAX, -30, 30),
                              _scale_to(yaw_adc, 0, ADC_CONSTRAIN_MAX, -180, 180));
+#endif
 
             // 右摇杆左右滑动
             if (roll_adc <= ADC_CONSTRAIN_MIDDLE / 2)
@@ -276,5 +264,196 @@ void controller_task(void *pvParameter)
         else
             vTaskDelay(pdMS_TO_TICKS(10));
 
+    }
+}
+
+void rf_loop(void *arg)
+{
+    uint8_t send_retry = 0;
+    uint64_t receive_waittime = 0;
+    uint64_t time_now = 0;
+    uint32_t delay_time = 5000;
+    GB_LORA_STATE lora_state;
+    GB_LORA_PACKAGE_T send_package;
+    GB_LORA_PACKAGE_T receive_package;
+
+    GB_LoraSystemInit(LORA_SEND, 1, &lora_state);
+    while (true)
+    {
+        if (LORA_SEND == lora_state)
+        {
+            // GB_DEBUGI(RF24_TAG, "Transmission begin, %d", lora_send_config);  // payload was delivered
+            switch (lora_send_config)
+            {
+            case LORA_SEND_NA:
+                send_package.type = GB_INIT_DATA;
+                send_package.sync = 0xaa;
+                GB_DEBUGI(RF24_TAG, "Sending init data, %d", send_package.sync);
+                break;
+            case LORA_SEND_SKY_WAL_CONFIG:
+                send_package.type = GB_SET_CONFIG;
+                send_package.sync = 0xab;
+                send_package.config.set_type = GB_SET_THROTTLE;
+                adc_read_by_item(ADC_THROTTLE, &send_package.config.throttle, true);
+                GB_DEBUGI(RF24_TAG, "Setting throttle, %d", send_package.config.throttle);
+                break;
+            case LORA_SEND_CONTROL_COMMAND:
+                send_package.type = GB_SET_CONFIG;
+                send_package.sync = 0xac;
+                send_package.config.set_type = GB_SET_CONTROL_ARG;
+                adc_read_by_item(ADC_THROTTLE, &send_package.config.control_arg.throttle, true);
+                adc_read_by_item(ADC_YAW, &send_package.config.control_arg.yaw, true);
+                adc_read_by_item(ADC_PITCH, &send_package.config.control_arg.pitch, true);
+                adc_read_by_item(ADC_ROLL, &send_package.config.control_arg.roll, true);
+                GB_DEBUGI(RF24_TAG, "Commander throttle, %d, yaw: %d, pitch: %d, roll: %d", send_package.config.control_arg.throttle,
+                          send_package.config.control_arg.yaw, send_package.config.control_arg.pitch, send_package.config.control_arg.roll);
+                break;
+            case LORA_SEND_PID_SET_INFO:
+                GB_DEBUGI(RF24_TAG, "LORA_SEND_PID_SET_INFO");
+                break;
+            case LORA_SEND_PID_GET_INFO:
+                GB_DEBUGI(RF24_TAG, "LORA_SEND_PID_GET_INFO");
+                break;
+            case LORA_GET_MOTION_STATE:
+                send_package.type = GB_GET_REQUEST;
+                send_package.sync = 0xad;
+                send_package.config.set_type = GB_GET_MOTION_STATE;
+                GB_DEBUGD(RF24_TAG, "GB_GET_MOTION_STATE");
+                break;
+            default:
+                GB_DEBUGE(ERROR_TAG, "UNKNOWN LORA SEND CONFIG!");
+            }
+
+            // This device is a TX node
+            GB_RESULT report = radio.write(&radio, &send_package, sizeof(GB_LORA_PACKAGE_T)); // transmit & save the report
+
+            if (report >= 0)
+            {
+                // GB_DEBUGI(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));
+                if (LORA_SEND_SKY_WAL_CONFIG == lora_send_config || LORA_SEND_CONTROL_COMMAND == lora_send_config) // don't need ack for esc setting
+                    continue;
+                if (LORA_SEND_PID_SET_INFO == lora_send_config && GB_GET_PID_INFO_0_7 == send_package.config.set_type)
+                {
+                    //uint16_t fake_tbl[1][1];
+                    //sendPIDTblInfo(1, 1, fake_tbl);
+                    continue;
+                }
+                lora_state = LORA_RECEIVE;
+                radio.startListening(&radio);
+                send_retry = 0;
+                GB_GetTimerUs(&receive_waittime);
+            }
+            else
+            {
+                GB_DEBUGE(RF24_TAG, "Transmission failed or timed out"); // payload was not delivered
+                send_retry++;
+                if (send_retry >= 5)
+                {
+                    send_retry = 0;
+                    lora_state = LORA_RECEIVE;
+                    radio.startListening(&radio);
+                }
+            }
+            continue;
+        }
+        else if (LORA_RECEIVE == lora_state)
+        {
+
+            uint8_t rf_status = radio.get_status(&radio);
+            if ((rf_status & _BV(RX_DR)) && lora_state == LORA_RECEIVE)
+            {
+                // This device is a RX node
+                uint8_t pipe;
+                if (radio.available(&radio, &pipe))
+                {                                                 // is there a payload? get the pipe number that recieved it
+                    uint8_t bytes = radio.getPayloadSize(&radio); // get the size of the payload
+                    radio.read(&radio, &receive_package, bytes);  // fetch payload from FIFO
+                    if (receive_package.sync != send_package.sync + 1)
+                    {
+                        GB_DEBUGE(ERROR_TAG, "Receive error!");
+                    }
+                    GB_DEBUGD(RF24_TAG, "type = %d, sync = %d", receive_package.type, receive_package.sync);
+                    if (LORA_SEND_PID_SET_INFO == lora_send_config)
+                    {
+                        //wk_remote_single_control(SEND_PID_DONE);
+                        lora_send_config = LORA_SEND_NA;
+                    }
+                    else if (LORA_SEND_PID_GET_INFO == lora_send_config && GB_SET_PID_0_7 == send_package.request.get_type)
+                    {
+                        //uint16_t fake_tbl[1][1];
+                        //getPIDInfoTable(1, 1, fake_tbl, &(out_package.config.pid));
+                        //sendReceivePIDTblInfoWithType(GB_GET_PID_INFO_8_15);
+                    }
+                    else if (LORA_SEND_PID_GET_INFO == lora_send_config && GB_SET_PID_8_15 == send_package.request.get_type)
+                    {
+                        //wk_remote_single_control(FLASH_PID_TBL);
+                        lora_send_config = LORA_SEND_NA;
+                    }
+                    else if (LORA_GET_MOTION_STATE == lora_send_config)
+                    {
+                        GB_DEBUGD(RF24_TAG, "Received Quad status roll: %d, pitch: %d, yaw: %d",
+                                  receive_package.request.quad_status.roll,
+                                  receive_package.request.quad_status.pitch,
+                                  receive_package.request.quad_status.yaw);
+                        lora_send_config = LORA_GET_MOTION_STATE;
+                        quad3d_set_angle((float)receive_package.request.quad_status.roll / GB_ERLER_SCALE_RATE,
+                                         (float)receive_package.request.quad_status.pitch / GB_ERLER_SCALE_RATE,
+                                         (float)receive_package.request.quad_status.yaw / GB_ERLER_SCALE_RATE);
+                        delay_time = 10;
+                    }
+                    else
+                    {
+                        lora_send_config = LORA_SEND_NA;
+                    }
+                    lora_state = LORA_SEND;
+                    radio.stopListening(&radio);
+                }
+                else
+                {
+                    GB_DEBUGI(RF24_TAG, "Received nothing..., try to send again");
+                    lora_state = LORA_SEND;
+                    radio.stopListening(&radio);
+                }
+            }
+            else
+            {
+                GB_GetTimerUs(&time_now);
+                if (time_now - receive_waittime < NRF24_RECEIVE_WAITTING_TIME)
+                {
+                    // GB_DEBUGI(RF24_TAG, "Waitting to receive... ");
+                    continue;
+                }
+                else
+                {
+                    lora_state = LORA_SEND;
+                    radio.stopListening(&radio);
+                    GB_DEBUGI(RF24_TAG, "Waitting to receive timeout, re-send package");
+                }
+            }
+            if (rf_status & _BV(TX_DS))
+            {
+                GB_DEBUGI(RF24_TAG, "Transmission successful! ");
+            }
+            if (rf_status & _BV(MAX_RT))
+            {
+                GB_DEBUGI(RF24_TAG, "Transmission MAX_RT! ");
+            }
+        }
+        /* Wait to be notified that the transmission is complete.  Note
+        the first parameter is pdTRUE, which has the effect of clearing
+        the task's notification value back to 0, making the notification
+        value act like a binary (rather than a counting) semaphore.  */
+        uint32_t ul_notification_value;
+        const TickType_t max_block_time = pdMS_TO_TICKS(delay_time);
+        ul_notification_value = ulTaskNotifyTake(pdTRUE, max_block_time);
+
+        if (ul_notification_value == 1)
+        {
+            /* The transmission ended as expected. */
+        }
+        else
+        {
+            /* The call to ulTaskNotifyTake() timed out. */
+        }
     }
 }

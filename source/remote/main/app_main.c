@@ -27,12 +27,20 @@
 #include "task_manager.h"
 #include "lvgl_example.h"
 #include "file_system.h"
+#include "lora_state.h"
+#include "io_define.h"
+#include "gpio_setting.h"
 
 void app_main(void)
 {
     GB_LogSystemInit();
     GB_FileSystem_Init("storage");
+
     disp_driver_init();
+
+    // TEST IO
+    GB_GPIO_Reset( TEST_IMU_IO );
+    GB_GPIO_SetDirection( TEST_IMU_IO, GB_GPIO_OUTPUT );
 
     // xTaskCreate(draw_loop, "draw_loop", 5120, NULL, 4 | portPRIVILEGE_BIT, NULL);
     xTaskCreate(controller_task, "controller", 1024 * 5, NULL, 2 | portPRIVILEGE_BIT, NULL);
@@ -48,5 +56,6 @@ void app_main(void)
 #else
                             NULL,
 #endif
-                            0, NULL, 1);
+                            1 | portPRIVILEGE_BIT, NULL, tskNO_AFFINITY);
+    xTaskCreate(rf_loop, "nrf24_loop", 4096, NULL, 3 | portPRIVILEGE_BIT, NULL);
 }

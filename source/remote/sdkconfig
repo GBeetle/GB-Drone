@@ -2550,6 +2550,15 @@ CONFIG_LV_USE_WIN=y
 # end of LVGL configuration
 
 #
+# NRF24
+#
+# CONFIG_NRF24_I2C is not set
+CONFIG_NRF24_SPI=y
+CONFIG_NRF24_FSPI=y
+# CONFIG_NRF24_HSPI is not set
+# end of NRF24
+
+#
 # TinyUSB Stack
 #
 CONFIG_TINYUSB_DEBUG_LEVEL=1

@@ -25,6 +25,9 @@
 #include "tft_espi.h"
 #include "tft_sprite.h"
 #include "lvgl_driver.h"
+#include "lora_state.h"
+#include "gpio_setting.h"
+#include "io_define.h"
 
 /*********************
  *      DEFINES
@@ -53,6 +56,7 @@ typedef enum
 // extern void sendPIDTblInfo(uint32_t height, uint32_t width, uint16_t pid_tbl[height][width]);
 // extern void sendReceivePIDTblInfo();
 // extern void getPIDInfoTable(uint32_t height, uint32_t width, uint16_t pid_tbl[height][width], LORA_GB_PID_INIT_T *first_half);
+extern GB_SEND_CONFIG lora_send_config;
 
 /**********************
  *  STATIC PROTOTYPES
@@ -389,12 +393,14 @@ void remote_controller_event_cb(lv_obj_t *remote_controller, lv_event_t event)
 
 void canvas_draw_task()
 {
+    GB_GPIO_Set(TEST_IMU_IO, 1);
     lv_draw_img_dsc_t img_dsc;
 
     lv_draw_img_dsc_init(&img_dsc);
 
     quad3d_get_image(canvas_buffer);
     lv_canvas_set_buffer(model_canvas, canvas_buffer, LV_HOR_RES_MAX, LV_VER_RES_MAX, LV_IMG_CF_TRUE_COLOR);
+    GB_GPIO_Set(TEST_IMU_IO, 0);
 }
 
 void btn_3d_model_event_cb(lv_obj_t *sw, lv_event_t e)
@@ -405,13 +411,15 @@ void btn_3d_model_event_cb(lv_obj_t *sw, lv_event_t e)
         if (!draw_task)
         {
             init_canvas();
-            draw_task = lv_task_create(canvas_draw_task, 10, LV_TASK_PRIO_HIGHEST, NULL);
+            draw_task = lv_task_create(canvas_draw_task, 100, LV_TASK_PRIO_HIGHEST, NULL);
+            lora_send_config = LORA_GET_MOTION_STATE;
         }
         else
         {
             lv_task_del(draw_task);
             draw_task = NULL;
             deinit_canvas();
+            lora_send_config = LORA_SEND_NA;
         }
     }
 }

@@ -21,15 +21,26 @@
 #include "sdkconfig.h"
 #include "Fusion.h"
 #include "gb_timer.h"
-
+#include "lora_state.h"
+#include "esc_system.h"
 #include "task_manager.h"
 
+typedef struct
+{
+    float roll;
+    float pitch;
+    float yaw;
+    float height;
+} GB_Motion_State;
+
 struct mpu mpu;  // create a default MPU object
+GB_Motion_State motionState;
 
 static uint8_t anotic_debug_id = 0x00;
 QueueHandle_t gyroQueue, accelQueue, magQueue, baroQueue;
 SemaphoreHandle_t mpuDataQueueReady;
 SemaphoreHandle_t mpuSensorReady;
+SemaphoreHandle_t motionStateMutex;
 
 static inline GB_RESULT get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRaw, raw_axes_t *magRaw,
     float_axes_t *accelG, float_axes_t *gyroDPS, float_axes_t *magDPS, baro_t *baro_data)
@@ -53,6 +64,11 @@ static inline GB_RESULT get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRa
         xQueueReceive(baroQueue, baro_data, portMAX_DELAY);
     }
 
+    GB_DEBUGD(SENSOR_TAG, "Rev gyroRaw.x %d, gyroRaw.y %d, gyroRaw.z %d\n", gyroRaw->data.x, gyroRaw->data.y, gyroRaw->data.z);
+    GB_DEBUGD(SENSOR_TAG, "Rev accelRaw.x %d, accelRaw.y %d, accelRaw.z %d\n", accelRaw->data.x, accelRaw->data.y, accelRaw->data.z);
+    GB_DEBUGD(SENSOR_TAG, "Rev magRaw.x %d, magRaw.y %d, magRaw.z %d\n", magRaw->data.x, magRaw->data.y, magRaw->data.z);
+    GB_DEBUGD(SENSOR_TAG, "Rev baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ] \n", baro_data->pressure, baro_data->temperature, baro_data->altitude);
+
     // Convert
     *accelG  = accelGravity_raw(accelRaw, g_accel_fs);
     *gyroDPS = gyroDegPerSec_raw(gyroRaw, g_gyro_fs);
@@ -75,6 +91,8 @@ static inline FusionVector FusionMagneticApplyOffset(const FusionVector calibrat
         originMag.axis.x = calibrated.axis.x;
         originMag.axis.y = calibrated.axis.y;
         originMag.axis.z = calibrated.axis.z;
+        GB_DEBUGI(SENSOR_TAG, "originMag.x %0.1f, originMag.y %0.1f, originMag.z %0.1f\n", originMag.axis.x, originMag.axis.y, originMag.axis.z);
+        originMagInitailized = 1;
         return FUSION_VECTOR_ZERO;
     }
     else
@@ -87,7 +105,6 @@ void gb_read_sensor_data(void* arg)
 {
     GB_TickType ticks = 0;
     GB_RESULT res = GB_OK;
-    uint32_t sample_times = 0;
     //selftest_t st_result;
 
     (void) res;
@@ -115,11 +132,13 @@ void gb_read_sensor_data(void* arg)
 
         CHK_FUNC_EXIT(mpu.rotation(&mpu, &gyroRaw));
         CHK_FUNC_EXIT(mpu.acceleration(&mpu, &accelRaw));
-        // reduce compass & high sample rate to avoid I2C timeout
-        if (sample_times % 2 == 0)
-            CHK_FUNC_EXIT(mpu.heading(&mpu, &magRaw));
-        else
-            CHK_FUNC_EXIT(mpu.baroGetData(&mpu, &baro_data));
+        CHK_FUNC_EXIT(mpu.heading(&mpu, &magRaw));
+        CHK_FUNC_EXIT(mpu.baroGetData(&mpu, &baro_data));
+
+        GB_DEBUGD(SENSOR_TAG, "Queue gyroRaw.x %d, gyroRaw.y %d, gyroRaw.z %d\n", gyroRaw.data.x, gyroRaw.data.y, gyroRaw.data.z);
+        GB_DEBUGD(SENSOR_TAG, "Queue accelRaw.x %d, accelRaw.y %d, accelRaw.z %d\n", accelRaw.data.x, accelRaw.data.y, accelRaw.data.z);
+        GB_DEBUGD(SENSOR_TAG, "Queue magRaw.x %d, magRaw.y %d, magRaw.z %d\n", magRaw.data.x, magRaw.data.y, magRaw.data.z);
+        GB_DEBUGD(SENSOR_TAG, "Queue baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ] \n", baro_data.pressure, baro_data.temperature, baro_data.altitude);
 
         if (gyroRaw.data.x != 0 && gyroRaw.data.y != 0 && gyroRaw.data.z != 0)
             xQueueSend(gyroQueue, &gyroRaw, portMAX_DELAY);
@@ -129,8 +148,6 @@ void gb_read_sensor_data(void* arg)
             xQueueSend(magQueue, &magRaw, portMAX_DELAY);
         if (baro_data.altitude != 0)
             xQueueSend(baroQueue, &baro_data, portMAX_DELAY);
-
-        sample_times++;
         xSemaphoreGive(mpuDataQueueReady);
         //GB_GPIO_Set( TEST_IMU_IO, 0 );
     }
@@ -138,6 +155,17 @@ void gb_read_sensor_data(void* arg)
 error_exit:
     GB_DEBUGE(ERROR_TAG, "Sensor data read error");
     return;
+}
+
+void GB_MutexInitialize()
+{
+    mpuDataQueueReady = xSemaphoreCreateBinary();
+    mpuSensorReady = xSemaphoreCreateBinary();
+    motionStateMutex = xSemaphoreCreateMutex();
+    gyroQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
+    accelQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
+    magQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
+    baroQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(baro_t));
 }
 
 void gb_sensor_fusion(void* arg)
@@ -233,12 +261,21 @@ void gb_sensor_fusion(void* arg)
         const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
         // 0.3ms end
 
+        if (xSemaphoreTake(motionStateMutex, portMAX_DELAY) == pdTRUE)
+        {
+            motionState.roll = euler.angle.roll;
+            motionState.pitch = euler.angle.pitch;
+            motionState.yaw = euler.angle.yaw;
+
+            xSemaphoreGive(motionStateMutex);
+        }
+
         GB_DEBUGD(SENSOR_TAG, "Gyro.x %0.1f, Gyro.y %0.1f, Gyro.z %0.1f\n", gyroscope.axis.x, gyroscope.axis.y, gyroscope.axis.z);
         GB_DEBUGD(SENSOR_TAG, "Accel.x %0.1f, Accel.y %0.1f, Accel.z %0.1f\n", accelerometer.axis.x, accelerometer.axis.y, accelerometer.axis.z);
         GB_DEBUGD(SENSOR_TAG, "Mag.x %0.1f, Mag.y %0.1f, Mag.z %0.1f\n", magnetometer.axis.x, magnetometer.axis.y, magnetometer.axis.z);
         GB_DEBUGD(SENSOR_TAG, "Roll %0.1f, Pitch %0.1f, Yaw %0.1f, X %0.1f, Y %0.1f, Z %0.1f\n",
-                                euler.angle.roll, euler.angle.pitch, euler.angle.yaw,
-                                earth.axis.x, earth.axis.y, earth.axis.z);
+                  euler.angle.roll, euler.angle.pitch, euler.angle.yaw,
+                  earth.axis.x, earth.axis.y, earth.axis.z);
         GB_DEBUGD(SENSOR_TAG, "baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ] \n", baro_data.pressure, baro_data.temperature, baro_data.altitude);
 
         // note: communication_V7-20210528.pdf
@@ -292,6 +329,235 @@ error_exit:
     return;
 }
 
+static GB_RESULT wk_lora_request_dispatch(GB_LORA_PACKAGE_T *in, GB_LORA_PACKAGE_T *out, GB_LORA_STATE *state)
+{
+    GB_RESULT res = GB_OK;
+    //static LORA_GB_PID_INIT_T pid_first = {0}, pid_last = {0};
+
+    switch (in->type)
+    {
+    case GB_INIT_DATA:
+        out->type = GB_INIT_DATA;
+        out->init.system_state = GB_SYSTEM_INITIALIZE_PASS;
+        out->init.battery_capacity = 0xff;
+        out->init.sensor_state = 0xf0;
+        *state = LORA_SEND;
+        GB_DEBUGI(LORA_TAG, "Receive GB_INIT_DATA, sync: %d", in->sync);
+        break;
+    case GB_SET_CONFIG:
+        switch (in->config.set_type)
+        {
+        case GB_SET_THROTTLE:
+            // don't need ack for esc setting
+            for (int i = 0; i < 4; i++)
+                // esc_set_duty(i, 5.0f + 0.05f * (float)(in->config.throttle));
+                esc_set_duty(i, _control_commander_to_range(GB_THROTTLE, in->config.throttle, 0));
+            // GB_DEBUGI(LORA_TAG, "Receive GB_SET_THROTTLE, throttle: %d", in->config.throttle);
+            break;
+#if 0
+        case GB_SET_PID_0_7:
+        {
+            lora_pidInit_t *tmp_pid_tbl = NULL;
+            for (int i = 0; i < PID_TYPE_MAX; i++)
+            {
+                tmp_pid_tbl = &(in->config.pid.data[i]);
+                GB_DEBUGI(LORA_TAG, "PID[%d]: %02x, %02x, %02x", i, tmp_pid_tbl->half_kp, tmp_pid_tbl->half_ki, tmp_pid_tbl->half_kd);
+            }
+            memcpy(&pid_first, in->config.pid.data, sizeof(LORA_GB_PID_INIT_T));
+            break;
+        }
+        case GB_SET_PID_8_15:
+        {
+            memcpy(&pid_last, in->config.pid.data, sizeof(LORA_GB_PID_INIT_T));
+            lora_pidInit_t *tmp_pid_tbl = NULL;
+            for (int i = 0; i < PID_TYPE_MAX; i++)
+            {
+                tmp_pid_tbl = &(in->config.pid.data[i]);
+                GB_DEBUGI(LORA_TAG, "PID[%d]: %02x, %02x, %02x", i, tmp_pid_tbl->half_kp, tmp_pid_tbl->half_ki, tmp_pid_tbl->half_kd);
+                pidParam.data[i].kp = pid_first.data[i].half_kp << 8 | pid_last.data[i].half_kp;
+                pidParam.data[i].ki = pid_first.data[i].half_ki << 8 | pid_last.data[i].half_ki;
+                pidParam.data[i].kd = pid_first.data[i].half_kd << 8 | pid_last.data[i].half_kd;
+            }
+            setPidParam();
+            *state = LORA_SEND;
+            break;
+        }
+        case GB_SET_CONTROL_ARG:
+            // throttle from 0 ~ 1000 for [pid to motor control]
+            rev_throttle = in->config.control_arg.throttle;
+            portENTER_CRITICAL(&receive_package_mutex);
+            rev_set_info.rev_state.roll = _control_commander_to_range(GB_ROLL, in->config.control_arg.roll, 0);
+            rev_set_info.rev_state.pitch = _control_commander_to_range(GB_PITCH, in->config.control_arg.pitch, 0);
+            rev_set_info.rev_state.yaw = _control_commander_to_range(GB_YAW, in->config.control_arg.yaw, 0);
+
+            // constrain roll/pitch/yaw speed from -500 ~ 500 for [pid to motor control]
+            // rev_set_info.rev_speed.roll   = _control_commander_to_range(GB_ROLL, in->config.control_arg.roll, 1);
+            // rev_set_info.rev_speed.pitch  = _control_commander_to_range(GB_PITCH, in->config.control_arg.pitch, 1);
+            rev_set_info.rev_speed.yaw = _control_commander_to_range(GB_YAW, in->config.control_arg.yaw, 1);
+            portEXIT_CRITICAL(&receive_package_mutex);
+            portENTER_CRITICAL(&system_state_mutex);
+            system_state = GB_SYSTEM_UNLOCK;
+            _resetRemoteState();
+            portEXIT_CRITICAL(&system_state_mutex);
+            break;
+#endif
+        default:
+            GB_DEBUGI(LORA_TAG, "Unknown setting type: %d", in->config.set_type);
+        }
+        break;
+    case GB_GET_REQUEST:
+        switch (in->request.get_type)
+        {
+        case GB_GET_BATTERY_INFO:
+            break;
+#if 0
+        case GB_GET_PID_INFO_0_7:
+        {
+            out->type = GB_GET_REQUEST;
+            pidInit_t *tmp_pid_tbl = NULL;
+            for (int i = 0; i < PID_TYPE_MAX; i++)
+            {
+                tmp_pid_tbl = &(pidParam.data[i]);
+                GB_DEBUGI(LORA_TAG, "PID[%d]: %04x, %04x, %04x", i, tmp_pid_tbl->kp, tmp_pid_tbl->ki, tmp_pid_tbl->kd);
+                pid_first.data[i].half_kp = pidParam.data[i].kp >> 8;
+                pid_first.data[i].half_ki = pidParam.data[i].ki >> 8;
+                pid_first.data[i].half_kd = pidParam.data[i].kd >> 8;
+            }
+            memcpy(out->config.pid.data, pid_first.data, sizeof(LORA_GB_PID_INIT_T));
+            break;
+        }
+        case GB_GET_PID_INFO_8_15:
+        {
+            out->type = GB_GET_REQUEST;
+            pidInit_t *tmp_pid_tbl = NULL;
+            for (int i = 0; i < PID_TYPE_MAX; i++)
+            {
+                tmp_pid_tbl = &(pidParam.data[i]);
+                GB_DEBUGI(LORA_TAG, "PID[%d]: %04x, %04x, %04x", i, tmp_pid_tbl->kp, tmp_pid_tbl->ki, tmp_pid_tbl->kd);
+                pid_last.data[i].half_kp = pidParam.data[i].kp & 0x00ff;
+                pid_last.data[i].half_ki = pidParam.data[i].ki & 0x00ff;
+                pid_last.data[i].half_kd = pidParam.data[i].kd & 0x00ff;
+            }
+            memcpy(out->config.pid.data, pid_last.data, sizeof(LORA_GB_PID_INIT_T));
+            break;
+        }
+#endif
+        case GB_GET_MOTION_STATE:
+
+            if (xSemaphoreTake(motionStateMutex, portMAX_DELAY) == pdTRUE)
+            {
+                GB_DEBUGD(RF24_TAG, "motionState roll: %f, pitch: %f, yaw: %f", motionState.roll, motionState.pitch, motionState.yaw);
+                // roll -> pitch
+                // pitch -> roll
+                // yaw -> yaw
+                out->request.quad_status.roll = -motionState.pitch * GB_ERLER_SCALE_RATE;
+                out->request.quad_status.pitch = motionState.roll * GB_ERLER_SCALE_RATE;
+                out->request.quad_status.yaw = motionState.yaw * GB_ERLER_SCALE_RATE;
+                GB_DEBUGD(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d",
+                          out->request.quad_status.roll,
+                          out->request.quad_status.pitch,
+                          out->request.quad_status.yaw);
+
+                xSemaphoreGive(motionStateMutex);
+            }
+
+            break;
+        default:
+            GB_DEBUGI(LORA_TAG, "Unknown setting type: %d", in->request.get_type);
+        }
+        *state = LORA_SEND;
+        break;
+    default:
+        GB_DEBUGI(LORA_TAG, "Unknown PACKAGE type: %d", in->type);
+    }
+    out->sync = in->sync + 1; // check for remote
+
+    return res;
+}
+
+void nrf24_interrupt_func(void *arg)
+{
+    GB_LORA_PACKAGE_T in_package;
+    GB_LORA_PACKAGE_T out_package;
+    uint8_t send_retry = 0;
+    GB_LORA_STATE lora_state = LORA_IDLE;
+
+    GB_LoraSystemInit(LORA_RECEIVE, 0, &lora_state);
+    nrf24_isr_register();
+
+    while (1)
+    {
+        // portENTER_CRITICAL(&lora_mutex);
+        // gpio_set_level( TEST_NRF24_IO, 1 );
+        uint8_t rf_status = radio.get_status(&radio);
+        if ((rf_status & _BV(RX_DR)) && lora_state == LORA_RECEIVE)
+        {
+            // This device is a RX node
+            uint8_t pipe;
+            if (radio.available(&radio, &pipe))
+            {                                                 // is there a payload? get the pipe number that recieved itv
+                uint8_t bytes = radio.getPayloadSize(&radio); // get the size of the payload
+                radio.read(&radio, &in_package, bytes);       // fetch payload from FIFO
+                CHK_LOGE(wk_lora_request_dispatch(&in_package, &out_package, &lora_state), "Remote info dispatch failed");
+            }
+            else
+                GB_DEBUGI(RF24_TAG, "Received nothing...");
+        }
+        if (rf_status & _BV(TX_DS))
+        {
+            GB_DEBUGI(RF24_TAG, "Transmission successful! ");
+        }
+        if (rf_status & _BV(MAX_RT))
+        {
+            GB_DEBUGI(RF24_TAG, "Transmission MAX_RT! ");
+        }
+        // GB_DEBUGI(RF24_TAG, "RF status: %d", rf_status);
+        radio.write_register(&radio, NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT), false);
+
+        if (lora_state == LORA_SEND)
+        {
+            radio.stopListening(&radio);
+            GB_RESULT report = radio.write(&radio, &out_package, sizeof(GB_LORA_PACKAGE_T));
+            if (report >= 0)
+            {
+                GB_DEBUGV(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));
+                lora_state = LORA_RECEIVE;
+                radio.startListening(&radio);
+                send_retry = 0;
+            }
+            else
+            {
+                GB_DEBUGI(RF24_TAG, "Transmission failed or timed out, retry: %d", send_retry);
+                send_retry++;
+                if (send_retry >= 5)
+                {
+                    send_retry = 0;
+                    lora_state = LORA_RECEIVE;
+                    radio.startListening(&radio);
+                }
+            }
+        }
+        // gpio_set_level( TEST_NRF24_IO, 0 );
+        // portEXIT_CRITICAL(&lora_mutex);
+        /* Wait to be notified that the transmission is complete.  Note
+        the first parameter is pdTRUE, which has the effect of clearing
+        the task's notification value back to 0, making the notification
+        value act like a binary (rather than a counting) semaphore.  */
+        uint32_t ul_notification_value;
+        const TickType_t max_block_time = pdMS_TO_TICKS(100);
+        ul_notification_value = ulTaskNotifyTake(pdTRUE, max_block_time);
+
+        if (ul_notification_value == 1)
+        {
+            /* The transmission ended as expected. */
+        }
+        else
+        {
+            /* The call to ulTaskNotifyTake() timed out. */
+        }
+    }
+}
+
 // receive frame format 0xAA_ID_AA
 /***********ANOTIC DEBUG*****************
   0xAA xxxx 0xAA    xxxx:anotic_debug_id
@@ -303,19 +569,20 @@ void uart_rx_task(void *arg)
     uint8_t data[128] = {0};
     int rxBytes = 0;
 
-    while (1) {
+    while (1)
+    {
 
-        GB_ReadBytes(data, (size_t*)&rxBytes);
+        GB_ReadBytes(data, (size_t *)&rxBytes);
 
         if (rxBytes <= 0)
             continue;
         if (rxBytes == 3 && data[0] == 0xaa && data[2] == 0xaa)
         {
             GB_DEBUGI(SENSOR_TAG, "Start anotic debug, id: %02x", data[1]);
-            //gb_usb_write_bytes(data, rxBytes);
+            // gb_usb_write_bytes(data, rxBytes);
             anotic_debug_id = data[1];
         }
-        else if (rxBytes == 16 && data[0] == 0xaa && data[2] == 0xe0) //anotic function debug
+        else if (rxBytes == 16 && data[0] == 0xaa && data[2] == 0xe0) // anotic function debug
         {
             uint8_t ack[9] = {0x00};
             anotc_init_data(ack, 0x00, 3, sizeof(uint8_t), data[2], sizeof(uint8_t), data[15], sizeof(uint8_t), data[16]);
@@ -340,4 +607,3 @@ void uart_rx_task(void *arg)
         */
     }
 }
-

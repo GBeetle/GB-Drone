@@ -20,5 +20,6 @@
 
 void gui_task(void *pvParameter);
 void controller_task(void *pvParameter);
+void rf_loop(void *pvParameter);
 
 #endif /* end of include guard: _TASK_MANAGER__ */

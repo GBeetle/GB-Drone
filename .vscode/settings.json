@@ -19,6 +19,7 @@
         "source/master/components/gb_timer": true,
         "source/master/components/gpio_setting": true,
         "source/master/components/nrf24": true,
+        "source/master/components/esc": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
@@ -53,6 +54,7 @@
         "source/master/components/gb_timer": true,
         "source/master/components/gpio_setting": true,
         "source/master/components/nrf24": true,
+        "source/master/components/esc": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
@@ -103,7 +105,8 @@
         "task_manager.h": "c",
         "isr_manager.h": "c",
         "string.h": "c",
-        "nrf24_config.h": "c"
+        "nrf24_config.h": "c",
+        "lora_state.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

@@ -20,10 +20,6 @@
 
 #include <stdint.h>
 
-#define ADC_CONSTRAIN_MAX 1000
-#define ADC_CONSTRAIN_MIDDLE (ADC_CONSTRAIN_MAX / 2)
-#define NRF24_CONTROL_WAITTING_TIME (3 * 1000 * 1000)  // 3s
-
 typedef enum
 {
     ADC_THROTTLE,

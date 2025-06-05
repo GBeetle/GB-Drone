@@ -91,6 +91,8 @@ GLuint createModelDisplayList(
 
 void quad3d_init()
 {
+    GB_DEBUGE(DISP_TAG, "quad3d_init start");
+
     imbuf = calloc(1, sizeof(PIXEL) * winSizeX * winSizeY);
 
     // initialize TinyGL
@@ -169,6 +171,8 @@ void quad3d_init()
     view_matrix = lookAt(campos, addv3(campos, camforw), camup);
 
     angleProtected = xSemaphoreCreateMutex();
+
+    GB_DEBUGE(DISP_TAG, "quad3d_init end");
 }
 
 void quad3d_get_image(uint16_t *image_buffer)

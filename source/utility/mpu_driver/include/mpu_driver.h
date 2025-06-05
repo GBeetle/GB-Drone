@@ -51,7 +51,7 @@
 #include "spi_bus.h"
 #endif
 
-#define MPU_SAMPLE_RATE 500
+#define MPU_SAMPLE_RATE 400
 
 #define MPU_GYRO_STATUS_BIT        (1 << 0)
 #define MPU_ACCEL_STATUS_BIT       (1 << 1)

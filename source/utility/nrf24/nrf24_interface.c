@@ -114,10 +114,9 @@ static GB_RESULT setRadiation(struct rf24 *nrf24, uint8_t level, rf24_datarate_e
 GB_RESULT GB_NRF24_Init(struct rf24 *nrf24);
 
 static const uint8_t address[][6] = {"1Node", "2Node"};
-static GB_LORA_STATE lora_state = LORA_IDLE;
 
 // radioNumber 0 uses address[0] to transmit (RECEIVE), 1 uses address[1] to transmit (SEND)
-GB_RESULT GB_LoraSystemInit(GB_LORA_STATE state, bool radioNumber)
+GB_RESULT GB_LoraSystemInit(GB_LORA_STATE init_state, bool radioNumber, GB_LORA_STATE *state)
 {
     GB_RESULT res = GB_OK;
 
@@ -138,16 +137,16 @@ GB_RESULT GB_LoraSystemInit(GB_LORA_STATE state, bool radioNumber)
     // set the RX address of the TX node into a RX pipe
     CHK_RES(radio.openReadingPipeAddr(&radio, 1, address[!radioNumber])); // using pipe 1
 
-    switch (state)
+    switch (init_state)
     {
     case LORA_RECEIVE:
         // additional setup specific to the node's role
         CHK_RES(radio.startListening(&radio)); // put radio in RX mode
-        lora_state = LORA_RECEIVE;
+        *state = LORA_RECEIVE;
         break;
     case LORA_SEND:
         CHK_RES(radio.stopListening(&radio)); // put radio in TX mode
-        lora_state = LORA_SEND;
+        *state = LORA_SEND;
         break;
     default:
         CHK_RES(GB_RF24_UNKNOWN_STAT);

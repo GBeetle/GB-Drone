@@ -27,14 +27,7 @@
 void app_main(void)
 {
     GB_LogSystemInit();
-    GB_LoraSystemInit(LORA_RECEIVE, 0);
-
-    mpuDataQueueReady = xSemaphoreCreateBinary();
-    mpuSensorReady = xSemaphoreCreateBinary();
-    gyroQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
-    accelQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
-    magQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
-    baroQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(baro_t));
+    GB_MutexInitialize();
 
     GB_DEBUGI(GB_INFO, "Taks Create Start");
 
@@ -44,6 +37,7 @@ void app_main(void)
 
     xTaskCreatePinnedToCore( gb_sensor_fusion, "gb_sensor_fusion", 5120, NULL, configMAX_PRIORITIES - 1, NULL, tskNO_AFFINITY );
     xTaskCreatePinnedToCore( gb_read_sensor_data, "gb_read_sensor_data", 4096, NULL, configMAX_PRIORITIES - 2, &mpu_isr_handle, tskNO_AFFINITY );
+    xTaskCreatePinnedToCore( nrf24_interrupt_func, "nrf24 interrupt", 4096, NULL, configMAX_PRIORITIES - 1, &nrf24_isr_handle, tskNO_AFFINITY);
     xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
 
     GB_DEBUGI(GB_INFO, "Taks Create DONE");

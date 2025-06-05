@@ -40,6 +40,7 @@ typedef struct isr_manager {
 void mpu_dmp_isr_handler(void* arg);
 void nrf24_interrupt_handler(void* arg);
 GB_RESULT mpu_isr_register();
+GB_RESULT nrf24_isr_register();
 
 extern uint32_t isr_counter;
 extern TaskHandle_t mpu_isr_handle;
