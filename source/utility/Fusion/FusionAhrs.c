@@ -19,7 +19,7 @@
 /**
  * @brief Initial gain used during the initialisation.
  */
-#define INITIAL_GAIN (10.0f)
+#define INITIAL_GAIN (1.0f)
 
 /**
  * @brief Initialisation period in seconds.
@@ -173,6 +173,7 @@ void FusionAhrsUpdate(FusionAhrs *const ahrs, const FusionVector gyroscope, cons
     FusionVector halfMagnetometerFeedback = FUSION_VECTOR_ZERO;
     ahrs->magnetometerIgnored = true;
     if (FusionVectorIsZero(magnetometer) == false) {
+        GB_DEBUGD(SENSOR_TAG, "line: %d, magnetometer x: %f, y: %f, z: %f", __LINE__, magnetometer.axis.x, magnetometer.axis.y, magnetometer.axis.z);
 
         // Calculate direction of magnetic field indicated by algorithm
         const FusionVector halfMagnetic = HalfMagnetic(ahrs);
@@ -184,22 +185,29 @@ void FusionAhrsUpdate(FusionAhrs *const ahrs, const FusionVector gyroscope, cons
         if (ahrs->initialising || ((FusionVectorMagnitudeSquared(ahrs->halfMagnetometerFeedback) <= ahrs->settings.magneticRejection))) {
             ahrs->magnetometerIgnored = false;
             ahrs->magneticRecoveryTrigger -= 9;
+            GB_DEBUGD(SENSOR_TAG, "line: %d, halfMagnetometerFeedback x: %f, y: %f, z: %f", __LINE__,
+                      ahrs->halfMagnetometerFeedback.axis.x, ahrs->halfMagnetometerFeedback.axis.y, ahrs->halfMagnetometerFeedback.axis.z);
         } else {
             ahrs->magneticRecoveryTrigger += 1;
+            GB_DEBUGD(SENSOR_TAG, "line: %d, halfMagnetometerFeedback x: %f, y: %f, z: %f", __LINE__,
+                      ahrs->halfMagnetometerFeedback.axis.x, ahrs->halfMagnetometerFeedback.axis.y, ahrs->halfMagnetometerFeedback.axis.z);
         }
 
         // Don't ignore magnetometer during magnetic recovery
         if (ahrs->magneticRecoveryTrigger > ahrs->magneticRecoveryTimeout) {
             ahrs->magneticRecoveryTimeout = 0;
             ahrs->magnetometerIgnored = false;
+            GB_DEBUGD(SENSOR_TAG, "line: %d", __LINE__);
         } else {
             ahrs->magneticRecoveryTimeout = ahrs->settings.recoveryTriggerPeriod;
+            GB_DEBUGD(SENSOR_TAG, "line: %d", __LINE__);
         }
         ahrs->magneticRecoveryTrigger = Clamp(ahrs->magneticRecoveryTrigger, 0, ahrs->settings.recoveryTriggerPeriod);
 
         // Apply magnetometer feedback
         if (ahrs->magnetometerIgnored == false) {
             halfMagnetometerFeedback = ahrs->halfMagnetometerFeedback;
+            GB_DEBUGD(SENSOR_TAG, "line: %d, halfMagnetic x: %f, y: %f, z: %f", __LINE__, halfMagnetic.axis.x, halfMagnetic.axis.y, halfMagnetic.axis.z);
         }
     }
 

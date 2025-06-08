@@ -51,7 +51,7 @@
 #include "spi_bus.h"
 #endif
 
-#define MPU_SAMPLE_RATE 400
+#define MPU_SAMPLE_RATE 300
 
 #define MPU_GYRO_STATUS_BIT        (1 << 0)
 #define MPU_ACCEL_STATUS_BIT       (1 << 1)
@@ -228,7 +228,7 @@ struct mpu
     GB_RESULT (*gyroSelfTest)(struct mpu *mpu, raw_axes_t *regularBias, raw_axes_t *selfTestBias, uint8_t* result);
     GB_RESULT (*getBiases)(struct mpu *mpu, accel_fs_t accelFS, gyro_fs_t gyroFS, raw_axes_t* accelBias, raw_axes_t* gyroBias,
                         bool selftest);
-    GB_RESULT (*setOffsets)(struct mpu *mpu);
+    GB_RESULT (*setOffsets)(struct mpu *mpu, bool gyro, bool accel);
 
     mpu_bus_t* bus;         /*!< Communication bus pointer, I2C / SPI */
     mpu_addr_handle_t addr; /*!< I2C address / SPI device handle */
@@ -242,5 +242,6 @@ void GB_MPU_Init(struct mpu *mpu);
 
 extern const accel_fs_t g_accel_fs;
 extern const gyro_fs_t g_gyro_fs;
+extern const lis3mdl_scale_t g_lis3mdl_fs;
 
 #endif /* end of include guard: _MPU_DRIVER_H__ */

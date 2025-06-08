@@ -74,7 +74,7 @@ static inline GB_RESULT get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRa
     *gyroDPS = gyroDegPerSec_raw(gyroRaw, g_gyro_fs);
     if (magRaw->data.x != 0 || magRaw->data.y != 0 || magRaw->data.z != 0)
     {
-        *magDPS = magGauss_raw(magRaw, lis3mdl_scale_12_Gs);
+        *magDPS = magGauss_raw(magRaw, g_lis3mdl_fs);
     }
 
 //error_exit:
@@ -84,15 +84,24 @@ static inline GB_RESULT get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRa
 static inline FusionVector FusionMagneticApplyOffset(const FusionVector calibrated)
 {
     static uint8_t originMagInitailized = 0;
+    static uint32_t magCounter = 0;
+    const uint32_t magMaxCounter = 500;
     static FusionVector originMag = {{0.0f, 0.0f, 0.0f}};
 
     if (0 == originMagInitailized)
     {
-        originMag.axis.x = calibrated.axis.x;
-        originMag.axis.y = calibrated.axis.y;
-        originMag.axis.z = calibrated.axis.z;
-        GB_DEBUGI(SENSOR_TAG, "originMag.x %0.1f, originMag.y %0.1f, originMag.z %0.1f\n", originMag.axis.x, originMag.axis.y, originMag.axis.z);
-        originMagInitailized = 1;
+        originMag.axis.x += calibrated.axis.x;
+        originMag.axis.y += calibrated.axis.y;
+        originMag.axis.z += calibrated.axis.z;
+        magCounter++;
+        if (magCounter >= magMaxCounter)
+        {
+            originMagInitailized = 1;
+            originMag.axis.x /= magCounter;
+            originMag.axis.y /= magCounter;
+            originMag.axis.z /= magCounter;
+            GB_DEBUGI(SENSOR_TAG, "originMag.x %0.1f, originMag.y %0.1f, originMag.z %0.1f\n", originMag.axis.x, originMag.axis.y, originMag.axis.z);
+        }
         return FUSION_VECTOR_ZERO;
     }
     else
@@ -116,7 +125,7 @@ void gb_read_sensor_data(void* arg)
     // test for sensor is good & horizontal
     //selftest_t st_result;
     //CHK_FUNC_EXIT(mpu.selfTest(&mpu, &st_result));
-    //CHK_FUNC_EXIT(mpu.setOffsets(&mpu));
+    CHK_FUNC_EXIT(mpu.setOffsets(&mpu, true, false)); // keep static when power up
 
     GB_DEBUGI(SENSOR_TAG, "mpu status: %02x", mpu.mpu_status);
 
@@ -183,26 +192,20 @@ void gb_sensor_fusion(void* arg)
     // Fusion initialization
     const FusionMatrix gyroscopeMisalignment = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     const FusionVector gyroscopeSensitivity = {{1.0f, 1.0f, 1.0f}};
-    const FusionVector gyroscopeOffset = {
-        .axis.x = -11.16f * gyroResolution(g_gyro_fs),
-        .axis.y = 17.22f * gyroResolution(g_gyro_fs),
-        .axis.z = -53.13f * gyroResolution(g_gyro_fs)
-    };
+    const FusionVector gyroscopeOffset = {{0.0f, 0.0f, 0.0f}}; // For MPU6050 using setOffsets to remove bias error
 
     const FusionMatrix accelerometerMisalignment = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     const FusionVector accelerometerSensitivity = {
-        .axis.x = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2115.91 - 63.46),
-        .axis.y = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2037.26 + 4.16),
-        .axis.z = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2295.11 - 213.19)
-    };
+        .axis.x = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2056.73),
+        .axis.y = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2036.68),
+        .axis.z = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2071.70)};
     const FusionVector accelerometerOffset = {
-        .axis.x = 63.46f * accelResolution(g_accel_fs),
-        .axis.y = -4.16f * accelResolution(g_accel_fs),
-        .axis.z = 213.19f * accelResolution(g_accel_fs)
-    };
+        .axis.x = 60.50f * accelResolution(g_accel_fs),
+        .axis.y = -34.09f * accelResolution(g_accel_fs),
+        .axis.z = 181.67f * accelResolution(g_accel_fs)};
 
-    const FusionMatrix softIronMatrix = {{{2.55f, 0.08f, -0.05f}, {0.08f, 2.60f, -0.10f}, {-0.05f, -0.10f, 2.74f}}};
-    const FusionVector hardIronOffset = {{0.36f, -0.61f, 0.83f}};
+    const FusionMatrix softIronMatrix = {{{2.38f, 0.04f, -0.04f}, {0.04f, 2.49f, -0.09f}, {-0.04f, -0.09f, 2.70f}}};
+    const FusionVector hardIronOffset = {{0.33f, -0.77f, 1.14f}};
 
     FusionOffset offset;
     FusionAhrs ahrs;
@@ -222,7 +225,8 @@ void gb_sensor_fusion(void* arg)
     };
     FusionAhrsSetSettings(&ahrs, &settings);
 
-    while (1) {
+    while (1)
+    {
         if (xSemaphoreTake(mpuDataQueueReady, portMAX_DELAY) == pdTRUE) {}
 
         //GB_GPIO_Set( TEST_IMU_IO, 1 );
@@ -241,8 +245,11 @@ void gb_sensor_fusion(void* arg)
         // Apply calibration
         gyroscope = FusionCalibrationInertial(gyroscope, gyroscopeMisalignment, gyroscopeSensitivity, gyroscopeOffset);
         accelerometer = FusionCalibrationInertial(accelerometer, accelerometerMisalignment, accelerometerSensitivity, accelerometerOffset);
-        magnetometer = FusionCalibrationMagnetic(magnetometer, softIronMatrix, hardIronOffset);
-        magnetometer = FusionMagneticApplyOffset(magnetometer);
+        if (magnetometer.axis.x != 0 || magnetometer.axis.y != 0 || magnetometer.axis.z != 0)
+        {
+            magnetometer = FusionCalibrationMagnetic(magnetometer, softIronMatrix, hardIronOffset);
+            magnetometer = FusionMagneticApplyOffset(magnetometer);
+        }
 
         // Update gyroscope offset correction algorithm
         gyroscope = FusionOffsetUpdate(&offset, gyroscope);
@@ -270,12 +277,12 @@ void gb_sensor_fusion(void* arg)
             xSemaphoreGive(motionStateMutex);
         }
 
-        GB_DEBUGD(SENSOR_TAG, "Gyro.x %0.1f, Gyro.y %0.1f, Gyro.z %0.1f\n", gyroscope.axis.x, gyroscope.axis.y, gyroscope.axis.z);
-        GB_DEBUGD(SENSOR_TAG, "Accel.x %0.1f, Accel.y %0.1f, Accel.z %0.1f\n", accelerometer.axis.x, accelerometer.axis.y, accelerometer.axis.z);
-        GB_DEBUGD(SENSOR_TAG, "Mag.x %0.1f, Mag.y %0.1f, Mag.z %0.1f\n", magnetometer.axis.x, magnetometer.axis.y, magnetometer.axis.z);
-        GB_DEBUGD(SENSOR_TAG, "Roll %0.1f, Pitch %0.1f, Yaw %0.1f, X %0.1f, Y %0.1f, Z %0.1f\n",
+        GB_DEBUGD(SENSOR_TAG, "Gyro.x %f, Gyro.y %f, Gyro.z %f\n", gyroscope.axis.x, gyroscope.axis.y, gyroscope.axis.z);
+        GB_DEBUGD(SENSOR_TAG, "Accel.x %f, Accel.y %f, Accel.z %f\n", accelerometer.axis.x, accelerometer.axis.y, accelerometer.axis.z);
+        GB_DEBUGD(SENSOR_TAG, "Mag.x %f, Mag.y %f, Mag.z %f\n", magnetometer.axis.x, magnetometer.axis.y, magnetometer.axis.z);
+        GB_DEBUGD(SENSOR_TAG, "Roll %0.1f, Pitch %0.1f, Yaw %0.1f, X %0.1f, Y %0.1f, Z %0.1f, deltaTime: %f\n",
                   euler.angle.roll, euler.angle.pitch, euler.angle.yaw,
-                  earth.axis.x, earth.axis.y, earth.axis.z);
+                  earth.axis.x, earth.axis.y, earth.axis.z, deltaTime);
         GB_DEBUGD(SENSOR_TAG, "baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ] \n", baro_data.pressure, baro_data.temperature, baro_data.altitude);
 
         // note: communication_V7-20210528.pdf

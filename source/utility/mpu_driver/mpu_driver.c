@@ -136,10 +136,11 @@ static GB_RESULT accelSelfTest(struct mpu *mpu, raw_axes_t* regularBias, raw_axe
 static GB_RESULT gyroSelfTest(struct mpu *mpu, raw_axes_t* regularBias, raw_axes_t* selfTestBias, uint8_t* result);
 static GB_RESULT getBiases(struct mpu *mpu, accel_fs_t accelFS, gyro_fs_t gyroFS, raw_axes_t* accelBias, raw_axes_t* gyroBias,
                          bool selftest);
-static GB_RESULT setOffsets(struct mpu *mpu);
+static GB_RESULT setOffsets(struct mpu *mpu, bool gyro, bool accel);
 
 const accel_fs_t g_accel_fs = ACCEL_FS_16G;
 const gyro_fs_t g_gyro_fs = GYRO_FS_2000DPS;
+const lis3mdl_scale_t g_lis3mdl_fs = lis3mdl_scale_16_Gs;
 
 /**
  * @brief Set communication bus.
@@ -2418,9 +2419,9 @@ static GB_RESULT compassInit(struct mpu *mpu)
         // SPI MODE: In write mode, the contents of I2C_SLV0_DO (Register 99) will be written to the slave device.
         // I2C MODE: Auxiliary Pass-Through Mode
         /* configure the magnetometer */
-        CHK_RES(mpu->setMagfullScale(mpu, lis3mdl_scale_4_Gs));
+        CHK_RES(mpu->setMagfullScale(mpu, g_lis3mdl_fs));
         //GB_SleepMs(50);
-        CHK_RES(mpu->compassSetSampleMode(mpu, lis3mdl_mpm_560));
+        CHK_RES(mpu->compassSetSampleMode(mpu, lis3mdl_hpm_300));
         //GB_SleepMs(50);
         CHK_RES(mpu->compassSetMeasurementMode(mpu, lis3mdl_continuous_measurement));
         GB_SleepMs(50);
@@ -2967,11 +2968,11 @@ static GB_RESULT getBiases(struct mpu *mpu, accel_fs_t accelFS, gyro_fs_t gyroFS
         CHK_RES(mpu->writeBits(mpu, GYRO_CONFIG, GCONFIG_XG_ST_BIT, 3, 0x7));
     }
     // wait for 200ms for sensors to stabilize
-    GB_SleepMs(200);
+    GB_SleepMs(1000);
 
     raw_axes_t accelRaw;   // x, y, z axes as int16
     raw_axes_t gyroRaw;    // x, y, z axes as int16
-    const int packetCount = 100;
+    const int packetCount = 500;
 
     for (int i = 0; i < packetCount; i++) {
         GB_SleepMs(4);
@@ -3047,7 +3048,7 @@ error_exit:
  * Note: Gyro offset output are LSB in 1000DPS format.
  * Note: Accel offset output are LSB in 16G format.
  * */
-static GB_RESULT setOffsets(struct mpu *mpu)
+static GB_RESULT setOffsets(struct mpu *mpu, bool gyro_offset_enable, bool accel_offset_enable)
 {
     GB_RESULT res = GB_OK;
     raw_axes_t accel;   // x, y, z axes as int16
@@ -3063,8 +3064,10 @@ static GB_RESULT setOffsets(struct mpu *mpu)
 
     //GB_DEBUGE(ERROR_TAG, "set Bias gyro: %x, %x, %x\n", gyro.data.x, gyro.data.y, gyro.data.z);
     //GB_DEBUGE(ERROR_TAG, "set Bias accel: %x, %x, %x\n", accel.data.x, accel.data.y, accel.data.z);
-    CHK_RES(mpu->setGyroOffset(mpu, gyro));
-    CHK_RES(mpu->setAccelOffset(mpu, accel));
+    if (gyro_offset_enable)
+        CHK_RES(mpu->setGyroOffset(mpu, gyro));
+    if (accel_offset_enable)
+        CHK_RES(mpu->setAccelOffset(mpu, accel));
 
     CHK_RES(mpu->setAccelFullScale(mpu, prevAccelFS));
     CHK_RES(mpu->setGyroFullScale(mpu, prevGyroFS));
@@ -3073,6 +3076,7 @@ static GB_RESULT setOffsets(struct mpu *mpu)
     //accel = mpu->getAccelOffset(mpu);
     //GB_DEBUGE(ERROR_TAG, "get Bias gyro: %x, %x, %x\n", gyro.data.x, gyro.data.y, gyro.data.z);
     //GB_DEBUGE(ERROR_TAG, "get Bias accel: %x, %x, %x\n", accel.data.x, accel.data.y, accel.data.z);
+    GB_SleepMs(500);
 error_exit:
     return res;
 }
