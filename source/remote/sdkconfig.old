@@ -2185,12 +2185,11 @@ CONFIG_UART_LOG_ENABLE=y
 # lv_examples configuration
 #
 # CONFIG_LV_EX_PRINTF is not set
-# CONFIG_LV_USE_DEMO_NONE is not set
-CONFIG_LV_USE_DEMO_WIDGETS=y
+CONFIG_LV_USE_DEMO_NONE=y
+# CONFIG_LV_USE_DEMO_WIDGETS is not set
 # CONFIG_LV_USE_DEMO_KEYPAD_AND_ENCODER is not set
 # CONFIG_LV_USE_DEMO_BENCHMARK is not set
 # CONFIG_LV_USE_DEMO_STRESS is not set
-CONFIG_LV_DEMO_WIDGETS_SLIDESHOW=y
 # end of lv_examples configuration
 
 #
@@ -2549,6 +2548,15 @@ CONFIG_LV_TILEVIEW_DEF_ANIM_TIME=300
 CONFIG_LV_USE_WIN=y
 # end of Widgets
 # end of LVGL configuration
+
+#
+# NRF24
+#
+# CONFIG_NRF24_I2C is not set
+CONFIG_NRF24_SPI=y
+CONFIG_NRF24_FSPI=y
+# CONFIG_NRF24_HSPI is not set
+# end of NRF24
 
 #
 # TinyUSB Stack

@@ -133,8 +133,8 @@ void disp_driver_init(void)
     GB_DEBUGI(DISP_TAG, "Display buffer size: %d", DISP_BUF_SIZE);
 
 #if defined CONFIG_TFT_DISPLAY_PROTOCOL_SPI
-    CHK_EXIT(hspi.begin(&hspi, CONFIG_DISP_SPI_MOSI, CONFIG_DISP_SPI_MISO, CONFIG_DISP_SPI_CLK, 0));
-    CHK_EXIT(hspi.addDevice(&hspi, GB_SPI_DEV_0, 0, 2, SPI_DEVICE_NO_DUMMY, SPI_TFT_CLOCK_SPEED_HZ, -1));
+    CHK_EXIT(fspi.begin(&fspi, CONFIG_DISP_SPI_MOSI, CONFIG_DISP_SPI_MISO, CONFIG_DISP_SPI_CLK, 0));
+    CHK_EXIT(fspi.addDevice(&fspi, GB_SPI_DEV_0, 0, 2, SPI_DEVICE_NO_DUMMY, SPI_TFT_CLOCK_SPEED_HZ, -1));
 #elif defined CONFIG_TFT_DISPLAY_PROTOCOL_I2C
     // TODO
 #else

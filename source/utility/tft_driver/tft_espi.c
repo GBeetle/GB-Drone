@@ -256,7 +256,7 @@ static GB_RESULT initBus(struct TFT_eSPI * tft_dev)
 {
     GB_RESULT res = GB_OK;
 
-    tft_dev->bus = &hspi;
+    tft_dev->bus = &fspi;
 
 #if defined (TFT_PARALLEL_8_BIT)
 
