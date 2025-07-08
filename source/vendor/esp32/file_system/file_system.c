@@ -47,7 +47,9 @@
 static wl_handle_t s_wl_handle = WL_INVALID_HANDLE;
 
 // Mount path for the partition
-const char *base_path = "/storage";
+const char *gb_file_system_partition[GB_FILE_MAX] = {
+    "/storage",
+    "/sdcard"};
 
 const esp_partition_t* gb_add_partition(esp_flash_t* ext_flash, const char* partition_label)
 {
@@ -79,7 +81,7 @@ bool gb_mount_fatfs(const char* partition_label)
             .format_if_mount_failed = true,
             .allocation_unit_size = CONFIG_WL_SECTOR_SIZE
     };
-    esp_err_t err = esp_vfs_fat_spiflash_mount_rw_wl(base_path, partition_label, &mount_config, &s_wl_handle);
+    esp_err_t err = esp_vfs_fat_spiflash_mount_rw_wl(gb_file_system_partition[GB_FILE_SPI_FLASH], partition_label, &mount_config, &s_wl_handle);
     if (err != ESP_OK) {
         GB_DEBUGE(FS_TAG, "Failed to mount FATFS (%s)", esp_err_to_name(err));
         return false;
@@ -105,7 +107,7 @@ void gb_get_fatfs_usage(size_t* out_total_bytes, size_t* out_free_bytes)
     }
 }
 
-GB_RESULT GB_FileSystem_Init(const char* partition_label)
+GB_RESULT GB_FileSystem_Init()
 {
     GB_RESULT res = GB_OK;
 
@@ -113,7 +115,8 @@ GB_RESULT GB_FileSystem_Init(const char* partition_label)
     gb_list_data_partitions();
 
     // Initialize FAT FS in the partition
-    if (!gb_mount_fatfs(partition_label)) {
+    if (!gb_mount_fatfs(gb_file_system_partition[GB_FILE_SPI_FLASH] + 1))
+    {
         return GB_FS_MOUNT_FAIL;
     }
 
@@ -125,13 +128,13 @@ GB_RESULT GB_FileSystem_Init(const char* partition_label)
     return res;
 }
 
-GB_RESULT GB_FileSystem_Write(const char* file, const uint8_t *data, uint32_t len)
+GB_RESULT GB_FileSystem_Write(GB_FILE_PARTITION partition, const char *file, const uint8_t *data, uint32_t len)
 {
     GB_RESULT res = GB_OK;
     char full_path[MAX_FILE_PATH_LEN] = {0};
     FILE *f = NULL;
 
-    strcpy(full_path, base_path);
+    strcpy(full_path, gb_file_system_partition[partition]);
     strcat(full_path, "/");
     strcat(full_path, file);
 
@@ -165,14 +168,14 @@ error_exit:
     return res;
 }
 
-GB_RESULT GB_FileSystem_Read(const char* file, uint8_t *data, uint32_t len)
+GB_RESULT GB_FileSystem_Read(GB_FILE_PARTITION partition, const char *file, uint8_t *data, uint32_t len)
 {
     GB_RESULT res = GB_OK;
     char full_path[MAX_FILE_PATH_LEN] = {0};
     FILE *f = NULL;
     int read_len = 0;
 
-    strcpy(full_path, base_path);
+    strcpy(full_path, gb_file_system_partition[partition]);
     strcat(full_path, "/");
     strcat(full_path, file);
 
@@ -210,13 +213,13 @@ error_exit:
     return res;
 }
 
-GB_RESULT GB_FileSystem_ListDir()
+GB_RESULT GB_FileSystem_ListDir(GB_FILE_PARTITION partition)
 {
     GB_RESULT res = GB_OK;
 
-    GB_DEBUGI(FS_TAG, "Listing files in %s:", base_path);
+    GB_DEBUGI(FS_TAG, "Listing files in %s:", gb_file_system_partition[partition]);
 
-    DIR *dir = opendir(base_path);
+    DIR *dir = opendir(gb_file_system_partition[partition]);
     if (!dir) {
         GB_DEBUGE(FS_TAG, "Failed to open directory: %s", strerror(errno));
         CHK_RES(GB_FS_FOPEN_FAIL);

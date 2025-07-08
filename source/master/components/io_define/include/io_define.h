@@ -86,4 +86,9 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 // up to 1MHz for all registers, and 20MHz for sensor data registers only
 #define PMW_SPI_CLOCK_SPEED SPI_MASTER_FREQ_20M
 
+// SD card
+#define SD_CMD  38
+#define SD_CLK  39
+#define SD_D0   40
+
 #endif /* end of include guard: _IO_DEFINE__ */

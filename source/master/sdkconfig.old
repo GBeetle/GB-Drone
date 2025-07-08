@@ -2113,8 +2113,8 @@ CONFIG_WIFI_PROV_STA_ALL_CHANNEL_SCAN=y
 #
 # log_system
 #
-CONFIG_UART_LOG_ENABLE=y
-# CONFIG_USB_LOG_ENABLE is not set
+# CONFIG_UART_LOG_ENABLE is not set
+CONFIG_USB_LOG_ENABLE=y
 # end of log_system
 
 #

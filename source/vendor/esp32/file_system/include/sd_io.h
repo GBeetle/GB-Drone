@@ -15,23 +15,26 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _FILE_SYSTEM__
-#define _FILE_SYSTEM__
+#ifndef _FILE_SD_IO__
+#define _FILE_SD_IO__
 
-#include <stdbool.h>
-#include <stdlib.h>
-#include "results.h"
+#include <stdint.h>
 
-typedef enum {
-    GB_FILE_SPI_FLASH = 0,
-    GB_FILE_SD_CARD,
-    GB_FILE_MAX
-} GB_FILE_PARTITION;
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
-GB_RESULT GB_FileSystem_Init();
-GB_RESULT GB_SDCardFileSystem_Init();
-GB_RESULT GB_FileSystem_Write(GB_FILE_PARTITION partition, const char *file, const uint8_t *data, uint32_t len);
-GB_RESULT GB_FileSystem_Read(GB_FILE_PARTITION partition, const char *file, uint8_t *data, uint32_t len);
-GB_RESULT GB_FileSystem_ListDir(GB_FILE_PARTITION partition);
+typedef struct
+{
+    const char **names;
+    const int *pins;
+} pin_configuration_t;
 
-#endif /* end of include guard: _FILE_SYSTEM__ */
+void check_sd_card_pins(pin_configuration_t *config, const int pin_count);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

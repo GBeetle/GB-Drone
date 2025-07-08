@@ -44,7 +44,7 @@ void GB_LogSystemInit()
     esp_log_level_set(ST_TAG, ESP_LOG_DEBUG);
     esp_log_level_set(CHK_TAG, ESP_LOG_ERROR);
     esp_log_level_set(RF24_TAG, ESP_LOG_DEBUG);
-    esp_log_level_set(GB_INFO, ESP_LOG_INFO);
+    esp_log_level_set(GB_INFO, ESP_LOG_DEBUG);
     esp_log_level_set(LORA_TAG, ESP_LOG_INFO);
     esp_log_level_set(FS_TAG, ESP_LOG_INFO);
     esp_log_level_set(DISP_TAG, ESP_LOG_DEBUG);

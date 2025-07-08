@@ -20,6 +20,7 @@
         "source/master/components/gpio_setting": true,
         "source/master/components/nrf24": true,
         "source/master/components/esc": true,
+        "source/master/components/file_system": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
@@ -55,6 +56,7 @@
         "source/master/components/gpio_setting": true,
         "source/master/components/nrf24": true,
         "source/master/components/esc": true,
+        "source/master/components/file_system": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
@@ -108,5 +110,8 @@
         "nrf24_config.h": "c",
         "lora_state.h": "c"
     },
-    "C_Cpp.dimInactiveRegions": false
+    "C_Cpp.dimInactiveRegions": false,
+    "idf.pythonInstallPath": "D:\\Espressif\\tools\\idf-python\\3.11.2\\python.exe",
+    "idf.espIdfPathWin": "D:/Espressif/frameworks/esp-idf-v5.4/",
+    "idf.toolsPathWin": "D:\\Espressif"
 }
