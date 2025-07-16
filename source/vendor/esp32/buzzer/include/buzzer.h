@@ -15,20 +15,13 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _ESC_SYSTEM__
-#define _ESC_SYSTEM__
+#ifndef _BUZZER__
+#define _BUZZER__
 
-#include "results.h"
-#include "driver/mcpwm.h"
+#include <inttypes.h>
 
-typedef struct{
-    mcpwm_unit_t unit;
-    mcpwm_io_signals_t ports;
-    mcpwm_timer_t timer;
-    int pin;
-} ESC_MOTOR_T;
+void init_buzzer(void);
+void play_theme();
+void play_march(uint8_t longplay);
 
-GB_RESULT esc_system_init(int gpio_s0, int gpio_s1, int gpio_s2, int gpio_s3);
-GB_RESULT esc_set_duty(int idx, float duty);
-
-#endif /* end of include guard: _ESC_SYSTEM__ */
+#endif /* end of include guard: _BUZZER__ */
