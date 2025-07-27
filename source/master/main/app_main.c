@@ -22,6 +22,7 @@
 #include "lora_state.h"
 #include "file_system.h"
 #include "gb_timer.h"
+#include "buzzer.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -31,7 +32,9 @@ void app_main(void)
     GB_LogSystemInit();
     GB_MutexInitialize();
 
-    // TEST FILE SYSTEM
+    //play_theme();
+
+    // TEST FILE SYSTEMWW
     const char *test_file_name = "Hello.txt";
     const char *test_file_content = "Hello, world!";
     const char test_out_file1[20] = {0};

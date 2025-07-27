@@ -81,7 +81,7 @@ void check_sd_card_pins(pin_configuration_t *config, const int pin_count)
         usleep(100);
         gpio_set_level(config->pins[i], 1);
         uint32_t cycles = get_cycles_until_pin_level(config->pins[i], 1, 10000);
-        GB_DEBUGI(FS_TAG, "PIN %2d %3s  %" PRIu32 " cycles\n", config->pins[i], config->names[i], cycles);
+        GB_DEBUGI(FS_TAG, "PIN %2d %3s  %d cycles\n", config->pins[i], config->names[i], cycles);
     }
 
     GB_DEBUGI(FS_TAG, "\n**** PIN recovery time with weak pullup ****\n\n");
@@ -94,7 +94,7 @@ void check_sd_card_pins(pin_configuration_t *config, const int pin_count)
         usleep(100);
         gpio_set_level(config->pins[i], 1);
         uint32_t cycles = get_cycles_until_pin_level(config->pins[i], 1, 10000);
-        GB_DEBUGI(FS_TAG, "PIN %2d %3s  %" PRIu32 " cycles\n", config->pins[i], config->names[i], cycles);
+        GB_DEBUGI(FS_TAG, "PIN %2d %3s  %d cycles\n", config->pins[i], config->names[i], cycles);
         gpio_pullup_dis(config->pins[i]);
     }
 }
