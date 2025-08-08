@@ -125,6 +125,7 @@ GB_RESULT GB_SDCardFileSystem_Init()
     // For setting a specific frequency, use host.max_freq_khz (range 400kHz - 40MHz for SDMMC)
     // Example: for fixed frequency of 10MHz, use host.max_freq_khz = 10000;
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+    host.max_freq_khz = SDMMC_FREQ_PROBING;
 #if CONFIG_SDMMC_SPEED_HS
     host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
 #elif CONFIG_SDMMC_SPEED_UHS_I_SDR50
@@ -162,9 +163,10 @@ GB_RESULT GB_SDCardFileSystem_Init()
     // Enable internal pullups on enabled pins. The internal pullups
     // are insufficient however, please make sure 10k external pullups are
     // connected on the bus. This is for debug / example purpose only.
-    slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+    //slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 
     GB_DEBUGI(FS_TAG, "Mounting filesystem");
+test:
     ret = esp_vfs_fat_sdmmc_mount(gb_file_system_partition[GB_FILE_SD_CARD], &host, &slot_config, &mount_config, &card);
 
     if (ret != ESP_OK)
@@ -179,7 +181,8 @@ GB_RESULT GB_SDCardFileSystem_Init()
             GB_DEBUGE(FS_TAG, "Failed to initialize the card (%s). "
                           "Make sure SD card lines have pull-up resistors in place.",
                      esp_err_to_name(ret));
-            check_sd_card_pins(&config, pin_count);
+            //check_sd_card_pins(&config, pin_count);
+            goto test;
         }
     }
     GB_DEBUGI(FS_TAG, "Filesystem mounted");

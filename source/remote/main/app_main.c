@@ -34,7 +34,7 @@
 void app_main(void)
 {
     GB_LogSystemInit();
-    GB_FileSystem_Init("storage");
+    GB_FileSystem_Init();
 
     disp_driver_init();
 

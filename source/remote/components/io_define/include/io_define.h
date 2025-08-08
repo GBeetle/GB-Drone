@@ -49,4 +49,9 @@
 
 #define TEST_IMU_IO 17
 
+// SD card
+#define SD_CMD  38
+#define SD_CLK  39
+#define SD_D0   40
+
 #endif /* end of include guard: _IO_DEFINE__ */
