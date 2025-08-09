@@ -51,11 +51,9 @@ void app_main(void)
 
     GB_SDCardFileSystem_Init();
     GB_FileSystem_ListDir(GB_FILE_SD_CARD);
-#if 0
     GB_FileSystem_Write(GB_FILE_SD_CARD, test_file_name, (const uint8_t *)test_file_content, strlen(test_file_content));
     GB_FileSystem_Read(GB_FILE_SD_CARD, test_file_name, test_out_file2, strlen(test_file_content));
     GB_DEBUGI(GB_INFO, "SPI FLASH TEST, file: %s, content: %s", test_file_name, test_out_file2);
-#endif
 
     // TEST IO
     //GB_GPIO_Reset( TEST_IMU_IO );

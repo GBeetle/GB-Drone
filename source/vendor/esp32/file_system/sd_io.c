@@ -166,7 +166,6 @@ GB_RESULT GB_SDCardFileSystem_Init()
     //slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 
     GB_DEBUGI(FS_TAG, "Mounting filesystem");
-test:
     ret = esp_vfs_fat_sdmmc_mount(gb_file_system_partition[GB_FILE_SD_CARD], &host, &slot_config, &mount_config, &card);
 
     if (ret != ESP_OK)
@@ -181,8 +180,7 @@ test:
             GB_DEBUGE(FS_TAG, "Failed to initialize the card (%s). "
                           "Make sure SD card lines have pull-up resistors in place.",
                      esp_err_to_name(ret));
-            //check_sd_card_pins(&config, pin_count);
-            goto test;
+            check_sd_card_pins(&config, pin_count);
         }
     }
     GB_DEBUGI(FS_TAG, "Filesystem mounted");
