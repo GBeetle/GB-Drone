@@ -91,6 +91,10 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define SD_CLK  39
 #define SD_D0   40
 
+// Battery
+#define MAX_SDA  47
+#define MAX_SCL  48
+
 #define BUZZER_IO  45
 
 #endif /* end of include guard: _IO_DEFINE__ */

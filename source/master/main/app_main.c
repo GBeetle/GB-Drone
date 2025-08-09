@@ -34,6 +34,7 @@ void app_main(void)
 
     //play_theme();
 
+#if 0
     // TEST FILE SYSTEMWW
     const char *test_file_name = "Hello.txt";
     const char *test_file_content = "Hello, world!";
@@ -54,6 +55,7 @@ void app_main(void)
     GB_FileSystem_Write(GB_FILE_SD_CARD, test_file_name, (const uint8_t *)test_file_content, strlen(test_file_content));
     GB_FileSystem_Read(GB_FILE_SD_CARD, test_file_name, test_out_file2, strlen(test_file_content));
     GB_DEBUGI(GB_INFO, "SPI FLASH TEST, file: %s, content: %s", test_file_name, test_out_file2);
+#endif
 
     // TEST IO
     //GB_GPIO_Reset( TEST_IMU_IO );
