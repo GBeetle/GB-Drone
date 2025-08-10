@@ -34,4 +34,7 @@ GB_RESULT GB_FileSystem_Write(GB_FILE_PARTITION partition, const char *file, con
 GB_RESULT GB_FileSystem_Read(GB_FILE_PARTITION partition, const char *file, uint8_t *data, uint32_t len);
 GB_RESULT GB_FileSystem_ListDir(GB_FILE_PARTITION partition);
 
+GB_RESULT GB_Log2fileEnable();
+int GB_WriteLog2file(const char *format, va_list args);
+
 #endif /* end of include guard: _FILE_SYSTEM__ */

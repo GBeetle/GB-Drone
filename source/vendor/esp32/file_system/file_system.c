@@ -51,6 +51,9 @@ const char *gb_file_system_partition[GB_FILE_MAX] = {
     "/storage",
     "/sdcard"};
 
+static FILE* log_file_fp = NULL;
+static SemaphoreHandle_t log_to_file_mutex = NULL;
+
 const esp_partition_t* gb_add_partition(esp_flash_t* ext_flash, const char* partition_label)
 {
     GB_DEBUGI(FS_TAG, "Adding external Flash as a partition, label=\"%s\", size=%d KB", partition_label, ext_flash->size / 1024);
@@ -239,4 +242,81 @@ GB_RESULT GB_FileSystem_ListDir(GB_FILE_PARTITION partition)
 error_exit:
     closedir(dir);
     return res;
+}
+
+GB_RESULT GB_Log2fileEnable()
+{
+    if (log_file_fp)
+    {
+        return GB_OK;
+    }
+
+    char log_file_name[64] = {0};
+
+    for (int i = 0; i < 100; i++)
+    {
+        snprintf(log_file_name, sizeof(log_file_name), "%s/log_%02d.txt", gb_file_system_partition[GB_FILE_SD_CARD], i);
+        log_file_fp = fopen(log_file_name, "rb");
+        if (log_file_fp == NULL) {
+            GB_DEBUGE(FS_TAG, "the log file %s does not exist", log_file_name);
+            break;
+        }
+        fclose(log_file_fp);
+    }
+
+    log_file_fp = fopen(log_file_name, "w");
+    if (log_file_fp == NULL) {
+        GB_DEBUGE(FS_TAG, "Failed to open %s for output log, error: %s", log_file_name, strerror(errno));
+        return GB_FS_FOPEN_FAIL;
+    }
+
+    GB_DEBUGI(FS_TAG, "Writing log to file, file name: %s", log_file_name);
+
+    log_to_file_mutex = xSemaphoreCreateMutex();
+
+    esp_log_set_vprintf(&GB_WriteLog2file);
+    return GB_OK;
+}
+
+int GB_WriteLog2file(const char *format, va_list args)
+{
+    static bool static_fatal_error = false;
+    static const uint32_t WRITE_CACHE_CYCLE = 5;
+    static uint32_t counter_write = 0;
+    int iresult;
+
+    if (xSemaphoreTake(log_to_file_mutex, MAX_MUTEX_WAIT_TICKS) != pdTRUE)
+    {
+        printf("%s xSemaphoreTake timeout!\n", __FUNCTION__);
+        return -1;
+    }
+
+    // #1 Write to SPIFFS
+    if (log_file_fp == NULL) {
+        xSemaphoreGive(log_to_file_mutex);
+        printf("%s() ABORT. file handle _log_remote_fp is NULL\n", __FUNCTION__);
+        return -1;
+    }
+    if (static_fatal_error == false) {
+        iresult = vfprintf(log_file_fp, format, args);
+        if (iresult < 0) {
+            xSemaphoreGive(log_to_file_mutex);
+            printf("%s() ABORT. failed vfprintf() -> disable future vfprintf(_log_remote_fp), output log to uart\n", __FUNCTION__);
+            // MARK FATAL
+            static_fatal_error = true;
+            return iresult;
+        }
+
+        // #2 Smart commit after x writes
+        counter_write++;
+        if (counter_write % WRITE_CACHE_CYCLE == 0) {
+            /////printf("%s() fsync'ing log file on SPIFFS (WRITE_CACHE_CYCLE=%u)\n", WRITE_CACHE_CYCLE);
+            fsync(fileno(log_file_fp));
+        }
+    }
+    // #3 ALWAYS Write to stdout!
+    vprintf(format, args);
+    xSemaphoreGive(log_to_file_mutex);
+
+    return 1;
 }
