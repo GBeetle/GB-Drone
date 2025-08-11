@@ -32,6 +32,7 @@
 #define LV_TICK_PERIOD_MS 10
 
 extern void welkin_widgets();
+extern int battery_level;
 typedef void (*create_demo)(void);
 
 SemaphoreHandle_t xGuiSemaphore;
@@ -373,7 +374,11 @@ void rf_loop(void *arg)
                         GB_DEBUGE(ERROR_TAG, "Receive error!");
                     }
                     GB_DEBUGD(RF24_TAG, "type = %d, sync = %d", receive_package.type, receive_package.sync);
-                    if (LORA_SEND_PID_SET_INFO == lora_send_config)
+                    if (LORA_SEND_NA == lora_send_config)
+                    {
+                        battery_level = receive_package.init.battery_capacity;
+                    }
+                    else if (LORA_SEND_PID_SET_INFO == lora_send_config)
                     {
                         //wk_remote_single_control(SEND_PID_DONE);
                         lora_send_config = LORA_SEND_NA;

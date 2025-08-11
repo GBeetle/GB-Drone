@@ -27,6 +27,9 @@ extern "C" {
 
 #define MAX1704X_I2C_ADDR 0x36
 
+#define MAX1704X_VOL_MAX  4.25
+#define MAX1704X_VOL_MIN  3.3
+
 /**
  * Device model
  */

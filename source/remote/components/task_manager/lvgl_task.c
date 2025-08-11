@@ -93,6 +93,11 @@ lv_obj_t *model_canvas = NULL;
 uint32_t canvas_buffer_size = LV_HOR_RES_MAX * LV_VER_RES_MAX * 2;
 uint16_t *canvas_buffer = NULL;
 
+// battery
+int battery_level = 0;
+static lv_obj_t *battery_label;
+static lv_obj_t *battery_icon;
+
 static void _init_selected_table_cell()
 {
     selected_row = -1;
@@ -424,6 +429,26 @@ void btn_3d_model_event_cb(lv_obj_t *sw, lv_event_t e)
     }
 }
 
+static void battery_update_task(lv_task_t *task)
+{
+    LV_UNUSED(task);
+
+    static char buf[8];
+    snprintf(buf, sizeof(buf), "%d%%", battery_level);
+    lv_label_set_text(battery_label, buf);
+
+    if (battery_level > 80)
+        lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_FULL);
+    else if (battery_level > 60)
+        lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_3);
+    else if (battery_level > 40)
+        lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_2);
+    else if (battery_level > 20)
+        lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_1);
+    else
+        lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_EMPTY);
+}
+
 /**********************
  *      MACROS
  **********************/
@@ -451,6 +476,24 @@ void welkin_widgets()
         }
     }
 
+    // Battery voltage
+    lv_obj_t *battery_cont = lv_cont_create(lv_scr_act(), NULL);
+    lv_obj_set_auto_realign(battery_cont, true);
+    lv_obj_align(battery_cont, tv, LV_ALIGN_IN_TOP_RIGHT, 0, -2);
+    lv_cont_set_fit2(battery_cont, LV_FIT_TIGHT, LV_FIT_TIGHT);
+    lv_cont_set_layout(battery_cont, LV_LAYOUT_ROW_MID);
+
+    lv_obj_set_style_local_bg_opa(battery_cont, LV_CONT_PART_MAIN, LV_STATE_DEFAULT, LV_OPA_TRANSP);
+    lv_obj_set_style_local_border_opa(battery_cont, LV_CONT_PART_MAIN, LV_STATE_DEFAULT, LV_OPA_TRANSP);
+    lv_obj_set_style_local_pad_all(battery_cont, LV_CONT_PART_MAIN, LV_STATE_DEFAULT, 0);
+
+    battery_label = lv_label_create(battery_cont, NULL);
+    lv_label_set_text(battery_label, "0%");
+
+    battery_icon = lv_label_create(battery_cont, NULL);
+    lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_EMPTY);     // LV_SYMBOL_BATTERY_EMPTY / LV_SYMBOL_BATTERY_1 / _2 / _3 / FULL
+
+
     t1 = lv_tabview_add_tab(tv, "GB Drone");
     t2 = lv_tabview_add_tab(tv, "PID");
 
@@ -466,6 +509,8 @@ void welkin_widgets()
     remote_controller = lv_obj_create(lv_scr_act(), NULL);
     lv_obj_set_hidden(remote_controller, true);
     lv_obj_set_event_cb(remote_controller, remote_controller_event_cb);
+
+    lv_task_create(battery_update_task, 500, LV_TASK_PRIO_LOW, NULL);
 }
 
 /**********************

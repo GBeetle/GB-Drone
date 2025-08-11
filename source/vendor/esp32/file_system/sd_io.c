@@ -182,6 +182,7 @@ GB_RESULT GB_SDCardFileSystem_Init()
                      esp_err_to_name(ret));
             check_sd_card_pins(&config, pin_count);
         }
+        return GB_FS_SD_INIT_FAIL;
     }
     GB_DEBUGI(FS_TAG, "Filesystem mounted");
 

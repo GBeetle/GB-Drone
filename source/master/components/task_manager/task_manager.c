@@ -24,6 +24,7 @@
 #include "lora_state.h"
 #include "esc_system.h"
 #include "task_manager.h"
+#include "max1704x.h"
 
 typedef struct
 {
@@ -336,20 +337,23 @@ error_exit:
     return;
 }
 
-static GB_RESULT wk_lora_request_dispatch(GB_LORA_PACKAGE_T *in, GB_LORA_PACKAGE_T *out, GB_LORA_STATE *state)
+static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAGE_T *in, GB_LORA_PACKAGE_T *out, GB_LORA_STATE *state)
 {
     GB_RESULT res = GB_OK;
+    float voltage = 0;
     //static LORA_GB_PID_INIT_T pid_first = {0}, pid_last = {0};
 
     switch (in->type)
     {
     case GB_INIT_DATA:
+        GB_Max1704xGetVoltage(dev, &voltage);
         out->type = GB_INIT_DATA;
         out->init.system_state = GB_SYSTEM_INITIALIZE_PASS;
-        out->init.battery_capacity = 0xff;
+        out->init.battery_capacity = (voltage < MAX1704X_VOL_MIN && voltage > MAX1704X_VOL_MAX) ?
+                                     (voltage - MAX1704X_VOL_MIN) / (MAX1704X_VOL_MAX - MAX1704X_VOL_MIN) : 0xff;
         out->init.sensor_state = 0xf0;
         *state = LORA_SEND;
-        GB_DEBUGI(LORA_TAG, "Receive GB_INIT_DATA, sync: %d", in->sync);
+        GB_DEBUGI(LORA_TAG, "Receive GB_INIT_DATA, sync: %d, Voltage: %.2f.V, battery_capacity: %d", in->sync, voltage, out->init.battery_capacity);
         break;
     case GB_SET_CONFIG:
         switch (in->config.set_type)
@@ -488,8 +492,11 @@ void nrf24_interrupt_func(void *arg)
     GB_LORA_PACKAGE_T out_package;
     uint8_t send_retry = 0;
     GB_LORA_STATE lora_state = LORA_IDLE;
+    GB_MAX1704X_DEV_T dev = { 0 };
 
     GB_LoraSystemInit(LORA_RECEIVE, 0, &lora_state);
+    GB_Max1704xInit(&dev);
+    GB_Max1704xStart(&dev);
     nrf24_isr_register();
 
     while (1)
@@ -505,7 +512,7 @@ void nrf24_interrupt_func(void *arg)
             {                                                 // is there a payload? get the pipe number that recieved itv
                 uint8_t bytes = radio.getPayloadSize(&radio); // get the size of the payload
                 radio.read(&radio, &in_package, bytes);       // fetch payload from FIFO
-                CHK_LOGE(wk_lora_request_dispatch(&in_package, &out_package, &lora_state), "Remote info dispatch failed");
+                CHK_LOGE(gb_lora_request_dispatch(&dev, &in_package, &out_package, &lora_state), "Remote info dispatch failed");
             }
             else
                 GB_DEBUGI(RF24_TAG, "Received nothing...");
