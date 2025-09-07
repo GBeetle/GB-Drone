@@ -67,6 +67,7 @@ hardware/GB-Drone_master_aux/GB-Drone_master_aux.PrjPcbStructure
 hardware/GB-Drone_master_remote/Project Logs for GB-Drone_master_aux/*
 hardware/GB-Drone_master_remote/__Previews/*
 hardware/GB-Drone_master_v2_power/Project Outputs for GB-Drone_master_power/*
+hardware/GB-Drone_master_v2_main/Project Outputs for GB-Drone_master_power/*
 *.zip
 
 # components
