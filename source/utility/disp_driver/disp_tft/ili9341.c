@@ -9,7 +9,7 @@
 #include "ili9341.h"
 #include "disp_spi.h"
 #include "gpio_setting.h"
-#include "esp_log.h"
+#include "gb_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -52,36 +52,108 @@ static void ili9341_send_color(void * data, uint16_t length);
 
 void ili9341_init(void)
 {
-	lcd_init_cmd_t ili_init_cmds[]={
-		{0xCF, {0x00, 0x83, 0X30}, 3},
-		{0xED, {0x64, 0x03, 0X12, 0X81}, 4},
-		{0xE8, {0x85, 0x01, 0x79}, 3},
-		{0xCB, {0x39, 0x2C, 0x00, 0x34, 0x02}, 5},
-		{0xF7, {0x20}, 1},
-		{0xEA, {0x00, 0x00}, 2},
-		{0xC0, {0x26}, 1},          /*Power control*/
-		{0xC1, {0x11}, 1},          /*Power control */
-		{0xC5, {0x35, 0x3E}, 2},    /*VCOM control*/
-		{0xC7, {0xBE}, 1},          /*VCOM control*/
-		{0x36, {0x28}, 1},          /*Memory Access Control*/
-		{0x3A, {0x55}, 1},			/*Pixel Format Set*/
-		{0xB1, {0x00, 0x1B}, 2},
-		{0xF2, {0x08}, 1},
-		{0x26, {0x01}, 1},
-		{0xE0, {0x1F, 0x1A, 0x18, 0x0A, 0x0F, 0x06, 0x45, 0X87, 0x32, 0x0A, 0x07, 0x02, 0x07, 0x05, 0x00}, 15},
-		{0XE1, {0x00, 0x25, 0x27, 0x05, 0x10, 0x09, 0x3A, 0x78, 0x4D, 0x05, 0x18, 0x0D, 0x38, 0x3A, 0x1F}, 15},
+#if 0
+    lcd_init_cmd_t ili_init_cmds[]={
+        {0xCF, {0x00, 0x83, 0X30}, 3},
+        {0xED, {0x64, 0x03, 0X12, 0X81}, 4},
+        {0xE8, {0x85, 0x01, 0x79}, 3},
+        {0xCB, {0x39, 0x2C, 0x00, 0x34, 0x02}, 5},
+        {0xF7, {0x20}, 1},
+        {0xEA, {0x00, 0x00}, 2},
+        {0xC0, {0x26}, 1},          /*Power control*/
+        {0xC1, {0x11}, 1},          /*Power control */
+        {0xC5, {0x35, 0x3E}, 2},    /*VCOM control*/
+        {0xC7, {0xBE}, 1},          /*VCOM control*/
+        {0x36, {0x28}, 1},          /*Memory Access Control*/
+        {0x3A, {0x55}, 1},            /*Pixel Format Set*/
+        {0xB1, {0x00, 0x1B}, 2},
+        {0xF2, {0x08}, 1},
+        {0x26, {0x01}, 1},
+        {0xE0, {0x1F, 0x1A, 0x18, 0x0A, 0x0F, 0x06, 0x45, 0X87, 0x32, 0x0A, 0x07, 0x02, 0x07, 0x05, 0x00}, 15},
+        {0XE1, {0x00, 0x25, 0x27, 0x05, 0x10, 0x09, 0x3A, 0x78, 0x4D, 0x05, 0x18, 0x0D, 0x38, 0x3A, 0x1F}, 15},
+        {0x2A, {0x00, 0x00, 0x00, 0xEF}, 4},
+        {0x2B, {0x00, 0x00, 0x01, 0x3f}, 4},
+        {0x2C, {0}, 0},
+        {0xB7, {0x07}, 1},
+        {0xB6, {0x0A, 0x82, 0x27, 0x00}, 4},
+        {0x11, {0}, 0x80},
+        {0x29, {0}, 0x80},
+        {0, {0}, 0xff},
+    };
+		{0xCF, {0x00, 0xC1, 0X30}, 3},
+        {0xED, {0x64, 0x03, 0X12, 0X81}, 4},
+        {0xE8, {0x85, 0x01, 0x78}, 3},
+        {0xCB, {0x39, 0x2C, 0x00, 0x34, 0x02}, 5},
+        {0xF7, {0x20}, 1},
+        {0xEA, {0x00, 0x00}, 2},
+        {0xC0, {0x10}, 1},          /*Power control*/
+        {0xC1, {0x00}, 1},          /*Power control */
+        {0xC5, {0x30, 0x30}, 2},    /*VCOM control*/
+        {0xC7, {0xB7}, 1},          /*VCOM control*/
+        {0x36, {0x08}, 1},          /*Memory Access Control*/
+        {0x3A, {0x55}, 1},            /*Pixel Format Set*/
+        {0xB1, {0x00, 0x1A}, 2},
+		{0xB6, {0x08, 0x82, 0x27}, 3},
+        {0xF2, {0x00}, 1},
+        {0x26, {0x01}, 1},
+        {0xE0, {0x0F, 0x2A, 0x28, 0x08, 0x0E, 0x08, 0x54, 0xA9, 0x43, 0x0A, 0x0F, 0x00, 0x00, 0x00, 0x00}, 15},
+        {0XE1, {0x00, 0x15, 0x17, 0x07, 0x11, 0x06, 0x2B, 0x56, 0x3C, 0x05, 0x10, 0x0F, 0x3F, 0x3F, 0x0F}, 15},
 		{0x2A, {0x00, 0x00, 0x00, 0xEF}, 4},
-		{0x2B, {0x00, 0x00, 0x01, 0x3f}, 4},
-		{0x2C, {0}, 0},
-		{0xB7, {0x07}, 1},
-		{0xB6, {0x0A, 0x82, 0x27, 0x00}, 4},
-		{0x11, {0}, 0x80},
-		{0x29, {0}, 0x80},
-		{0, {0}, 0xff},
-	};
+        {0x2B, {0x00, 0x00, 0x01, 0x3f}, 4},
+        {0x11, {0}, 0x80},
+        {0x29, {0}, 0x80},
+        {0, {0}, 0xff},
+
+		{0xCF, {0x00, 0xC1, 0X30}, 3},
+        {0xED, {0x64, 0x03, 0X12, 0X81}, 4},
+        {0xE8, {0x85, 0x01, 0x7A}, 3},
+        {0xCB, {0x39, 0x2C, 0x00, 0x34, 0x02}, 5},
+        {0xF7, {0x20}, 1},
+        {0xEA, {0x00, 0x00}, 2},
+        {0xC0, {0x21}, 1},          /*Power control*/
+        {0xC1, {0x11}, 1},          /*Power control */
+        {0xC5, {0x31, 0x3C}, 2},    /*VCOM control*/
+        {0xC7, {0x9f}, 1},          /*VCOM control*/
+        {0x36, {0x08}, 1},          /*Memory Access Control*/
+        {0x3A, {0x55}, 1},            /*Pixel Format Set*/
+        {0xB1, {0x00, 0x1B}, 2},
+        {0xF2, {0x00}, 1},
+        {0x26, {0x01}, 1},
+        {0xE0, {0x0F, 0x20, 0x1d, 0x0b, 0x10, 0x0a, 0x49, 0xa9, 0x3b, 0x0a, 0x15, 0x06, 0x0c, 0x06, 0x00}, 15},
+        {0XE1, {0x00, 0x1f, 0x22, 0x04, 0x0f, 0x05, 0x36, 0x46, 0x46, 0x05, 0x0b, 0x09, 0x33, 0x39, 0x0F}, 15},
+        {0x11, {0}, 0x80},
+        {0x29, {0}, 0x80},
+        {0, {0}, 0xff},
+#else
+	lcd_init_cmd_t ili_init_cmds[]={
+		{0xCF, {0x00, 0xC1, 0X30}, 3},
+        {0xED, {0x64, 0x03, 0X12, 0X81}, 4},
+        {0xE8, {0x85, 0x01, 0x78}, 3},
+        {0xCB, {0x39, 0x2C, 0x00, 0x34, 0x02}, 5},
+        {0xF7, {0x20}, 1},
+        {0xEA, {0x00, 0x00}, 2},
+        {0xC0, {0x10}, 1},          /*Power control*/
+        {0xC1, {0x00}, 1},          /*Power control */
+        {0xC5, {0x30, 0x30}, 2},    /*VCOM control*/
+        {0xC7, {0xB7}, 1},          /*VCOM control*/
+        {0x36, {0x08}, 1},          /*Memory Access Control*/
+        {0x3A, {0x55}, 1},            /*Pixel Format Set*/
+        {0xB1, {0x00, 0x1A}, 2},
+		{0xB6, {0x08, 0x82, 0x27}, 3},
+        {0xF2, {0x00}, 1},
+        {0x26, {0x01}, 1},
+        {0xE0, {0x0F, 0x2A, 0x28, 0x08, 0x0E, 0x08, 0x54, 0xA9, 0x43, 0x0A, 0x0F, 0x00, 0x00, 0x00, 0x00}, 15},
+        {0XE1, {0x00, 0x15, 0x17, 0x07, 0x11, 0x06, 0x2B, 0x56, 0x3C, 0x05, 0x10, 0x0F, 0x3F, 0x3F, 0x0F}, 15},
+		{0x2A, {0x00, 0x00, 0x00, 0xEF}, 4},
+        {0x2B, {0x00, 0x00, 0x01, 0x3f}, 4},
+        {0x11, {0}, 0x80},
+        {0x29, {0}, 0x80},
+        {0, {0}, 0xff},
+    };
+#endif
 
 #if ILI9341_BCKL == 15
-	gpio_config_t io_conf;
+    gpio_config_t io_conf;
     io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
     io_conf.mode = GB_GPIO_OUTPUT;
     io_conf.pin_bit_mask = GPIO_SEL_15;
@@ -90,74 +162,75 @@ void ili9341_init(void)
     gpio_config(&io_conf);
 #endif
 
-	//Initialize non-SPI GPIOs
-        GB_GPIO_Reset(ILI9341_DC);
-	GB_GPIO_SetDirection(ILI9341_DC, GB_GPIO_OUTPUT);
-        GB_GPIO_Reset(ILI9341_RST);
-	GB_GPIO_SetDirection(ILI9341_RST, GB_GPIO_OUTPUT);
+    //Initialize non-SPI GPIOs
+    GB_GPIO_Reset(ILI9341_DC);
+    GB_GPIO_SetDirection(ILI9341_DC, GB_GPIO_OUTPUT);
+    GB_GPIO_Reset(ILI9341_RST);
+    GB_GPIO_SetDirection(ILI9341_RST, GB_GPIO_OUTPUT);
 
 #if ILI9341_ENABLE_BACKLIGHT_CONTROL
     GB_GPIO_Reset(ILI9341_BCKL);
     GB_GPIO_SetDirection(ILI9341_BCKL, GB_GPIO_OUTPUT);
 #endif
-	//Reset the display
-	GB_GPIO_Set(ILI9341_RST, 0);
-	vTaskDelay(100 / portTICK_RATE_MS);
+    //Reset the display
 	GB_GPIO_Set(ILI9341_RST, 1);
-	vTaskDelay(100 / portTICK_RATE_MS);
+    GB_SleepMs(100);
+    GB_GPIO_Set(ILI9341_RST, 0);
+	GB_SleepMs(100);
+    GB_GPIO_Set(ILI9341_RST, 1);
+    GB_SleepMs(100);
 
-	GB_DEBUGI(DISP_TAG, "Initialization.");
+    GB_DEBUGI(DISP_TAG, "Initialization.");
 
-	//Send all the commands
-	uint16_t cmd = 0;
-	while (ili_init_cmds[cmd].databytes!=0xff) {
-		ili9341_send_cmd(ili_init_cmds[cmd].cmd);
-		ili9341_send_data(ili_init_cmds[cmd].data, ili_init_cmds[cmd].databytes&0x1F);
-		if (ili_init_cmds[cmd].databytes & 0x80) {
-			vTaskDelay(100 / portTICK_RATE_MS);
+    //Send all the commands
+    uint16_t cmd = 0;
+    while (ili_init_cmds[cmd].databytes!=0xff) {
+        ili9341_send_cmd(ili_init_cmds[cmd].cmd);
+        if (ili_init_cmds[cmd].databytes & 0x80) {
+            GB_SleepMs(120);
+        }
+		else {
+			ili9341_send_data(ili_init_cmds[cmd].data, ili_init_cmds[cmd].databytes);
 		}
-		cmd++;
-	}
+        cmd++;
+    }
 
-	ili9341_enable_backlight(true);
+    ili9341_enable_backlight(true);
 
-        ili9341_set_orientation(CONFIG_DISPLAY_ORIENTATION);
+    ili9341_set_orientation(CONFIG_DISPLAY_ORIENTATION);
 
 #if ILI9341_INVERT_COLORS == 1
-	ili9341_send_cmd(0x21);
+    ili9341_send_cmd(0x21);
 #else
-	ili9341_send_cmd(0x20);
+    ili9341_send_cmd(0x20);
 #endif
 }
 
-
-void ili9341_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t * color_map)
+void ili9341_flush(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *color_map)
 {
-	uint8_t data[4];
+    uint8_t data[4];
 
-	/*Column addresses*/
-	ili9341_send_cmd(0x2A);
-	data[0] = (area->x1 >> 8) & 0xFF;
-	data[1] = area->x1 & 0xFF;
-	data[2] = (area->x2 >> 8) & 0xFF;
-	data[3] = area->x2 & 0xFF;
-	ili9341_send_data(data, 4);
+    /*Column addresses*/
+    ili9341_send_cmd(0x2A);
+    data[0] = (x1 >> 8) & 0xFF;
+    data[1] = x1 & 0xFF;
+    data[2] = (x2 >> 8) & 0xFF;
+    data[3] = x2 & 0xFF;
+    ili9341_send_data(data, 4);
 
-	/*Page addresses*/
-	ili9341_send_cmd(0x2B);
-	data[0] = (area->y1 >> 8) & 0xFF;
-	data[1] = area->y1 & 0xFF;
-	data[2] = (area->y2 >> 8) & 0xFF;
-	data[3] = area->y2 & 0xFF;
-	ili9341_send_data(data, 4);
+    /*Page addresses*/
+    ili9341_send_cmd(0x2B);
+    data[0] = (y1 >> 8) & 0xFF;
+    data[1] = y1 & 0xFF;
+    data[2] = (y2 >> 8) & 0xFF;
+    data[3] = y2 & 0xFF;
+    ili9341_send_data(data, 4);
 
-	/*Memory write*/
-	ili9341_send_cmd(0x2C);
+    /*Memory write*/
+    ili9341_send_cmd(0x2C);
 
-
-	uint32_t size = lv_area_get_width(area) * lv_area_get_height(area);
-
-	ili9341_send_color((void*)color_map, size * 2);
+    uint32_t size = (x2 - x1 + 1) * (y2 - y1 + 1);
+    ili9341_send_color((void*)color_map, size * 2);
 }
 
 void ili9341_enable_backlight(bool backlight)
@@ -178,16 +251,16 @@ void ili9341_enable_backlight(bool backlight)
 
 void ili9341_sleep_in()
 {
-	uint8_t data[] = {0x08};
-	ili9341_send_cmd(0x10);
-	ili9341_send_data(&data, 1);
+    uint8_t data[] = {0x08};
+    ili9341_send_cmd(0x10);
+    ili9341_send_data(&data, 1);
 }
 
 void ili9341_sleep_out()
 {
-	uint8_t data[] = {0x08};
-	ili9341_send_cmd(0x11);
-	ili9341_send_data(&data, 1);
+    uint8_t data[] = {0x08};
+    ili9341_send_cmd(0x11);
+    ili9341_send_data(&data, 1);
 }
 
 /**********************
@@ -198,14 +271,14 @@ void ili9341_sleep_out()
 static void ili9341_send_cmd(uint8_t cmd)
 {
     disp_wait_for_pending_transactions();
-    GB_GPIO_Set(ILI9341_DC, 0);	 /*Command mode*/
+    GB_GPIO_Set(ILI9341_DC, 0);     /*Command mode*/
     disp_spi_send_data(&cmd, 1);
 }
 
 static void ili9341_send_data(void * data, uint16_t length)
 {
     disp_wait_for_pending_transactions();
-    GB_GPIO_Set(ILI9341_DC, 1);	 /*Data mode*/
+    GB_GPIO_Set(ILI9341_DC, 1);     /*Data mode*/
     disp_spi_send_data(data, length);
 }
 

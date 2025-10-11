@@ -282,7 +282,6 @@ static GB_RESULT initBus(struct TFT_eSPI * tft_dev)
     return res;
 }
 
-//extern void st7789_init(struct TFT_eSPI * tft_dev, uint8_t tc);
 /***************************************************************************************
 ** Function name:                     TFT_eSpi_init (tc is tab colour for ST7735 displays only)
 ** Description:                         Reset, then initialise the TFT display registers
