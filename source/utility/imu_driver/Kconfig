@@ -1,16 +1,19 @@
-menu "mpu_driver"
+menu "IMU Driver"
 
-    choice MPU_CHOICE
-        prompt "MPU Chip Selection"
-        default MPU6050
+    choice IMU_CHOICE
+        prompt "IMU Chip Selection"
+        default ICM42688
         help
-            This helps to choose MPU host stack
+            This helps to choose IMU host stack
 
         config MPU6050
             bool "MPU6050"
 
         config MPU6500
             bool "MPU6500"
+
+        config ICM42688
+            bool "ICM42688"
     endchoice
 
     choice MPU_RROTOCAL

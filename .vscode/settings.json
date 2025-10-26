@@ -12,7 +12,7 @@
         "source/master/components/spi_bus": true,
         "source/master/components/error_handle": true,
         "source/master/components/log_sys": true,
-        "source/master/components/mpu_driver": true,
+        "source/master/components/imu_driver": true,
         "source/master/components/Fusion": true,
         "source/master/components/lis3mdl": true,
         "source/master/components/bmp280": true,
@@ -50,7 +50,7 @@
         "source/master/components/spi_bus": true,
         "source/master/components/error_handle": true,
         "source/master/components/log_sys": true,
-        "source/master/components/mpu_driver": true,
+        "source/master/components/imu_driver": true,
         "source/master/components/Fusion": true,
         "source/master/components/lis3mdl": true,
         "source/master/components/bmp280": true,
@@ -112,7 +112,9 @@
         "isr_manager.h": "c",
         "string.h": "c",
         "nrf24_config.h": "c",
-        "lora_state.h": "c"
+        "lora_state.h": "c",
+        "stdint.h": "c",
+        "optional": "c"
     },
     "C_Cpp.dimInactiveRegions": false,
     "idf.pythonInstallPath": "D:\\Espressif\\tools\\idf-python\\3.11.2\\python.exe",

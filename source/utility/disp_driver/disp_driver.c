@@ -129,12 +129,18 @@ void disp_driver_set_px(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_
 
 void disp_driver_init(void)
 {
+    uint8_t mode = 0;
+
     GB_DEBUGI(DISP_TAG, "Display hor size: %d, ver size: %d", LV_HOR_RES_MAX, LV_VER_RES_MAX);
     GB_DEBUGI(DISP_TAG, "Display buffer size: %d", DISP_BUF_SIZE);
 
+#if defined CONFIG_TFT_DISPLAY_CONTROLLER_ST7789
+    mode = 2;
+#endif
+
 #if defined CONFIG_TFT_DISPLAY_PROTOCOL_SPI
     CHK_EXIT(fspi.begin(&fspi, CONFIG_DISP_SPI_MOSI, CONFIG_DISP_SPI_MISO, CONFIG_DISP_SPI_CLK, 0));
-    CHK_EXIT(fspi.addDevice(&fspi, GB_SPI_DEV_0, 0, 2, SPI_DEVICE_NO_DUMMY, SPI_TFT_CLOCK_SPEED_HZ, -1));
+    CHK_EXIT(fspi.addDevice(&fspi, GB_SPI_DEV_0, 0, mode, SPI_DEVICE_NO_DUMMY, SPI_TFT_CLOCK_SPEED_HZ, -1));
 #elif defined CONFIG_TFT_DISPLAY_PROTOCOL_I2C
     // TODO
 #else

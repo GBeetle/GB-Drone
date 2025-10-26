@@ -34,7 +34,7 @@ typedef struct
     float height;
 } GB_Motion_State;
 
-struct mpu mpu;  // create a default MPU object
+struct imu imu;  // create a default MPU object
 GB_Motion_State motionState;
 
 static uint8_t anotic_debug_id = 0x00;
@@ -118,17 +118,17 @@ void gb_read_sensor_data(void* arg)
     //selftest_t st_result;
 
     (void) res;
-    // mpu initialization
-    GB_MPU_Init(&mpu);
-    CHK_FUNC_EXIT(mpu.testConnection(&mpu));
-    CHK_FUNC_EXIT(mpu.initialize(&mpu));
+    // imu initialization
+    GB_IMU_Init(&imu);
+    CHK_FUNC_EXIT(imu.testConnection(&imu));
+    CHK_FUNC_EXIT(imu.initialize(&imu));
 
     // test for sensor is good & horizontal
     //selftest_t st_result;
-    //CHK_FUNC_EXIT(mpu.selfTest(&mpu, &st_result));
-    CHK_FUNC_EXIT(mpu.setOffsets(&mpu, true, false)); // keep static when power up
+    //CHK_FUNC_EXIT(imu.selfTest(&imu, &st_result));
+    CHK_FUNC_EXIT(imu.setOffsets(&imu, true, false)); // keep static when power up
 
-    GB_DEBUGI(SENSOR_TAG, "mpu status: %02x", mpu.mpu_status);
+    GB_DEBUGI(SENSOR_TAG, "imu status: %02x", imu.mpu_status);
 
     GB_MsToTick(2, &ticks);
     while (1) {
@@ -140,10 +140,10 @@ void gb_read_sensor_data(void* arg)
         raw_axes_t magRaw    = GB_RAW_DATA_ZERO;
         baro_t     baro_data = GB_BARO_DATA_ZERO;
 
-        CHK_FUNC_EXIT(mpu.rotation(&mpu, &gyroRaw));
-        CHK_FUNC_EXIT(mpu.acceleration(&mpu, &accelRaw));
-        CHK_FUNC_EXIT(mpu.heading(&mpu, &magRaw));
-        CHK_FUNC_EXIT(mpu.baroGetData(&mpu, &baro_data));
+        CHK_FUNC_EXIT(imu.rotation(&imu, &gyroRaw));
+        CHK_FUNC_EXIT(imu.acceleration(&imu, &accelRaw));
+        CHK_FUNC_EXIT(imu.heading(&imu, &magRaw));
+        CHK_FUNC_EXIT(imu.baroGetData(&imu, &baro_data));
 
         GB_DEBUGD(SENSOR_TAG, "Queue gyroRaw.x %d, gyroRaw.y %d, gyroRaw.z %d\n", gyroRaw.data.x, gyroRaw.data.y, gyroRaw.data.z);
         GB_DEBUGD(SENSOR_TAG, "Queue accelRaw.x %d, accelRaw.y %d, accelRaw.z %d\n", accelRaw.data.x, accelRaw.data.y, accelRaw.data.z);
@@ -212,7 +212,7 @@ void gb_sensor_fusion(void* arg)
     FusionAhrs ahrs;
 
     memset(&ahrs, 0x00, sizeof(ahrs));
-    FusionOffsetInitialise(&offset, MPU_SAMPLE_RATE);
+    FusionOffsetInitialise(&offset, IMU_SAMPLE_RATE);
     FusionAhrsInitialise(&ahrs);
 
     // Set AHRS algorithm settings
@@ -222,7 +222,7 @@ void gb_sensor_fusion(void* arg)
             .gyroscopeRange = 2000.0f,
             .accelerationRejection = 10.0f,
             .magneticRejection = 10.0f,
-            .recoveryTriggerPeriod = 5 * MPU_SAMPLE_RATE, /* 5 seconds */
+            .recoveryTriggerPeriod = 5 * IMU_SAMPLE_RATE, /* 5 seconds */
     };
     FusionAhrsSetSettings(&ahrs, &settings);
 

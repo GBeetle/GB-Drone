@@ -165,7 +165,7 @@ static float inline _scale_to(float val, float src_min, float src_max, float dst
 
 // right: 0   left: ADC_CONSTRAIN_MAX
 // down:  0   up:   ADC_CONSTRAIN_MAX
-// +-: direction(align with mpu)   |x|: size
+// +-: direction(align with imu)   |x|: size
 static inline float _control_commander_to_range(uint8_t item, uint16_t control_info, uint8_t is_speed)
 {
     // 降低摇杆精度

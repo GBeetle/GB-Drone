@@ -20,7 +20,7 @@
 
 #include <inttypes.h>
 #include <esp_attr.h>
-#include "mpu_driver.h"
+#include "imu_driver.h"
 #include "io_define.h"
 #include "log_sys.h"
 

@@ -2111,22 +2111,23 @@ CONFIG_WIFI_PROV_STA_ALL_CHANNEL_SCAN=y
 # end of Wi-Fi Provisioning Manager
 
 #
+# IMU Driver
+#
+CONFIG_MPU6050=y
+# CONFIG_MPU6500 is not set
+# CONFIG_ICM42688 is not set
+CONFIG_MPU_I2C=y
+# CONFIG_MPU_SPI is not set
+CONFIG_AUX_LIS3MDL=y
+CONFIG_AUX_BMP280=y
+# end of IMU Driver
+
+#
 # log_system
 #
 # CONFIG_UART_LOG_ENABLE is not set
 CONFIG_USB_LOG_ENABLE=y
 # end of log_system
-
-#
-# mpu_driver
-#
-CONFIG_MPU6050=y
-# CONFIG_MPU6500 is not set
-CONFIG_MPU_I2C=y
-# CONFIG_MPU_SPI is not set
-CONFIG_AUX_LIS3MDL=y
-CONFIG_AUX_BMP280=y
-# end of mpu_driver
 
 #
 # NRF24

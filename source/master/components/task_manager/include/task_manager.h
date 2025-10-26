@@ -19,7 +19,7 @@
 #define _TASK_MANAGER__
 
 #include "isr_manager.h"
-#include "mpu_driver.h"
+#include "imu_driver.h"
 #include "anotic_debug.h"
 
 #define MPU_DATA_QUEUE_SIZE 10
@@ -30,7 +30,7 @@ void uart_rx_task(void *arg);
 void nrf24_interrupt_func(void *arg);
 void GB_MutexInitialize();
 
-extern struct mpu mpu;
+extern struct imu imu;
 extern SemaphoreHandle_t mpuSensorReady;
 
 #endif /* end of include guard: _TASK_MANAGER__ */

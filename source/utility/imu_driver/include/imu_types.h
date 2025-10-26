@@ -1,5 +1,4 @@
-/*
- * This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
+/* This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
  * Copyright (c) 2022 GBeetle.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -15,14 +14,19 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _MPU_MATH_HPP_
-#define _MPU_MATH_HPP_
+#ifndef _IMU_TYPES_H_
+#define _IMU_TYPES_H_
 
-#include <math.h>
 #include <stdint.h>
-#include "lis3mdl.h"
-#include "mpu_types.h"
+#include <stdbool.h>
 #include "sdkconfig.h"
+#include "lis3mdl.h"
+
+#if CONFIG_IMC42688
+#include "icm42688.h"
+#else
+#include "mpu_types.h"
+#endif
 
 // Use floating point M_PI instead explicitly.
 #define M_PIf       3.14159265358979323846f
@@ -67,18 +71,51 @@
 #define sq(x) ((x)*(x))
 #endif
 
-#if defined CONFIG_MPU6500
-#define kRoomTempOffset 0        // LSB
-#define kCelsiusOffset    21.f    // ºC
-#define kTempSensitivity  333.87f  // LSB/ºC
-#elif defined CONFIG_MPU6000 || defined CONFIG_MPU6050 || defined CONFIG_MPU9150
-#define kRoomTempOffset -521   // LSB
-#define kCelsiusOffset    35.f   // ºC
-#define kTempSensitivity  340.f  // LSB/ºC
-#endif
+/*! Generic axes struct to store sensors' data */
 
-#define kTempResolution   (98.67f / INT16_MAX)
-#define kFahrenheitOffset (kCelsiusOffset * 1.8f + 32)  // ºF
+//!< Axes type to hold gyroscope, accelerometer, magnetometer raw data.
+typedef union raw_axes_t
+{
+    int16_t xyz[3];
+    struct
+    {
+        int16_t x;
+        int16_t y;
+        int16_t z;
+    } data;
+}raw_axes_t;
+
+//!< Axes type to hold converted sensor data.
+typedef union float_axes_t
+{
+    float xyz[3];
+    struct
+    {
+        float x;
+        float y;
+        float z;
+    } data;
+}float_axes_t;
+
+/*! Sensors struct for fast reading all sensors at once */
+typedef struct
+{
+    raw_axes_t accel;  //!< accelerometer
+    raw_axes_t gyro;   //!< gyroscope
+    int16_t temp;      //!< temperature
+    uint8_t* extsens;  //!< external sensor buffer
+    raw_axes_t mag;    //!< magnetometer
+} sensors_t;
+
+typedef struct
+{
+    float pressure;
+    float temperature;
+    float altitude;
+} baro_t;
+
+#define GB_RAW_DATA_ZERO ((raw_axes_t){ .xyz = {0.0f, 0.0f, 0.0f} })
+#define GB_BARO_DATA_ZERO ((baro_t){ .pressure = 0.0f, .temperature = 0.0f, .altitude = 0.0f})
 
 uint8_t accelFSRvalue(const accel_fs_t fs);
 uint16_t gyroFSRvalue(const gyro_fs_t fs);
@@ -87,10 +124,11 @@ float gyroSensitivity(const gyro_fs_t fs);
 float accelResolution(const accel_fs_t fs);
 float gyroResolution(const gyro_fs_t fs);
 float accelGravity(const int16_t axis, const accel_fs_t fs);
-float_axes_t accelGravity_raw(const raw_axes_t *raw_axes, const accel_fs_t fs);
 float gyroDegPerSec(const int16_t axis, const gyro_fs_t fs);
-float_axes_t gyroDegPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_t fs);
 float gyroRadPerSec(const int16_t axis, const gyro_fs_t fs);
+
+float_axes_t accelGravity_raw(const raw_axes_t *raw_axes, const accel_fs_t fs);
+float_axes_t gyroDegPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_t fs);
 float_axes_t gyroRadPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_t fs);
 
 uint8_t magFSRvalue(const lis3mdl_scale_t fs);
@@ -100,4 +138,5 @@ float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const lis3mdl_scale_t fs);
 float tempCelsius(const int16_t temp);
 float tempFahrenheit(const int16_t temp);
 
-#endif /* end of include guard: _MPU_MATH_HPP_ */
+
+#endif /* end of include guard: _IMU_TYPES_H_ */

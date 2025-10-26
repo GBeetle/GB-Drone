@@ -22,25 +22,22 @@
 #include <stdbool.h>
 #include "mpu_registers.h"
 #include "sdkconfig.h"
+#include "lis3mdl.h"
 
+#define IMU_SAMPLE_RATE 300
 
-/*! MPU's possible I2C slave addresses */
-typedef enum {  //
-    MPU_I2CADDRESS_AD0_LOW  = 0x68,
-    MPU_I2CADDRESS_AD0_HIGH = 0x69
-} mpu_i2caddr_t;
-
-
-#ifdef CONFIG_MPU_I2C
-#include "i2c_bus.h"
-typedef struct i2c mpu_bus_t;
-typedef mpu_i2caddr_t mpu_addr_handle_t;
-#elif CONFIG_MPU_SPI
-#include "spi_bus.h"
-typedef struct spi mpu_bus_t;
-typedef uint8_t mpu_addr_handle_t;
+#if defined CONFIG_MPU6500
+#define kRoomTempOffset 0        // LSB
+#define kCelsiusOffset    21.f    // ºC
+#define kTempSensitivity  333.87f  // LSB/ºC
+#elif defined CONFIG_MPU6000 || defined CONFIG_MPU6050 || defined CONFIG_MPU9150
+#define kRoomTempOffset -521   // LSB
+#define kCelsiusOffset    35.f   // ºC
+#define kTempSensitivity  340.f  // LSB/ºC
 #endif
 
+#define kTempResolution   (98.67f / INT16_MAX)
+#define kFahrenheitOffset (kCelsiusOffset * 1.8f + 32)  // ºF
 
 #if defined CONFIG_MPU6050
 static const uint16_t SAMPLE_RATE_MAX = 8000;
@@ -446,55 +443,6 @@ static const dmp_tap_axis_t DMP_TAP_Y       {0x0C};
 static const dmp_tap_axis_t DMP_TAP_Z       {0x03};
 static const dmp_tap_axis_t DMP_TAP_XYZ     {0x3F};
  */
-
-/*! Generic axes struct to store sensors' data */
-
-//!< Axes type to hold gyroscope, accelerometer, magnetometer raw data.
-typedef union raw_axes_t
-{
-    int16_t xyz[3];
-    struct
-    {
-        int16_t x;
-        int16_t y;
-        int16_t z;
-    } data;
-}raw_axes_t;
-
-//!< Axes type to hold converted sensor data.
-typedef union float_axes_t
-{
-    float xyz[3];
-    struct
-    {
-        float x;
-        float y;
-        float z;
-    } data;
-}float_axes_t;
-
-
-/*! Sensors struct for fast reading all sensors at once */
-typedef struct
-{
-    raw_axes_t accel;  //!< accelerometer
-    raw_axes_t gyro;   //!< gyroscope
-    int16_t temp;      //!< temperature
-    uint8_t* extsens;  //!< external sensor buffer
-#if defined AK89xx
-    raw_axes_t mag;  //!< magnetometer
-#endif
-} sensors_t;
-
-typedef struct
-{
-    float pressure;
-    float temperature;
-    float altitude;
-} baro_t;
-
-#define GB_RAW_DATA_ZERO ((raw_axes_t){ .xyz = {0.0f, 0.0f, 0.0f} })
-#define GB_BARO_DATA_ZERO ((baro_t){ .pressure = 0.0f, .temperature = 0.0f, .altitude = 0.0f})
 
 // ============
 // MAGNETOMETER
