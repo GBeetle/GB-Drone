@@ -160,6 +160,20 @@
 
 
 #define ICM_WHO_AM_I         (0x47)
+#define FIFO_EN              (0x5F)
+#define FIFO_TEMP_EN         (0x04)
+#define FIFO_GYRO            (0x02)
+#define FIFO_ACCEL           (0x01)
+
+// BANK 1
+#define GYRO_NF_ENABLE       (0x00)
+#define GYRO_NF_DISABLE      (0x01)
+#define GYRO_AAF_ENABLE      (0x00)
+#define GYRO_AAF_DISABLE     (0x02)
+
+// BANK 2
+#define ACCEL_AAF_ENABLE     (0x00)
+#define ACCEL_AAF_DISABLE    (0x01)
 
 typedef enum {
     first_order  = 0x00,

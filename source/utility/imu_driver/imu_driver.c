@@ -22,17 +22,15 @@
 
 static GB_RESULT initialize(struct imu *imu);
 static GB_RESULT reset(struct imu *imu);
-static GB_RESULT setSleep(struct imu *imu, bool enable);
-static bool getSleep(struct imu *imu);
 static GB_RESULT testConnection(struct imu *imu);
 static uint8_t whoAmI(struct imu *imu);
 static GB_RESULT setSampleRate(struct imu *imu, uint16_t rate);
 static uint16_t getSampleRate(struct imu *imu);
-static GB_RESULT setClockSource(struct imu *imu, clock_src_t clockSrc);
-static clock_src_t getClockSource(struct imu *imu);
+
+static GB_RESULT setFilters(bool gyroFilters, bool accFilters);
 static GB_RESULT setDigitalLowPassFilter(struct imu *imu, dlpf_t dlpf);
 static dlpf_t getDigitalLowPassFilter(struct imu *imu);
-static GB_RESULT resetSignalPath(struct imu *imu);
+
 static GB_RESULT setLowPowerAccelMode(struct imu *imu, bool enable);
 static bool getLowPowerAccelMode(struct imu *imu);
 static GB_RESULT setLowPowerAccelRate(struct imu *imu, lp_accel_rate_t rate);
@@ -86,7 +84,6 @@ static GB_RESULT setOffsets(struct imu *imu, bool gyro, bool accel);
 
 const accel_fs_t g_accel_fs = ACCEL_FS_16G;
 const gyro_fs_t g_gyro_fs = GYRO_FS_2000DPS;
-const lis3mdl_scale_t g_lis3mdl_fs = lis3mdl_scale_16_Gs;
 
 /**
  * @brief Set communication bus.
@@ -137,12 +134,11 @@ static GB_RESULT writeBytes(struct imu *imu, uint8_t regAddr, size_t length, con
 void GB_IMU_Init(struct imu *imu) {
 
 #if defined CONFIG_MPU_SPI
-    // disable SPI DMA in begin
-    CHK_EXIT(fspi.begin(&fspi, MPU_FSPI_MOSI, MPU_FSPI_MISO, MPU_FSPI_SCLK, SPI_MAX_DMA_LEN));
-    CHK_EXIT(fspi.addDevice(&fspi, 8, 0, 0, MPU_SPI_CLOCK_SPEED, MPU_FSPI_CS));
-
     imu->bus  = &fspi;
-    imu->addr = 0x00;
+    imu->addr = GB_SPI_DEV_0;
+
+    CHK_EXIT(fspi.begin(&fspi, MPU_FSPI_MOSI, MPU_FSPI_MISO, MPU_FSPI_SCLK, SPI_MAX_DMA_LEN));
+    CHK_EXIT(fspi.addDevice(&fspi, imu->addr, 0, 0, MPU_SPI_CLOCK_SPEED, MPU_FSPI_CS));
 #endif
 
 #if defined CONFIG_MPU_I2C
@@ -165,17 +161,17 @@ void GB_IMU_Init(struct imu *imu) {
 
     imu->initialize              = &initialize;
     imu->reset                   = &reset;
-    imu->setSleep                = &setSleep;
-    imu->getSleep                = &getSleep;
+    imu->setSleep                = NULL;
+    imu->getSleep                = NULL;
     imu->testConnection          = &testConnection;
     imu->whoAmI                  = &whoAmI;
     imu->setSampleRate           = &setSampleRate;
     imu->getSampleRate           = &getSampleRate;
-    imu->setClockSource          = &setClockSource;
-    imu->getClockSource          = &getClockSource;
+    imu->setClockSource          = NULL;
+    imu->getClockSource          = NULL;
     imu->setDigitalLowPassFilter = &setDigitalLowPassFilter;
     imu->getDigitalLowPassFilter = &getDigitalLowPassFilter;
-    imu->resetSignalPath         = &resetSignalPath;
+    imu->resetSignalPath         = NULL;
     imu->setLowPowerAccelMode    = &setLowPowerAccelMode;
     imu->getLowPowerAccelMode    = &getLowPowerAccelMode;
     imu->setLowPowerAccelRate    = &setLowPowerAccelRate;
@@ -357,29 +353,14 @@ static GB_RESULT initialize(struct imu *imu)
     CHK_RES(imu->reset(imu));
     CHK_RES(imu->testConnection(imu));
 
-
-// TODO
     // turn on accel and gyro in Low Noise (LN) Mode
-	if (writeRegister(UB0_REG_PWR_MGMT0, 0x0F) < 0) {
-		return -4;
-	}
+    CHK_RES(imu->writeByte(imu, UB0_REG_PWR_MGMT0, 0x0F));
 
-	// 16G is default -- do this to set up accel resolution scaling
-	int ret = setAccelFS(gpm16);
-	if (ret < 0) {
-		return ret;
-	}
+    CHK_RES(imu->setGyroFullScale(imu, g_gyro_fs));
+    CHK_RES(imu->setAccelFullScale(imu, g_accel_fs));
 
-	// 2000DPS is default -- do this to set up gyro resolution scaling
-	ret = setGyroFS(dps2000);
-	if (ret < 0) {
-		return ret;
-	}
-
-	// disable inner filters (Notch filter, Anti-alias filter, UI filter block)
-	if (setFilters(false, false) < 0) {
-		return -7;
-	}
+    // disable inner filters (Notch filter, Anti-alias filter, UI filter block)
+    CHK_RES(imu->setFilters(false, false));
 
 	// estimate gyro bias
 	if (calibrateGyro() < 0) {
@@ -400,33 +381,12 @@ static GB_RESULT reset(struct imu *imu)
 {
     GB_RESULT res = GB_OK;
 
-    setBank(imu, 0);
+    CHK_RES(setBank(imu, 0));
     CHK_RES(imu->writeByte(imu, UB0_REG_DEVICE_CONFIG, 0x01));
     GB_SleepMs(100);
 
 error_exit:
     return res;
-}
-
-/**
- * @brief Enable / disable sleep mode
- * @param enable enable value
- * */
-static GB_RESULT setSleep(struct imu *imu, bool enable)
-{
-    return imu->writeBit(imu, PWR_MGMT1, PWR1_SLEEP_BIT, (uint8_t) enable);
-}
-
-/**
- * @brief Get current sleep state.
- * @return
- *  - `true`: sleep enabled.
- *  - `false`: sleep disabled.
- */
-bool getSleep(struct imu *imu)
-{
-    imu->err = imu->readBit(imu, PWR_MGMT1, PWR1_SLEEP_BIT, imu->buffer);
-    return imu->buffer[0];
 }
 
 /**
@@ -457,6 +417,32 @@ uint8_t whoAmI(struct imu *imu)
 
     imu->err = imu->readByte(imu, UB0_REG_WHO_AM_I, imu->buffer);
     return imu->buffer[0];
+}
+
+static GB_RESULT setFilters(bool gyroFilters, bool accFilters)
+{
+    GB_RESULT res = GB_OK;
+
+    CHK_RES(setBank(imu, 1));
+
+    if (gyroFilters == true) {
+        CHK_RES(imu->writeByte(imu, UB1_REG_GYRO_CONFIG_STATIC2, GYRO_NF_ENABLE | GYRO_AAF_ENABLE));
+	} else {
+        CHK_RES(imu->writeByte(imu, UB1_REG_GYRO_CONFIG_STATIC2, GYRO_NF_DISABLE | GYRO_AAF_DISABLE));
+    }
+
+    CHK_RES(setBank(imu, 2));
+
+    if (accFilters == true) {
+        CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC2, ACCEL_AAF_ENABLE));
+	} else {
+        CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC2, ACCEL_AAF_DISABLE));
+    }
+
+    CHK_RES(setBank(imu, 0));
+
+error_exit:
+    return res;
 }
 
 /**
@@ -542,25 +528,6 @@ uint16_t getSampleRate(struct imu *imu)
 }
 
 /**
- * @brief Select clock source.
- * @note The gyro PLL is better than internal clock.
- * @param clockSrc clock source
- */
-static GB_RESULT setClockSource(struct imu *imu, clock_src_t clockSrc)
-{
-    return imu->writeBits(imu, PWR_MGMT1, PWR1_CLKSEL_BIT, PWR1_CLKSEL_LENGTH, clockSrc);
-}
-
-/**
- * @brief Return clock source.
- */
-clock_src_t getClockSource(struct imu *imu)
-{
-    imu->err = imu->readBits(imu, PWR_MGMT1, PWR1_CLKSEL_BIT, PWR1_CLKSEL_LENGTH, imu->buffer);
-    return (clock_src_t) imu->buffer[0];
-}
-
-/**
  * @brief Configures Digital Low Pass Filter (DLPF) setting for both the gyroscope and accelerometer.
  * @param dlpf digital low-pass filter value
  */
@@ -583,24 +550,6 @@ dlpf_t getDigitalLowPassFilter(struct imu *imu)
 {
     imu->err = imu->readBits(imu, CONFIG, CONFIG_DLPF_CFG_BIT, CONFIG_DLPF_CFG_LENGTH, imu->buffer);
     return (dlpf_t) imu->buffer[0];
-}
-
-/**
- * @brief Reset sensors signal path.
- *
- * Reset all gyro digital signal path, accel digital signal path, and temp
- * digital signal path. This also clears all the sensor registers.
- *
- * @note This function delays 100 ms, needed for reset to complete.
- * */
-static GB_RESULT resetSignalPath(struct imu *imu)
-{
-    GB_RESULT res = GB_OK;
-
-    CHK_RES(imu->writeBit(imu, USER_CTRL, USERCTRL_SIG_COND_RESET_BIT, 1));
-    GB_SleepMs(100);
-error_exit:
-    return res;
 }
 
 /**
@@ -868,7 +817,17 @@ mot_config_t getMotionDetectConfig(struct imu *imu)
  * */
 static GB_RESULT setGyroFullScale(struct imu *imu, gyro_fs_t fsr)
 {
-    return imu->writeBits(imu, GYRO_CONFIG, GCONFIG_FS_SEL_BIT, GCONFIG_FS_SEL_LENGTH, fsr);
+    GB_RESULT res = GB_OK;
+    uint8_t reg;
+
+    CHK_RES(setBank(imu, 0));
+    CHK_RES(imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &reg));
+    // only change FS_SEL in reg
+	reg = (fssel << 5) | (reg & 0x1F);
+    CHK_RES(imu->writeByte(imu, UB0_REG_GYRO_CONFIG0, reg));
+
+error_exit:
+    return res;
 }
 
 /**
@@ -876,8 +835,11 @@ static GB_RESULT setGyroFullScale(struct imu *imu, gyro_fs_t fsr)
  */
 gyro_fs_t getGyroFullScale(struct imu *imu)
 {
-    imu->err = imu->readBits(imu, GYRO_CONFIG, GCONFIG_FS_SEL_BIT, GCONFIG_FS_SEL_LENGTH, imu->buffer);
-    return (gyro_fs_t) imu->buffer[0];
+    uint8_t reg;
+
+    setBank(imu, 0);
+    CHK_RES(imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &reg));
+    return (reg & 0xE0) >> 5;
 }
 
 /**
@@ -885,7 +847,17 @@ gyro_fs_t getGyroFullScale(struct imu *imu)
  * */
 static GB_RESULT setAccelFullScale(struct imu *imu, accel_fs_t fsr)
 {
-    return imu->writeBits(imu, ACCEL_CONFIG, ACONFIG_FS_SEL_BIT, ACONFIG_FS_SEL_LENGTH, fsr);
+    GB_RESULT res = GB_OK;
+    uint8_t reg;
+
+    CHK_RES(setBank(imu, 0));
+    CHK_RES(imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &reg));
+    // only change FS_SEL in reg
+	reg = (fssel << 5) | (reg & 0x1F);
+    CHK_RES(imu->writeByte(imu, UB0_REG_ACCEL_CONFIG0, reg));
+
+error_exit:
+    return res;
 }
 
 /**
@@ -893,8 +865,12 @@ static GB_RESULT setAccelFullScale(struct imu *imu, accel_fs_t fsr)
  */
 accel_fs_t getAccelFullScale(struct imu *imu)
 {
-    imu->err = imu->readBits(imu, ACCEL_CONFIG, ACONFIG_FS_SEL_BIT, ACONFIG_FS_SEL_LENGTH, imu->buffer);
-    return (accel_fs_t) imu->buffer[0];
+    uint8_t reg;
+
+    setBank(imu, 0);
+    CHK_RES(imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &reg));
+
+    return (reg & 0xE0) >> 5;
 }
 
 /**
