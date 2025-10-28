@@ -27,19 +27,9 @@ static uint8_t whoAmI(struct imu *imu);
 static GB_RESULT setSampleRate(struct imu *imu, uint16_t rate);
 static uint16_t getSampleRate(struct imu *imu);
 
-static GB_RESULT setFilters(bool gyroFilters, bool accFilters);
+static GB_RESULT setFilters(struct imu *imu, bool gyroFilters, bool accFilters);
 static GB_RESULT setDigitalLowPassFilter(struct imu *imu, dlpf_t dlpf);
 static dlpf_t getDigitalLowPassFilter(struct imu *imu);
-
-static GB_RESULT setLowPowerAccelMode(struct imu *imu, bool enable);
-static bool getLowPowerAccelMode(struct imu *imu);
-static GB_RESULT setLowPowerAccelRate(struct imu *imu, lp_accel_rate_t rate);
-static lp_accel_rate_t getLowPowerAccelRate(struct imu *imu);
-static GB_RESULT setMotionFeatureEnabled(struct imu *imu, bool enable);
-static bool getMotionFeatureEnabled(struct imu *imu);
-static GB_RESULT setMotionDetectConfig(struct imu *imu, mot_config_t* config);
-static mot_config_t getMotionDetectConfig(struct imu *imu);
-
 
 static GB_RESULT setGyroFullScale(struct imu *imu, gyro_fs_t fsr);
 static gyro_fs_t getGyroFullScale(struct imu *imu);
@@ -55,7 +45,6 @@ static GB_RESULT rotation(struct imu *imu, raw_axes_t* gyro);
 static GB_RESULT temperature(struct imu *imu, int16_t* temp);
 static GB_RESULT motion(struct imu *imu, raw_axes_t* accel, raw_axes_t* gyro);
 static GB_RESULT sensors(struct imu *imu, raw_axes_t* accel, raw_axes_t* gyro, int16_t* temp);
-static GB_RESULT sensors_sen(struct imu *imu, sensors_t* sensors, size_t extsens_len);
 
 static GB_RESULT setInterruptConfig(struct imu *imu, int_config_t config);
 static int_config_t getInterruptConfig(struct imu *imu);
@@ -172,14 +161,14 @@ void GB_IMU_Init(struct imu *imu) {
     imu->setDigitalLowPassFilter = &setDigitalLowPassFilter;
     imu->getDigitalLowPassFilter = &getDigitalLowPassFilter;
     imu->resetSignalPath         = NULL;
-    imu->setLowPowerAccelMode    = &setLowPowerAccelMode;
-    imu->getLowPowerAccelMode    = &getLowPowerAccelMode;
-    imu->setLowPowerAccelRate    = &setLowPowerAccelRate;
-    imu->getLowPowerAccelRate    = &getLowPowerAccelRate;
-    imu->setMotionFeatureEnabled = &setMotionFeatureEnabled;
-    imu->getMotionFeatureEnabled = &getMotionFeatureEnabled;
-    imu->setMotionDetectConfig   = &setMotionDetectConfig;
-    imu->getMotionDetectConfig   = &getMotionDetectConfig;
+    imu->setLowPowerAccelMode    = NULL;
+    imu->getLowPowerAccelMode    = NULL;
+    imu->setLowPowerAccelRate    = NULL;
+    imu->getLowPowerAccelRate    = NULL;
+    imu->setMotionFeatureEnabled = NULL;
+    imu->getMotionFeatureEnabled = NULL;
+    imu->setMotionDetectConfig   = NULL;
+    imu->getMotionDetectConfig   = NULL;
 
     imu->setGyroFullScale  = &setGyroFullScale;
     imu->getGyroFullScale  = &getGyroFullScale;
@@ -195,7 +184,7 @@ void GB_IMU_Init(struct imu *imu) {
     imu->temperature       = &temperature;
     imu->motion            = &motion;
     imu->sensors           = &sensors;
-    imu->sensors_sen       = &sensors_sen;
+    imu->sensors_sen       = NULL;
 
     imu->setInterruptConfig    = &setInterruptConfig;
     imu->getInterruptConfig    = &getInterruptConfig;
@@ -360,12 +349,9 @@ static GB_RESULT initialize(struct imu *imu)
     CHK_RES(imu->setAccelFullScale(imu, g_accel_fs));
 
     // disable inner filters (Notch filter, Anti-alias filter, UI filter block)
-    CHK_RES(imu->setFilters(false, false));
+    CHK_RES(imu->setFilters(imu, false, false));
 
-	// estimate gyro bias
-	if (calibrateGyro() < 0) {
-		return -8;
-	}
+    CHK_RES(imu->setSampleRate(imu, odr1k << 8 | odr1k));
 
 error_exit:
     return res;
@@ -419,7 +405,7 @@ uint8_t whoAmI(struct imu *imu)
     return imu->buffer[0];
 }
 
-static GB_RESULT setFilters(bool gyroFilters, bool accFilters)
+static GB_RESULT setFilters(struct imu *imu, bool gyroFilters, bool accFilters)
 {
     GB_RESULT res = GB_OK;
 
@@ -449,56 +435,20 @@ error_exit:
  * @brief Set sample rate of data output.
  *
  * Sample rate controls sensor data output rate and FIFO sample rate.
- * This is the update rate of sensor register. \n
- * Formula: Sample Rate = Internal Output Rate / (1 + SMPLRT_DIV)
- *
- * @param rate 4Hz ~ 1KHz
- *  - For sample rate 8KHz: set digital low pass filter to DLPF_256HZ_NOLPF.
- *  - For sample rate 32KHZ [MPU6500 / MPU9250]: set fchoice to FCHOICE_0, see setFchoice().
- *
- * @note
- *  For MPU9150 & MPU9250:
- *   - When using compass, this function alters Aux I2C Master `sample_delay` property
- *     to adjust the compass sample rate. (also, `wait_for_es` property to adjust interrupt).
- *   - If sample rate lesser than 100 Hz, data-ready interrupt will wait for compass data.
- *   - If sample rate greater than 100 Hz, data-ready interrupt will not be delayed by the compass.
  * */
 static GB_RESULT setSampleRate(struct imu *imu, uint16_t rate)
 {
     GB_RESULT res = GB_OK;
-    // Check value range
-    if (rate < 4) {
-        GB_DEBUGW(ERROR_TAG, "INVALID_SAMPLE_RATE %d, minimum rate is 4", rate);
-        rate = 4;
-    }
-    else if (rate > 1000) {
-        GB_DEBUGW(ERROR_TAG, "INVALID_SAMPLE_RATE %d, maximum rate is 1000", rate);
-        rate = 1000;
-    }
+    uint8_t gyro_reg, accel_reg;
 
-#if defined CONFIG_MPU6500
-    fchoice_t fchoice = imu->getFchoice(imu);
-    CHK_RES(imu->lastError(imu));
-    if (fchoice != FCHOICE_3) {
-        GB_DEBUGW(ERROR_TAG, "INVALID_STATE, sample rate divider is not effective when Fchoice != 3");
-    }
-#endif
-    // Check dlpf configuration
-    dlpf_t dlpf = imu->getDigitalLowPassFilter(imu);
-    CHK_RES(imu->lastError(imu));
-    if (dlpf == 0 || dlpf == 7)
-        GB_DEBUGW(ERROR_TAG, "INVALID_STATE, sample rate divider is not effective when DLPF is (0 or 7)");
+    CHK_RES(setBank(imu, 0));
+    CHK_RES(imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &gyro_reg));
+    gyro_reg = (rate >> 8) | (gyro_reg & 0xF0);
+    CHK_RES(imu->writeByte(imu, UB0_REG_GYRO_CONFIG0, gyro_reg));
 
-    const uint16_t internalSampleRate = 1000;
-    uint16_t divider                      = internalSampleRate / rate - 1;
-    // Check for rate match
-    uint16_t finalRate = (internalSampleRate / (1 + divider));
-    if (finalRate != rate) {
-    }
-    else {
-    }
-    // Write divider to register
-    CHK_RES(imu->writeByte(imu, SMPLRT_DIV, (uint8_t) divider));
+    CHK_RES(imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &accel_reg));
+    accel_reg = rate | (accel_reg & 0xF0);
+    CHK_RES(imu->writeByte(imu, UB0_REG_ACCEL_CONFIG0, accel_reg));
 
 error_exit:
     return res;
@@ -506,25 +456,16 @@ error_exit:
 
 /**
  * @brief Retrieve sample rate divider and calculate the actual rate.
- * TODO: ADD error handle
  */
 uint16_t getSampleRate(struct imu *imu)
 {
-#if defined CONFIG_MPU6500
-    fchoice_t fchoice = imu->getFchoice(imu);
-    CHK_VAL(imu->lastError(imu));
-    if (fchoice != FCHOICE_3) return SAMPLE_RATE_MAX;
-#endif
+    uint8_t gyro_reg, accel_reg;
 
-    const uint16_t sampleRateMax_nolpf = 8000;
-    dlpf_t dlpf = imu->getDigitalLowPassFilter(imu);
-    CHK_VAL(imu->lastError(imu));
-    if (dlpf == 0 || dlpf == 7) return sampleRateMax_nolpf;
+    setBank(imu, 0);
+    imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &gyro_reg);
+    imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &accel_reg);
 
-    const uint16_t internalSampleRate = 1000;
-    CHK_VAL(imu->readByte(imu, SMPLRT_DIV, imu->buffer));
-    uint16_t rate = internalSampleRate / (1 + imu->buffer[0]);
-    return rate;
+    return (gyro_reg << 8) | accel_reg;
 }
 
 /**
@@ -533,14 +474,7 @@ uint16_t getSampleRate(struct imu *imu)
  */
 static GB_RESULT setDigitalLowPassFilter(struct imu *imu, dlpf_t dlpf)
 {
-    GB_RESULT res = GB_OK;
-
-    CHK_RES(imu->writeBits(imu, CONFIG, CONFIG_DLPF_CFG_BIT, CONFIG_DLPF_CFG_LENGTH, dlpf));
-#if defined CONFIG_MPU6500
-    CHK_RES(imu->writeBits(imu, ACCEL_CONFIG2, ACONFIG2_A_DLPF_CFG_BIT, ACONFIG2_A_DLPF_CFG_LENGTH, dlpf));
-#endif
-error_exit:
-    return res;
+    return GB_OK;
 }
 
 /**
@@ -548,269 +482,8 @@ error_exit:
  */
 dlpf_t getDigitalLowPassFilter(struct imu *imu)
 {
-    imu->err = imu->readBits(imu, CONFIG, CONFIG_DLPF_CFG_BIT, CONFIG_DLPF_CFG_LENGTH, imu->buffer);
-    return (dlpf_t) imu->buffer[0];
+    return (dlpf_t) 0;
 }
-
-/**
- * @brief Enter Low Power Accelerometer mode.
- *
- * In low-power accel mode, the chip goes to sleep and only wakes up to sample
- * the accelerometer at a certain frequency.
- * See setLowPowerAccelRate() to set the frequency.
- *
- * @param enable value
- *  + This function does the following to enable:
- *   - Set CYCLE bit to 1
- *   - Set SLEEP bit to 0
- *   - Set TEMP_DIS bit to 1
- *   - Set STBY_XG, STBY_YG, STBY_ZG bits to 1
- *   - Set STBY_XA, STBY_YA, STBY_ZA bits to 0
- *   - Set FCHOICE to 0 (ACCEL_FCHOICE_B bit to 1) [MPU6500 / MPU9250 only]
- *   - Disable Auxiliary I2C Master I/F
- *
- *  + This function does the following to disable:
- *   - Set CYCLE bit to 0
- *   - Set TEMP_DIS bit to 0
- *   - Set STBY_XG, STBY_YG, STBY_ZG bits to 0
- *   - Set STBY_XA, STBY_YA, STBY_ZA bits to 0
- *   - Set FCHOICE to 3 (ACCEL_FCHOICE_B bit to 0) [MPU6500 / MPU9250 only]
- *   - Enable Auxiliary I2C Master I/F
- * */
-static GB_RESULT setLowPowerAccelMode(struct imu *imu, bool enable)
-{
-    GB_RESULT res = GB_OK;
-// set FCHOICE
-#if defined CONFIG_MPU6500
-    fchoice_t fchoice = enable ? FCHOICE_0 : FCHOICE_3;
-    CHK_RES(imu->setFchoice(imu, fchoice));
-#endif
-    // read PWR_MGMT1 and PWR_MGMT2 at once
-    CHK_RES(imu->readBytes(imu, PWR_MGMT1, 2, imu->buffer));
-    if (enable) {
-        // set CYCLE bit to 1 and SLEEP bit to 0 and TEMP_DIS bit to 1
-        imu->buffer[0] |= 1 << PWR1_CYCLE_BIT;
-        imu->buffer[0] &= ~(1 << PWR1_SLEEP_BIT);
-        imu->buffer[0] |= 1 << PWR1_TEMP_DIS_BIT;
-        // set STBY_XG, STBY_YG, STBY_ZG bits to 1
-        imu->buffer[1] |= PWR2_STBY_XYZG_BITS;
-    }
-    else {  // disable
-        // set CYCLE bit to 0 and TEMP_DIS bit to 0
-        imu->buffer[0] &= ~(1 << PWR1_CYCLE_BIT);
-        imu->buffer[0] &= ~(1 << PWR1_TEMP_DIS_BIT);
-        // set STBY_XG, STBY_YG, STBY_ZG bits to 0
-        imu->buffer[1] &= ~(PWR2_STBY_XYZG_BITS);
-    }
-    // set STBY_XA, STBY_YA, STBY_ZA bits to 0
-    imu->buffer[1] &= ~(PWR2_STBY_XYZA_BITS);
-    // write back PWR_MGMT1 and PWR_MGMT2 at once
-    CHK_RES(imu->writeBytes(imu, PWR_MGMT1, 2, imu->buffer));
-    // disable Auxiliary I2C Master I/F in case it was active
-    CHK_RES(imu->setAuxI2CEnabled(imu, !enable));
-error_exit:
-    return res;
-}
-
-/**
- * @brief Return Low Power Accelerometer state.
- *
- * Condition to return true:
- *  - CYCLE bit is 1
- *  - SLEEP bit is 0
- *  - TEMP_DIS bit is 1
- *  - STBY_XG, STBY_YG, STBY_ZG bits are 1
- *  - STBY_XA, STBY_YA, STBY_ZA bits are 0
- *  - FCHOICE is 0 (ACCEL_FCHOICE_B bit is 1) [MPU6500 / MPU9250 only]
- *
- * */
-bool getLowPowerAccelMode(struct imu *imu)
-{
-// check FCHOICE
-#if defined CONFIG_MPU6500
-    fchoice_t fchoice = imu->getFchoice(imu);
-    CHK_VAL(imu->lastError(imu));
-    if (fchoice != FCHOICE_0) {
-        return false;
-    }
-#endif
-    // read PWR_MGMT1 and PWR_MGMT2 at once
-    CHK_VAL(imu->readBytes(imu, PWR_MGMT1, 2, imu->buffer));
-    // define configuration bits
-    const uint8_t LPACCEL_CONFIG_BITMASK[2] = {
-        (1 << PWR1_SLEEP_BIT) | (1 << PWR1_CYCLE_BIT) | (1 << PWR1_TEMP_DIS_BIT),
-        PWR2_STBY_XYZA_BITS | PWR2_STBY_XYZG_BITS};
-    const uint8_t LPACCEL_ENABLED_VALUE[2] = {(1 << PWR1_CYCLE_BIT) | (1 << PWR1_TEMP_DIS_BIT),
-                                                  PWR2_STBY_XYZG_BITS};
-    // get just the configuration bits
-    imu->buffer[0] &= LPACCEL_CONFIG_BITMASK[0];
-    imu->buffer[1] &= LPACCEL_CONFIG_BITMASK[1];
-    // check pattern
-    return imu->buffer[0] == LPACCEL_ENABLED_VALUE[0] && imu->buffer[1] == LPACCEL_ENABLED_VALUE[1];
-}
-
-/**
- * @brief Set Low Power Accelerometer frequency of wake-up.
- * */
-static GB_RESULT setLowPowerAccelRate(struct imu *imu, lp_accel_rate_t rate)
-{
-    GB_RESULT res = GB_OK;
-#if defined CONFIG_MPU6050
-    CHK_RES(imu->writeBits(imu, PWR_MGMT2, PWR2_LP_WAKE_CTRL_BIT, PWR2_LP_WAKE_CTRL_LENGTH, rate));
-#elif defined CONFIG_MPU6500
-    CHK_RES(imu->writeBits(imu, LP_ACCEL_ODR, LPA_ODR_CLKSEL_BIT, LPA_ODR_CLKSEL_LENGTH, rate));
-#endif
-error_exit:
-    return res;
-}
-
-/**
- * @brief Get Low Power Accelerometer frequency of wake-up.
- */
-lp_accel_rate_t getLowPowerAccelRate(struct imu *imu)
-{
-#if defined CONFIG_MPU6050
-    CHK_VAL(imu->readBits(imu, PWR_MGMT2, PWR2_LP_WAKE_CTRL_BIT, PWR2_LP_WAKE_CTRL_LENGTH, imu->buffer));
-#elif defined CONFIG_MPU6500
-    CHK_VAL(imu->readBits(imu, LP_ACCEL_ODR, LPA_ODR_CLKSEL_BIT, LPA_ODR_CLKSEL_LENGTH, imu->buffer));
-#endif
-    return (lp_accel_rate_t) imu->buffer[0];
-}
-
-/**
- * @brief Enable/disable Motion modules (Motion detect, Zero-motion, Free-Fall).
- *
- * @attention
- *  The configurations must've already been set with setMotionDetectConfig() before
- *  enabling the module!
- * @note
- *  - Call getMotionDetectStatus() to find out which axis generated motion interrupt. [MPU6000, MPU6050, MPU9150].
- *  - It is recommended to set the Motion Interrupt to propagate to the INT pin. To do that, use setInterruptEnabled().
- * @param enable
- *  - On _true_, this function modifies the DLPF, put gyro and temperature in standby,
- *    and disable Auxiliary I2C Master I/F.
- *  - On _false_, this function sets DLPF to 42Hz and enables Auxiliary I2C master I/F.
- * */
-static GB_RESULT setMotionFeatureEnabled(struct imu *imu, bool enable)
-{
-    GB_RESULT res = GB_OK;
-#if defined CONFIG_MPU6050
-    CHK_RES(imu->writeBits(imu, ACCEL_CONFIG, ACONFIG_HPF_BIT, ACONFIG_HPF_LENGTH, ACCEL_DHPF_RESET));
-#endif
-    /* enabling */
-    if (enable) {
-#if defined CONFIG_MPU6050
-        const dlpf_t kDLPF = DLPF_256HZ_NOLPF;
-#elif defined CONFIG_MPU6500
-        const dlpf_t kDLPF = DLPF_188HZ;
-#endif
-        CHK_RES(imu->setDigitalLowPassFilter(imu, kDLPF));
-#if defined CONFIG_MPU6050
-        // give a time for accumulation of samples
-        GB_SleepMs(10);
-        CHK_RES(imu->writeBits(imu, ACCEL_CONFIG, ACONFIG_HPF_BIT, ACONFIG_HPF_LENGTH, ACCEL_DHPF_HOLD));
-#elif defined CONFIG_MPU6500
-        CHK_RES(imu->writeByte(imu, ACCEL_INTEL_CTRL, (1 << ACCEL_INTEL_EN_BIT) | (1 << ACCEL_INTEL_MODE_BIT)));
-#endif
-        /* disabling */
-    }
-    else {
-#if defined CONFIG_MPU6500
-        CHK_RES(imu->writeBits(imu, ACCEL_INTEL_CTRL, ACCEL_INTEL_EN_BIT, 2, 0x0));
-#endif
-        const dlpf_t kDLPF = DLPF_42HZ;
-        CHK_RES(imu->setDigitalLowPassFilter(imu, kDLPF));
-    }
-    // disable Auxiliary I2C Master I/F in case it was active
-    CHK_RES(imu->setAuxI2CEnabled(imu, !enable));
-error_exit:
-    return res;
-}
-
-/**
- * @brief Return true if a Motion Dectection module is enabled.
- */
-bool getMotionFeatureEnabled(struct imu *imu)
-{
-    uint8_t data;
-#if defined CONFIG_MPU6050
-    CHK_VAL(imu->readBits(imu, ACCEL_CONFIG, ACONFIG_HPF_BIT, ACONFIG_HPF_LENGTH, &data));
-    if (data != ACCEL_DHPF_HOLD) return false;
-    const dlpf_t kDLPF = DLPF_256HZ_NOLPF;
-#elif defined CONFIG_MPU6500
-    CHK_VAL(imu->readByte(imu, ACCEL_INTEL_CTRL, &data));
-    const uint8_t kAccelIntel = (1 << ACCEL_INTEL_EN_BIT) | (1 << ACCEL_INTEL_MODE_BIT);
-    if ((data & kAccelIntel) != kAccelIntel) return false;
-    const dlpf_t kDLPF = DLPF_188HZ;
-#endif
-    dlpf_t dlpf = imu->getDigitalLowPassFilter(imu);
-    CHK_VAL(imu->lastError(imu));
-    if (dlpf != kDLPF) return false;
-    return true;
-}
-
-/**
- * @brief Configure Motion-Detect or Wake-on-motion feature.
- *
- * The behaviour of this feature is very different between the MPU6050 (MPU9150) and the
- * MPU6500 (MPU9250). Each chip's version of this feature is explained below.
- *
- * [MPU6050, MPU6000, MPU9150]:
- * Accelerometer measurements are passed through a configurable digital high pass filter (DHPF)
- * in order to eliminate bias due to gravity. A qualifying motion sample is one where the high
- * passed sample from any axis has an absolute value exceeding a user-programmable threshold. A
- * counter increments for each qualifying sample, and decrements for each non-qualifying sample.
- * Once the counter reaches a user-programmable counter threshold, a motion interrupt is triggered.
- * The axis and polarity which caused the interrupt to be triggered is flagged in the
- * MOT_DETECT_STATUS register.
- *
- * [MPU6500, MPU9250]:
- * Unlike the MPU6050 version, the hardware does not "lock in" a reference sample.
- * The hardware monitors the accel data and detects any large change over a short period of time.
- * A qualifying motion sample is one where the high passed sample from any axis has
- * an absolute value exceeding the threshold.
- * The hardware motion threshold can be between 4mg and 1020mg in 4mg increments.
- *
- * @note
- * It is possible to enable **wake-on-motion** mode by doing the following:
- *  1. Enter Low Power Accelerometer mode with setLowPowerAccelMode();
- *  2. Select the wake-up rate with setLowPowerAccelRate();
- *  3. Configure motion-detect interrupt with setMotionDetectConfig();
- *  4. Enable the motion detection module with setMotionFeatureEnabled();
- * */
-static GB_RESULT setMotionDetectConfig(struct imu *imu, mot_config_t* config)
-{
-    GB_RESULT res = GB_OK;
-#if defined CONFIG_MPU6050
-    CHK_RES(imu->writeByte(imu, MOTION_DUR, config->time));
-    CHK_RES(imu->writeBits(imu, MOTION_DETECT_CTRL, MOTCTRL_ACCEL_ON_DELAY_BIT,
-                                MOTCTRL_ACCEL_ON_DELAY_LENGTH, config->accel_on_delay));
-    CHK_RES(imu->writeBits(imu, MOTION_DETECT_CTRL, MOTCTRL_MOT_COUNT_BIT, MOTCTRL_MOT_COUNT_LENGTH,
-                                config->counter));
-#endif
-    CHK_RES(imu->writeByte(imu, MOTION_THR, config->threshold));
-error_exit:
-    return res;
-}
-
-/**
- * @brief Return Motion Detection Configuration.
- */
-mot_config_t getMotionDetectConfig(struct imu *imu)
-{
-    mot_config_t config;
-#if defined CONFIG_MPU6050
-    CHK_VAL(imu->readByte(imu, MOTION_DUR, &config.time));
-    CHK_VAL(imu->readByte(imu, MOTION_DETECT_CTRL, imu->buffer));
-    config.accel_on_delay =
-        (imu->buffer[0] >> (MOTCTRL_ACCEL_ON_DELAY_BIT - MOTCTRL_ACCEL_ON_DELAY_LENGTH + 1)) & 0x3;
-    config.counter =
-        (mot_counter_t)((imu->buffer[0] >> (MOTCTRL_MOT_COUNT_BIT - MOTCTRL_MOT_COUNT_LENGTH + 1)) & 0x3);
-#endif
-    CHK_VAL(imu->readByte(imu, MOTION_THR, &config.threshold));
-    return config;
-}
-
 
 /**
  * @brief Select Gyroscope Full-scale range.
@@ -838,7 +511,7 @@ gyro_fs_t getGyroFullScale(struct imu *imu)
     uint8_t reg;
 
     setBank(imu, 0);
-    CHK_RES(imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &reg));
+    imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &reg);
     return (reg & 0xE0) >> 5;
 }
 
@@ -868,7 +541,7 @@ accel_fs_t getAccelFullScale(struct imu *imu)
     uint8_t reg;
 
     setBank(imu, 0);
-    CHK_RES(imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &reg));
+    imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &reg);
 
     return (reg & 0xE0) >> 5;
 }
@@ -884,13 +557,34 @@ accel_fs_t getAccelFullScale(struct imu *imu)
 static GB_RESULT setGyroOffset(struct imu *imu, raw_axes_t bias)
 {
     GB_RESULT res = GB_OK;
-    imu->buffer[0] = (uint8_t)(bias.data.x >> 8);
-    imu->buffer[1] = (uint8_t)(bias.data.x);
-    imu->buffer[2] = (uint8_t)(bias.data.y >> 8);
-    imu->buffer[3] = (uint8_t)(bias.data.y);
-    imu->buffer[4] = (uint8_t)(bias.data.z >> 8);
-    imu->buffer[5] = (uint8_t)(bias.data.z);
-    CHK_RES(imu->writeBytes(imu, XG_OFFSET_H, 6, imu->buffer));
+    uint8_t reg1, reg2;
+
+    CHK_RES(setBank(imu, 4));
+
+    // Gyro X
+    reg1 = bias.data.x & 0x00FF;
+    CHK_RES(imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2));
+    reg2 = (reg2 & 0xF0) | ((bias.data.x & 0x0F00) >> 8);
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER0, reg1));
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER1, reg2));
+
+    // Gyro Y
+    reg1 = bias.data.y & 0x00FF;
+    CHK_RES(imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2));
+    reg2 = (reg2 & 0x0F) | ((bias.data.y & 0x0F00) >> 4);
+	reg2 = (bias.data.y & 0x0F00) >> 4 | (reg2 & 0x0F00) >> 4;
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER2, reg1));
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER1, reg2));
+
+    // Gyro Z
+    reg1 = bias.data.z & 0x00FF;
+    CHK_RES(imu->readByte(imu, UB4_REG_OFFSET_USER4, &reg2));
+    reg2 = (reg2 & 0xF0) | ((bias.data.z & 0x0F00) >> 8);
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER3, reg1));
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER4, reg2));
+
+    CHK_RES(setBank(imu, 0));
+
 error_exit:
     return res;
 }
@@ -902,11 +596,29 @@ error_exit:
  * */
 raw_axes_t getGyroOffset(struct imu *imu)
 {
-    CHK_VAL(imu->readBytes(imu, XG_OFFSET_H, 6, imu->buffer));
+    GB_RESULT res = GB_OK;
+    uint8_t reg1, reg2;
     raw_axes_t bias;
-    bias.data.x = (imu->buffer[0] << 8) | imu->buffer[1];
-    bias.data.y = (imu->buffer[2] << 8) | imu->buffer[3];
-    bias.data.z = (imu->buffer[4] << 8) | imu->buffer[5];
+
+    setBank(imu, 4);
+
+    // Gyro X
+    imu->readByte(imu, UB4_REG_OFFSET_USER0, &reg1);
+    imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2);
+    bias.data.x = (reg2 & 0x0F) << 4 | reg1;
+
+    // Gyro Y
+    imu->readByte(imu, UB4_REG_OFFSET_USER2, &reg1);
+    imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2);
+    bias.data.y = (reg2 & 0xF0) << 4 | reg1;
+
+    // Gyro Z
+    imu->readByte(imu, UB4_REG_OFFSET_USER3, &reg1);
+    imu->readByte(imu, UB4_REG_OFFSET_USER4, &reg2);
+    bias.data.z = (reg2 & 0x0F) << 4 | reg1;
+
+    setBank(imu, 0);
+
     return bias;
 }
 
@@ -920,48 +632,34 @@ raw_axes_t getGyroOffset(struct imu *imu)
  * */
 static GB_RESULT setAccelOffset(struct imu *imu, raw_axes_t bias)
 {
-    raw_axes_t facBias;
     GB_RESULT res = GB_OK;
-    // first, read OTP values of Accel factory trim
+    uint8_t reg1, reg2;
 
-#if defined CONFIG_MPU6050
-    CHK_RES(imu->readBytes(imu, XA_OFFSET_H, 6, imu->buffer));
-    facBias.data.x = (imu->buffer[0] << 8) | imu->buffer[1];
-    facBias.data.y = (imu->buffer[2] << 8) | imu->buffer[3];
-    facBias.data.z = (imu->buffer[4] << 8) | imu->buffer[5];
+    CHK_RES(setBank(imu, 4));
 
-#elif defined CONFIG_MPU6500
-    CHK_RES(imu->readBytes(imu, XA_OFFSET_H, 8, imu->buffer));
-    // note: imu->buffer[2] and imu->buffer[5], stay the same,
-    //  they are read just to keep the burst reading
-    facBias.data.x = (imu->buffer[0] << 8) | imu->buffer[1];
-    facBias.data.y = (imu->buffer[3] << 8) | imu->buffer[4];
-    facBias.data.z = (imu->buffer[6] << 8) | imu->buffer[7];
-#endif
+    // Accel X
+    reg1 = bias.data.x & 0x00FF;
+    CHK_RES(imu->readByte(imu, UB4_REG_OFFSET_USER4, &reg2));
+    reg2 = (reg2 & 0x0F) | ((bias.data.x & 0x0F00) >> 4);
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER5, reg1));
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER4, reg2));
 
-    // note: preserve bit 0 of factory value (for temperature compensation)
-    facBias.data.x += (bias.data.x & ~1);
-    facBias.data.y += (bias.data.y & ~1);
-    facBias.data.z += (bias.data.z & ~1);
+    // Accel Y
+    reg1 = bias.data.y & 0x00FF;
+    CHK_RES(imu->readByte(imu, UB4_REG_OFFSET_USER7, &reg2));
+    reg2 = (reg2 & 0xF0) | ((bias.data.y  & 0x0F00) >> 8);
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER6, reg1));
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER7, reg2));
 
-#if defined CONFIG_MPU6050
-    imu->buffer[0] = (uint8_t)(facBias.data.x >> 8);
-    imu->buffer[1] = (uint8_t)(facBias.data.x);
-    imu->buffer[2] = (uint8_t)(facBias.data.y >> 8);
-    imu->buffer[3] = (uint8_t)(facBias.data.y);
-    imu->buffer[4] = (uint8_t)(facBias.data.z >> 8);
-    imu->buffer[5] = (uint8_t)(facBias.data.z);
-    CHK_RES(imu->writeBytes(imu, XA_OFFSET_H, 6, imu->buffer));
+    // Accel Z
+    reg1 = bias.data.z & 0x00FF;
+    CHK_RES(imu->readByte(imu, UB4_REG_OFFSET_USER7, &reg2));
+    reg2 = (reg2 & 0x0F) | ((bias.data.z & 0x0F00) >> 4);
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER8, reg1));
+    CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER7, reg2));
 
-#elif defined CONFIG_MPU6500
-    imu->buffer[0] = (uint8_t)(facBias.data.x >> 8);
-    imu->buffer[1] = (uint8_t)(facBias.data.x);
-    imu->buffer[3] = (uint8_t)(facBias.data.y >> 8);
-    imu->buffer[4] = (uint8_t)(facBias.data.y);
-    imu->buffer[6] = (uint8_t)(facBias.data.z >> 8);
-    imu->buffer[7] = (uint8_t)(facBias.data.z);
-    CHK_RES(imu->writeBytes(imu, XA_OFFSET_H, 8, imu->buffer));
-#endif
+    CHK_RES(setBank(imu, 0));
+
 error_exit:
     return res;
 }
@@ -975,20 +673,28 @@ error_exit:
  * */
 raw_axes_t getAccelOffset(struct imu *imu)
 {
+    GB_RESULT res = GB_OK;
+    uint8_t reg1, reg2;
     raw_axes_t bias;
 
-#if defined CONFIG_MPU6050
-    CHK_VAL(imu->readBytes(imu, XA_OFFSET_H, 6, imu->buffer));
-    bias.data.x = (imu->buffer[0] << 8) | imu->buffer[1];
-    bias.data.y = (imu->buffer[2] << 8) | imu->buffer[3];
-    bias.data.z = (imu->buffer[4] << 8) | imu->buffer[5];
+    setBank(imu, 4);
 
-#elif defined CONFIG_MPU6500
-    CHK_VAL(imu->readBytes(imu, XA_OFFSET_H, 8, imu->buffer));
-    bias.data.x                        = (imu->buffer[0] << 8) | imu->buffer[1];
-    bias.data.y                        = (imu->buffer[3] << 8) | imu->buffer[4];
-    bias.data.z                        = (imu->buffer[6] << 8) | imu->buffer[7];
-#endif
+    // Accel X
+    imu->readByte(imu, UB4_REG_OFFSET_USER0, &reg1);
+    imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2);
+    bias.data.x = (reg2 & 0x0F) << 4 | reg1;
+
+    // Accel Y
+    imu->readByte(imu, UB4_REG_OFFSET_USER2, &reg1);
+    imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2);
+    bias.data.y = (reg2 & 0xF0) << 4 | reg1;
+
+    // Accel Z
+    imu->readByte(imu, UB4_REG_OFFSET_USER3, &reg1);
+    imu->readByte(imu, UB4_REG_OFFSET_USER4, &reg2);
+    bias.data.z = (reg2 & 0x0F) << 4 | reg1;
+
+    setBank(imu, 0);
 
     return bias;
 }
@@ -1092,39 +798,6 @@ static GB_RESULT sensors(struct imu *imu, raw_axes_t* accel, raw_axes_t* gyro, i
     gyro->data.x  = imu->buffer[8] << 8 | imu->buffer[9];
     gyro->data.y  = imu->buffer[10] << 8 | imu->buffer[11];
     gyro->data.z  = imu->buffer[12] << 8 | imu->buffer[13];
-error_exit:
-    return res;
-}
-
-/**
- * @brief Read data from all sensors, including external sensors in Aux I2C.
- * */
-static GB_RESULT sensors_sen(struct imu *imu, sensors_t* sensors, size_t extsens_len)
-{
-    GB_RESULT res = GB_OK;
-    const size_t kIntSensLenMax = 14;  // internal sensors data length max
-    const size_t kExtSensLenMax = 24;  // external sensors data length max
-    uint8_t buffer[kIntSensLenMax + kExtSensLenMax];
-#if defined AK89xx
-    const size_t kMagLen = 8;  // magnetometer data length
-    const size_t length      = kIntSensLenMax + extsens_len + kMagLen;
-#else
-    const size_t length           = kIntSensLenMax + extsens_len;
-#endif
-    CHK_RES(imu->readBytes(imu, ACCEL_XOUT_H, length, buffer));
-    sensors->accel.data.x = buffer[0] << 8 | buffer[1];
-    sensors->accel.data.y = buffer[2] << 8 | buffer[3];
-    sensors->accel.data.z = buffer[4] << 8 | buffer[5];
-    sensors->temp    = buffer[6] << 8 | buffer[7];
-    sensors->gyro.data.x  = buffer[8] << 8 | buffer[9];
-    sensors->gyro.data.y  = buffer[10] << 8 | buffer[11];
-    sensors->gyro.data.z  = buffer[12] << 8 | buffer[13];
-#if defined AK89xx
-    sensors->mag.data.x = buffer[16] << 8 | buffer[15];
-    sensors->mag.data.y = buffer[18] << 8 | buffer[17];
-    sensors->mag.data.z = buffer[20] << 8 | buffer[19];
-#endif
-    memcpy(sensors->extsens, buffer + (length - extsens_len), extsens_len);
 error_exit:
     return res;
 }

@@ -93,7 +93,7 @@ struct imu
     GB_RESULT (*resetSignalPath)(struct imu *imu);
     uint8_t (*whoAmI)(struct imu *imu);
     bool (*getSleep)(struct imu *imu);
-    GB_RESULT (*setFilters)(bool gyroFilters, bool accFilters);
+    GB_RESULT (*setFilters)(struct imu *imu, bool gyroFilters, bool accFilters);
     //! \}
     //! \name Main configurations
     //! \{
