@@ -50,19 +50,12 @@ static GB_RESULT setInterruptConfig(struct imu *imu, int_config_t config);
 static int_config_t getInterruptConfig(struct imu *imu);
 static GB_RESULT setInterruptEnabled(struct imu *imu, int_en_t mask);
 static int_en_t getInterruptEnabled(struct imu *imu);
-static int_stat_t getInterruptStatus(struct imu *imu);
 static GB_RESULT setFIFOMode(struct imu *imu, fifo_mode_t mode);
 static fifo_mode_t getFIFOMode(struct imu *imu);
 static GB_RESULT setFIFOConfig(struct imu *imu, fifo_config_t config);
 static fifo_config_t getFIFOConfig(struct imu *imu);
-static GB_RESULT setFIFOEnabled(struct imu *imu, bool enable);
-static bool getFIFOEnabled(struct imu *imu);
-static GB_RESULT resetFIFO(struct imu *imu);
 static uint16_t getFIFOCount(struct imu *imu);
 static GB_RESULT readFIFO(struct imu *imu, size_t length, uint8_t* data);
-static GB_RESULT writeFIFO(struct imu *imu, size_t length, const uint8_t* data);
-
-static GB_RESULT registerDump(struct imu *imu, uint8_t start, uint8_t end);
 
 static GB_RESULT selfTest(struct imu *imu, selftest_t* result);
 static GB_RESULT accelSelfTest(struct imu *imu, raw_axes_t* regularBias, raw_axes_t* selfTestBias, uint8_t* result);
@@ -190,19 +183,18 @@ void GB_IMU_Init(struct imu *imu) {
     imu->getInterruptConfig    = &getInterruptConfig;
     imu->setInterruptEnabled   = &setInterruptEnabled;
     imu->getInterruptEnabled   = &getInterruptEnabled;
-    imu->getInterruptStatus    = &getInterruptStatus;
+    imu->getInterruptStatus    = NULL;
     imu->setFIFOMode           = &setFIFOMode;
     imu->getFIFOMode           = &getFIFOMode;
     imu->setFIFOConfig         = &setFIFOConfig;
     imu->getFIFOConfig         = &getFIFOConfig;
-    imu->setFIFOEnabled        = &setFIFOEnabled;
-    imu->getFIFOEnabled        = &getFIFOEnabled;
-    imu->resetFIFO             = &resetFIFO;
+    imu->setFIFOEnabled        = NULL;
+    imu->getFIFOEnabled        = NULL;
+    imu->resetFIFO             = NULL;
     imu->getFIFOCount          = &getFIFOCount;
     imu->readFIFO              = &readFIFO;
-    imu->writeFIFO             = &writeFIFO;
-
-    imu->registerDump          = &registerDump;
+    imu->writeFIFO             = NULL;
+    imu->registerDump          = NULL;
 
     imu->selfTest      = &selfTest;
     imu->accelSelfTest = &accelSelfTest;
@@ -306,13 +298,13 @@ static GB_RESULT writeBytes(struct imu *imu, uint8_t regAddr, size_t length, con
 static GB_RESULT setBank(struct imu *imu, uint8_t bank) {
     static uint8_t _bank = 0xff;
 
-	// if we are already on this bank, bail
-	if (_bank == bank) {
-		return 1;
-	}
+    // if we are already on this bank, bail
+    if (_bank == bank) {
+        return 1;
+    }
 
-	_bank = bank;
-	return imu->writeByte(imu, REG_BANK_SEL, bank);
+    _bank = bank;
+    return imu->writeByte(imu, REG_BANK_SEL, bank);
 }
 
 /**
@@ -337,6 +329,14 @@ static GB_RESULT setBank(struct imu *imu, uint8_t bank) {
 static GB_RESULT initialize(struct imu *imu)
 {
     GB_RESULT res = GB_OK;
+    int_config_t int_config = {
+        .int2_mode = 0,
+        .int2_drive = 1,
+        .int2_level = 1,
+        .int1_mode = 0,
+        .int1_drive = 1,
+        .int1_level = 1,
+    }; // push-pull, pulsed, active HIGH interrupts
 
     // reset device (wait a little to clear all registers)
     CHK_RES(imu->reset(imu));
@@ -352,6 +352,9 @@ static GB_RESULT initialize(struct imu *imu)
     CHK_RES(imu->setFilters(imu, false, false));
 
     CHK_RES(imu->setSampleRate(imu, odr1k << 8 | odr1k));
+
+    CHK_RES(imu->setinterruptConfig(imu,int config));
+    CHK_RES(imu->setinterruptEnabled(imu, 0));
 
 error_exit:
     return res;
@@ -399,9 +402,9 @@ error_exit:
  */
 uint8_t whoAmI(struct imu *imu)
 {
-    setBank(imu, 0);
+    CHK_VAL(setBank(imu, 0));
 
-    imu->err = imu->readByte(imu, UB0_REG_WHO_AM_I, imu->buffer);
+    CHK_VAL(imu->readByte(imu, UB0_REG_WHO_AM_I, imu->buffer));
     return imu->buffer[0];
 }
 
@@ -413,7 +416,7 @@ static GB_RESULT setFilters(struct imu *imu, bool gyroFilters, bool accFilters)
 
     if (gyroFilters == true) {
         CHK_RES(imu->writeByte(imu, UB1_REG_GYRO_CONFIG_STATIC2, GYRO_NF_ENABLE | GYRO_AAF_ENABLE));
-	} else {
+    } else {
         CHK_RES(imu->writeByte(imu, UB1_REG_GYRO_CONFIG_STATIC2, GYRO_NF_DISABLE | GYRO_AAF_DISABLE));
     }
 
@@ -421,7 +424,7 @@ static GB_RESULT setFilters(struct imu *imu, bool gyroFilters, bool accFilters)
 
     if (accFilters == true) {
         CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC2, ACCEL_AAF_ENABLE));
-	} else {
+    } else {
         CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC2, ACCEL_AAF_DISABLE));
     }
 
@@ -461,9 +464,9 @@ uint16_t getSampleRate(struct imu *imu)
 {
     uint8_t gyro_reg, accel_reg;
 
-    setBank(imu, 0);
-    imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &gyro_reg);
-    imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &accel_reg);
+    CHK_VAL(setBank(imu, 0));
+    CHK_VAL(imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &gyro_reg));
+    CHK_VAL(imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &accel_reg));
 
     return (gyro_reg << 8) | accel_reg;
 }
@@ -496,7 +499,7 @@ static GB_RESULT setGyroFullScale(struct imu *imu, gyro_fs_t fsr)
     CHK_RES(setBank(imu, 0));
     CHK_RES(imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &reg));
     // only change FS_SEL in reg
-	reg = (fssel << 5) | (reg & 0x1F);
+    reg = (fssel << 5) | (reg & 0x1F);
     CHK_RES(imu->writeByte(imu, UB0_REG_GYRO_CONFIG0, reg));
 
 error_exit:
@@ -510,8 +513,8 @@ gyro_fs_t getGyroFullScale(struct imu *imu)
 {
     uint8_t reg;
 
-    setBank(imu, 0);
-    imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &reg);
+    CHK_VAL(setBank(imu, 0));
+    CHK_VAL(imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &reg));
     return (reg & 0xE0) >> 5;
 }
 
@@ -526,7 +529,7 @@ static GB_RESULT setAccelFullScale(struct imu *imu, accel_fs_t fsr)
     CHK_RES(setBank(imu, 0));
     CHK_RES(imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &reg));
     // only change FS_SEL in reg
-	reg = (fssel << 5) | (reg & 0x1F);
+    reg = (fssel << 5) | (reg & 0x1F);
     CHK_RES(imu->writeByte(imu, UB0_REG_ACCEL_CONFIG0, reg));
 
 error_exit:
@@ -540,8 +543,8 @@ accel_fs_t getAccelFullScale(struct imu *imu)
 {
     uint8_t reg;
 
-    setBank(imu, 0);
-    imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &reg);
+    CHK_VAL(setBank(imu, 0));
+    CHK_VAL(imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &reg));
 
     return (reg & 0xE0) >> 5;
 }
@@ -572,7 +575,7 @@ static GB_RESULT setGyroOffset(struct imu *imu, raw_axes_t bias)
     reg1 = bias.data.y & 0x00FF;
     CHK_RES(imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2));
     reg2 = (reg2 & 0x0F) | ((bias.data.y & 0x0F00) >> 4);
-	reg2 = (bias.data.y & 0x0F00) >> 4 | (reg2 & 0x0F00) >> 4;
+    reg2 = (bias.data.y & 0x0F00) >> 4 | (reg2 & 0x0F00) >> 4;
     CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER2, reg1));
     CHK_RES(imu->writeByte(imu, UB4_REG_OFFSET_USER1, reg2));
 
@@ -600,24 +603,24 @@ raw_axes_t getGyroOffset(struct imu *imu)
     uint8_t reg1, reg2;
     raw_axes_t bias;
 
-    setBank(imu, 4);
+    CHK_VAL(setBank(imu, 4));
 
     // Gyro X
-    imu->readByte(imu, UB4_REG_OFFSET_USER0, &reg1);
-    imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2);
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER0, &reg1));
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2));
     bias.data.x = (reg2 & 0x0F) << 4 | reg1;
 
     // Gyro Y
-    imu->readByte(imu, UB4_REG_OFFSET_USER2, &reg1);
-    imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2);
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER2, &reg1));
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2));
     bias.data.y = (reg2 & 0xF0) << 4 | reg1;
 
     // Gyro Z
-    imu->readByte(imu, UB4_REG_OFFSET_USER3, &reg1);
-    imu->readByte(imu, UB4_REG_OFFSET_USER4, &reg2);
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER3, &reg1));
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER4, &reg2));
     bias.data.z = (reg2 & 0x0F) << 4 | reg1;
 
-    setBank(imu, 0);
+    CHK_VAL(setBank(imu, 0));
 
     return bias;
 }
@@ -677,24 +680,24 @@ raw_axes_t getAccelOffset(struct imu *imu)
     uint8_t reg1, reg2;
     raw_axes_t bias;
 
-    setBank(imu, 4);
+    CHK_VAL(setBank(imu, 4));
 
     // Accel X
-    imu->readByte(imu, UB4_REG_OFFSET_USER0, &reg1);
-    imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2);
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER0, &reg1));
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2));
     bias.data.x = (reg2 & 0x0F) << 4 | reg1;
 
     // Accel Y
-    imu->readByte(imu, UB4_REG_OFFSET_USER2, &reg1);
-    imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2);
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER2, &reg1));
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER1, &reg2));
     bias.data.y = (reg2 & 0xF0) << 4 | reg1;
 
     // Accel Z
-    imu->readByte(imu, UB4_REG_OFFSET_USER3, &reg1);
-    imu->readByte(imu, UB4_REG_OFFSET_USER4, &reg2);
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER3, &reg1));
+    CHK_VAL(imu->readByte(imu, UB4_REG_OFFSET_USER4, &reg2));
     bias.data.z = (reg2 & 0x0F) << 4 | reg1;
 
-    setBank(imu, 0);
+    CHK_VAL(setBank(imu, 0));
 
     return bias;
 }
@@ -808,19 +811,24 @@ error_exit:
  */
 static GB_RESULT setInterruptConfig(struct imu *imu, int_config_t config)
 {
-    GB_RESULT res = GB_OK;
-    CHK_RES(imu->readByte(imu, INT_PIN_CONFIG, imu->buffer));
+    GB_RESULT res =GB_OK;
+    uint8_t reg;
+
+    CHK_RES(imu->readByte(imu, UB0_REG_INT_CONFIG, imu->buffer));
     // zero the bits we're setting, but keep the others we're not setting as they are;
-    const uint8_t INT_PIN_CONFIG_BITMASK = (1 << INT_CFG_LEVEL_BIT) | (1 << INT_CFG_OPEN_BIT) |
-                                               (1 << INT_CFG_LATCH_EN_BIT) |
-                                               (1 << INT_CFG_ANYRD_2CLEAR_BIT);
+    const uint8_t INT_PIN_CONFIG_BITMASK = (1 << INT_CFG_INT2_MODE) | (1 << |NT_CFG_INT2_DRIVE_CIRCUITI) |
+                                            (1 << |NT_CFG_INT2_POLARITY) | (1 << INT_CFG_INT1_MODE) |
+                                            (1<< INT_CFG_INT1_DRIVE_CIRCUIT) | (1 << INT_CFG_INT1_POLARITY);
     imu->buffer[0] &= ~INT_PIN_CONFIG_BITMASK;
-    // set the configurations
-    imu->buffer[0] |= config.level << INT_CFG_LEVEL_BIT;
-    imu->buffer[0] |= config.drive << INT_CFG_OPEN_BIT;
-    imu->buffer[0] |= config.mode << INT_CFG_LATCH_EN_BIT;
-    imu->buffer[0] |= config.clear << INT_CFG_ANYRD_2CLEAR_BIT;
-    CHK_RES(imu->writeByte(imu, INT_PIN_CONFIG, imu->buffer[0]));
+    imu->buffer[0] |= config.int2_mode << INT_CFG_INT2_MODE;
+    imu->buffer[0] |= config.int2_drive << INT_CFG_INT2_DRIVE_CIRCUIT;
+    imu->buffer[0] |= config.int2_level << INT_CFG_INT2_POLARITY;
+    imu->buffer[0] |= config.int1_mode << INT_CFG_INTI_MODE;
+    imu->buffer[0] |= config.int1_drive << INT_CFG_INT1_DRIVE_CIRCUIT;
+    imu->buffer[0] |- config.int1_level << INT_CFG_INT1_POLARITY;
+
+    CHK_RES(imu->writeByte(imu, UB0_REG_INT_CONFIG, imu->buffer[0]));
+
 error_exit:
     return res;
 }
@@ -830,12 +838,16 @@ error_exit:
  */
 int_config_t getInterruptConfig(struct imu *imu)
 {
-    CHK_VAL(imu->readByte(imu, INT_PIN_CONFIG, imu->buffer));
+    CHK_VAL(imu->readByte(imu, UB0_REG_INT_CONFIG, imu->buffer));
+
     int_config_t config;
-    config.level = (int_lvl_t)((imu->buffer[0] >> INT_CFG_LEVEL_BIT) & 0x1);
-    config.drive = (int_drive_t)((imu->buffer[0] >> INT_CFG_OPEN_BIT) & 0x1);
-    config.mode  = (int_mode_t)((imu->buffer[0] >> INT_CFG_LATCH_EN_BIT) & 0x1);
-    config.clear = (int_clear_t)((imu->buffer[0] >> INT_CFG_ANYRD_2CLEAR_BIT) & 0x1);
+    config.int2_mode = (int_mode_t)((imu->buffer[0] >> INT_CFG_INT2_MODE) & 0x1);    I
+    config.int2_drive = (int_drive_t)((imu->buffer[0] >> INT_CFG_INT2_DRIVE_CIRCUIT) & 0x1);
+    config.int2_level = (int_ivl_t)((imu->buffer[0] >> INT_CFG_INT2_POLARITY) & 0x1);
+    config.int1_mode = (int_mode_t)((imu->buffer[0] >> INT_CFG_iNT1_MODE) & 0x1);
+    config.int1_drive = (int_drive_t)((imu->buffer[0] >> INT_CFG_INT1_DRIVE_CIRCUIT) & 0x1);
+    config.int1_level = (int_lvl_t)((imu->buffer[0] >> INT_CFG_INT1_POLARITY) & 0x1);
+
     return config;
 }
 
@@ -845,7 +857,16 @@ int_config_t getInterruptConfig(struct imu *imu)
  */
 static GB_RESULT setInterruptEnabled(struct imu *imu, int_en_t mask)
 {
-    return imu->writeByte(imu, INT_ENABLE, mask);
+    GB_RESULT res = GB_OK;
+    uint8_t reg;
+
+    CHK_RES(imu->readByte(imu, UB0_REG_INT_CONFIG1, &reg));
+    reg &= ~0x10; // only for ODR < 4kHz.
+    CHK_RES(imu->writeByte(imu, UB0_REG_INT_CONFIG1, reg));// route UI data ready interrupt to INT1
+    CHK_RES(imu->writeByte(imu, UB0_REG_INT_SOURCE0, 0x18));
+
+error_exit:
+    return res;
 }
 
 /**
@@ -853,19 +874,8 @@ static GB_RESULT setInterruptEnabled(struct imu *imu, int_en_t mask)
  */
 int_en_t getInterruptEnabled(struct imu *imu)
 {
-    imu->err = imu->readByte(imu, INT_ENABLE, imu->buffer);
+    CHK_VAL(imu->readByte(imu, UB0_REG_INT_CONFIG1, imu->buffer));
     return (int_en_t) imu->buffer[0];
-}
-
-/**
- * @brief Return the Interrupt status from INT_STATUS register.
- *
- * Note: Reading this register, clear all bits.
- */
-int_stat_t getInterruptStatus(struct imu *imu)
-{
-    imu->err = imu->readByte(imu, INT_STATUS, imu->buffer);
-    return (int_stat_t) imu->buffer[0];
 }
 
 /**
@@ -878,7 +888,12 @@ int_stat_t getInterruptStatus(struct imu *imu)
  * */
 static GB_RESULT setFIFOMode(struct imu *imu, fifo_mode_t mode)
 {
-    return imu->writeBit(imu, CONFIG, CONFIG_FIFO_MODE_BIT, mode);
+    GB_RESULT res = GB_OK;
+
+    CHK_RES(imu->writeByte(imu, UB0_REG_FIFO_CONFIG,mode));
+
+error_exit:
+    return res;
 }
 
 /**
@@ -886,7 +901,7 @@ static GB_RESULT setFIFOMode(struct imu *imu, fifo_mode_t mode)
  */
 fifo_mode_t getFIFOMode(struct imu *imu)
 {
-    imu->err = imu->readBit(imu, CONFIG, CONFIG_FIFO_MODE_BIT, imu->buffer);
+    CHK_VAL(imu->readByte(imu, UB0_REG_FIFO_CONFIG, imu->buffer));
     return (fifo_mode_t) imu->buffer[0];
 }
 
@@ -896,8 +911,9 @@ fifo_mode_t getFIFOMode(struct imu *imu)
 static GB_RESULT setFIFOConfig(struct imu *imu, fifo_config_t config)
 {
     GB_RESULT res = GB_OK;
-    CHK_RES(imu->writeByte(imu, FIFO_EN, (uint8_t) config));
-    CHK_RES(imu->writeBit(imu, I2C_MST_CTRL, I2CMST_CTRL_SLV_3_FIFO_EN_BIT, config >> 8));
+
+    CHK_RES(imu->writeByte(imu, UB0_REG_FIFO_CONFIG1, config));
+
 error_exit:
     return res;
 }
@@ -907,38 +923,8 @@ error_exit:
  */
 fifo_config_t getFIFOConfig(struct imu *imu)
 {
-    CHK_VAL(imu->readBytes(imu, FIFO_EN, 2, imu->buffer));
-    fifo_config_t config = imu->buffer[0];
-    config |= (imu->buffer[1] & (1 << I2CMST_CTRL_SLV_3_FIFO_EN_BIT)) << 3;
-    return config;
-}
-
-/**
- * @brief Enabled / disable FIFO module.
- * */
-static GB_RESULT setFIFOEnabled(struct imu *imu, bool enable)
-{
-    return imu->writeBit(imu, USER_CTRL, USERCTRL_FIFO_EN_BIT, (uint8_t) enable);
-}
-
-/**
- * @brief Return FIFO module state.
- */
-bool getFIFOEnabled(struct imu *imu)
-{
-    imu->err = imu->readBit(imu, USER_CTRL, USERCTRL_FIFO_EN_BIT, imu->buffer);
-    return imu->buffer[0];
-}
-
-/**
- * @brief Reset FIFO module.
- *
- * Zero FIFO count, reset is asynchronous. \n
- * The bit auto clears after one clock cycle.
- * */
-static GB_RESULT resetFIFO(struct imu *imu)
-{
-    return imu->writeBit(imu, USER_CTRL, USERCTRL_FIFO_RESET_BIT, 1);
+    CHK_VAL(imu->readByte(imu, UB0_REG_FIFO_CONFIG1, imu->buffer));
+    return (fifo_config_t)imu->buffer[0];
 }
 
 /**
@@ -947,7 +933,8 @@ static GB_RESULT resetFIFO(struct imu *imu)
  * */
 uint16_t getFIFOCount(struct imu *imu)
 {
-    CHK_VAL(imu->readBytes(imu, FIFO_COUNT_H, 2, imu->buffer));
+    CHK_VAL(imu->readByte(imu, UB0_REG_FIFO_COUNTH, imu->buffer));
+    CHK_VAL(imu->readByte(imu, UB0_REG_FIFO_COUNTL, imu->buffer +1));
     uint16_t count = imu->buffer[0] << 8 | imu->buffer[1];
     return count;
 }
@@ -958,32 +945,6 @@ uint16_t getFIFOCount(struct imu *imu)
 static GB_RESULT readFIFO(struct imu *imu, size_t length, uint8_t* data)
 {
     return imu->readBytes(imu, FIFO_R_W, length, data);
-}
-
-/**
- * @brief Write data to FIFO imu->buffer.
- * */
-static GB_RESULT writeFIFO(struct imu *imu, size_t length, const uint8_t* data)
-{
-    return imu->writeBytes(imu, FIFO_R_W, length, data);
-}
-
-/**
- * @brief Print out register values for debugging purposes.
- * @param start first register number.
- * @param end last register number.
- */
-static GB_RESULT registerDump(struct imu *imu, uint8_t start, uint8_t end)
-{
-    const uint8_t kNumOfRegs = 128;
-    if (end - start < 0 || start >= kNumOfRegs || end >= kNumOfRegs) return GB_MPU_DUMP_REG_FAIL;
-    GB_DEBUGE(ERROR_TAG, "LOG_COLOR_W >>  CONFIG_MPU_CHIP_MODEL  register dump: LOG_RESET_COLOR \n");
-    uint8_t data;
-    for (int i = start; i <= end; i++) {
-        CHK_VAL(imu->readByte(imu, i, &data));
-        GB_DEBUGE(ERROR_TAG, "imu: reg[ 0x%s%X ]  data( 0x%s%X )\n", i < 0x10 ? "0" : "", i, data < 0x10 ? "0" : "", data);
-    }
-    return GB_OK;
 }
 
 /**
