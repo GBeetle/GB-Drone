@@ -114,7 +114,8 @@
         "nrf24_config.h": "c",
         "lora_state.h": "c",
         "stdint.h": "c",
-        "optional": "c"
+        "optional": "c",
+        "imu_types.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false,
     "idf.pythonInstallPath": "D:\\Espressif\\tools\\idf-python\\3.11.2\\python.exe",

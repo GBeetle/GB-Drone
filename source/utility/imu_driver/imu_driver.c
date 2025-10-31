@@ -57,9 +57,6 @@ static fifo_config_t getFIFOConfig(struct imu *imu);
 static uint16_t getFIFOCount(struct imu *imu);
 static GB_RESULT readFIFO(struct imu *imu, size_t length, uint8_t* data);
 
-static GB_RESULT selfTest(struct imu *imu, selftest_t* result);
-static GB_RESULT accelSelfTest(struct imu *imu, raw_axes_t* regularBias, raw_axes_t* selfTestBias, uint8_t* result);
-static GB_RESULT gyroSelfTest(struct imu *imu, raw_axes_t* regularBias, raw_axes_t* selfTestBias, uint8_t* result);
 static GB_RESULT getBiases(struct imu *imu, accel_fs_t accelFS, gyro_fs_t gyroFS, raw_axes_t* accelBias, raw_axes_t* gyroBias,
                          bool selftest);
 static GB_RESULT setOffsets(struct imu *imu, bool gyro, bool accel);
@@ -196,9 +193,9 @@ void GB_IMU_Init(struct imu *imu) {
     imu->writeFIFO             = NULL;
     imu->registerDump          = NULL;
 
-    imu->selfTest      = &selfTest;
-    imu->accelSelfTest = &accelSelfTest;
-    imu->gyroSelfTest  = &gyroSelfTest;
+    imu->selfTest      = NULL;
+    imu->accelSelfTest = NULL;
+    imu->gyroSelfTest  = NULL;
     imu->getBiases     = &getBiases;
     imu->setOffsets    = &setOffsets;
 
@@ -722,9 +719,9 @@ static GB_RESULT computeOffsets(struct imu *imu, raw_axes_t* accel, raw_axes_t* 
     // convert offsets to 16G and 1000DPS format and invert values
     for (int i = 0; i < 3; i++) {
         //acel bias / 8 (16 / 2)
-        (*accel).xyz[i] = -((*accel).xyz[i] >> (ACCEL_FS_16G - kAccelFS));
+        (*accel).xyz[i] = -((*accel).xyz[i] >> (3));
         //gyro bias / 4 (1000 / 250)
-        (*gyro).xyz[i]  = -((*gyro).xyz[i] >> (GYRO_FS_1000DPS - kGyroFS));
+        (*gyro).xyz[i]  = -((*gyro).xyz[i] >> (2));
     }
 error_exit:
     return res;
@@ -736,7 +733,7 @@ error_exit:
 static GB_RESULT acceleration(struct imu *imu, raw_axes_t* accel)
 {
     GB_RESULT res = GB_OK;
-    CHK_RES(imu->readBytes(imu, ACCEL_XOUT_H, 6, imu->buffer));
+    CHK_RES(imu->readBytes(imu, UB0_REG_ACCEL_DATA_X1, 6, imu->buffer));
     accel->data.x = imu->buffer[0] << 8 | imu->buffer[1];
     accel->data.y = imu->buffer[2] << 8 | imu->buffer[3];
     accel->data.z = imu->buffer[4] << 8 | imu->buffer[5];
@@ -750,7 +747,7 @@ error_exit:
 static GB_RESULT rotation(struct imu *imu, raw_axes_t* gyro)
 {
     GB_RESULT res = GB_OK;
-    CHK_RES(imu->readBytes(imu, GYRO_XOUT_H, 6, imu->buffer));
+    CHK_RES(imu->readBytes(imu, UB0_REG_GYRO_DATA_X1, 6, imu->buffer));
     gyro->data.x = imu->buffer[0] << 8 | imu->buffer[1];
     gyro->data.y = imu->buffer[2] << 8 | imu->buffer[3];
     gyro->data.z = imu->buffer[4] << 8 | imu->buffer[5];
@@ -764,7 +761,7 @@ error_exit:
 static GB_RESULT temperature(struct imu *imu, int16_t* temp)
 {
     GB_RESULT res = GB_OK;
-    CHK_RES(imu->readBytes(imu, TEMP_OUT_H, 2, imu->buffer));
+    CHK_RES(imu->readBytes(imu, UB0_REG_TEMP_DATA1, 2, imu->buffer));
     *temp = imu->buffer[0] << 8 | imu->buffer[1];
 error_exit:
     return res;
@@ -776,13 +773,13 @@ error_exit:
 static GB_RESULT motion(struct imu *imu, raw_axes_t* accel, raw_axes_t* gyro)
 {
     GB_RESULT res = GB_OK;
-    CHK_RES(imu->readBytes(imu, ACCEL_XOUT_H, 14, imu->buffer));
+    CHK_RES(imu->readBytes(imu, UB0_REG_ACCEL_DATA_X1, 12, imu->buffer));
     accel->data.x = imu->buffer[0] << 8 | imu->buffer[1];
     accel->data.y = imu->buffer[2] << 8 | imu->buffer[3];
     accel->data.z = imu->buffer[4] << 8 | imu->buffer[5];
-    gyro->data.x  = imu->buffer[8] << 8 | imu->buffer[9];
-    gyro->data.y  = imu->buffer[10] << 8 | imu->buffer[11];
-    gyro->data.z  = imu->buffer[12] << 8 | imu->buffer[13];
+    gyro->data.x  = imu->buffer[6] << 8 | imu->buffer[7];
+    gyro->data.y  = imu->buffer[8] << 8 | imu->buffer[9];
+    gyro->data.z  = imu->buffer[10] << 8 | imu->buffer[11];
 error_exit:
     return res;
 }
@@ -793,11 +790,11 @@ error_exit:
 static GB_RESULT sensors(struct imu *imu, raw_axes_t* accel, raw_axes_t* gyro, int16_t* temp)
 {
     GB_RESULT res = GB_OK;
-    CHK_RES(imu->readBytes(imu, ACCEL_XOUT_H, 14, imu->buffer));
-    accel->data.x = imu->buffer[0] << 8 | imu->buffer[1];
-    accel->data.y = imu->buffer[2] << 8 | imu->buffer[3];
-    accel->data.z = imu->buffer[4] << 8 | imu->buffer[5];
-    *temp    = imu->buffer[6] << 8 | imu->buffer[7];
+    CHK_RES(imu->readBytes(imu, UB0_REG_TEMP_DATA1, 14, imu->buffer));
+    *temp    = imu->buffer[0] << 8 | imu->buffer[1];
+    accel->data.x = imu->buffer[2] << 8 | imu->buffer[3];
+    accel->data.y = imu->buffer[4] << 8 | imu->buffer[5];
+    accel->data.z = imu->buffer[6] << 8 | imu->buffer[7];
     gyro->data.x  = imu->buffer[8] << 8 | imu->buffer[9];
     gyro->data.y  = imu->buffer[10] << 8 | imu->buffer[11];
     gyro->data.z  = imu->buffer[12] << 8 | imu->buffer[13];
@@ -944,236 +941,7 @@ uint16_t getFIFOCount(struct imu *imu)
  * */
 static GB_RESULT readFIFO(struct imu *imu, size_t length, uint8_t* data)
 {
-    return imu->readBytes(imu, FIFO_R_W, length, data);
-}
-
-/**
- * @brief Trigger gyro and accel hardware self-test.
- * @attention when calling this function, the imu must remain as horizontal as possible (0 degrees), facing up.
- * @param result Should be ZERO if gyro and accel passed.
- * @todo Elaborate doc.
- * */
-static GB_RESULT selfTest(struct imu *imu, selftest_t* result)
-{
-    GB_RESULT res = GB_OK;
-#ifdef CONFIG_MPU6050
-    const accel_fs_t kAccelFS = ACCEL_FS_16G;
-    const gyro_fs_t kGyroFS   = GYRO_FS_250DPS;
-#elif defined CONFIG_MPU6500
-    const accel_fs_t kAccelFS = ACCEL_FS_2G;
-    const gyro_fs_t kGyroFS   = GYRO_FS_250DPS;
-#endif
-    raw_axes_t gyroRegBias, accelRegBias;
-    raw_axes_t gyroSTBias, accelSTBias;
-    // get regular biases
-    CHK_RES(imu->getBiases(imu, kAccelFS, kGyroFS, &accelRegBias, &gyroRegBias, false));
-    // get self-test biases
-    CHK_RES(imu->getBiases(imu, kAccelFS, kGyroFS, &accelSTBias, &gyroSTBias, true));
-    // perform self-tests
-    uint8_t accelST, gyroST;
-    CHK_RES(imu->accelSelfTest(imu, &accelRegBias, &accelSTBias, &accelST));
-    CHK_RES(imu->gyroSelfTest(imu, &gyroRegBias, &gyroSTBias, &gyroST));
-    // check results
-    *result = 0;
-    if (accelST != 0) *result |= SELF_TEST_ACCEL_FAIL;
-    if (gyroST != 0) *result |= SELF_TEST_GYRO_FAIL;
-
-    if (*result != SELF_TEST_PASS) {
-        if (*result == SELF_TEST_GYRO_FAIL)
-            GB_DEBUGE(ERROR_TAG, "SELF_TEST_GYRO_FAIL\n");
-        else if (*result == SELF_TEST_ACCEL_FAIL)
-            GB_DEBUGE(ERROR_TAG, "SELF_TEST_ACCEL_FAIL\n");
-        else
-            GB_DEBUGE(ERROR_TAG, "SELT_TEST_FAIL 0x%x\n", (uint8_t)*result);
-        res = GB_MPU_SELF_TEST_FAIL;
-    }
-
-error_exit:
-    return res;
-}
-
-/**
- * @brief Accel Self-test.
- * @param result self-test error for each axis (X=bit0, Y=bit1, Z=bit2). Zero is a pass.
- * @note Bias should be in 16G format for MPU6050 and 2G for MPU6500 based models.
- * */
-static GB_RESULT accelSelfTest(struct imu *imu, raw_axes_t* regularBias, raw_axes_t* selfTestBias, uint8_t* result)
-{
-    GB_RESULT res = GB_OK;
-#if defined CONFIG_MPU6050
-    const accel_fs_t kAccelFS = ACCEL_FS_16G;
-    // Criteria A: must be within 30% variation
-    const float kMaxVariation = .3f;
-    // Criteria B: must be between 300 mg and 950 mg
-    const float kMinGravity = .3f, kMaxGravity = .95f;
-
-#elif defined CONFIG_MPU6500
-    const accel_fs_t kAccelFS = ACCEL_FS_2G;
-    // Criteria A: must be within 50% variation
-    const float kMaxVariation = .5f;
-    // Criteria B: must be between 255 mg and 675 mg
-    const float kMinGravity = .225f, kMaxGravity = .675f;
-    // Criteria C: 500 mg for accel
-    const float kMaxGravityOffset = .5f;
-#endif
-
-    /* Convert biases */
-    float_axes_t regularBiasGravity  = accelGravity_raw(regularBias, kAccelFS);
-    float_axes_t selfTestBiasGravity = accelGravity_raw(selfTestBias, kAccelFS);
-    GB_DEBUGI(ST_TAG, "EMPTY, regularBias: %+d %+d %+d | regularBiasGravity: %+.2f %+.2f %+.2f\n", regularBias->data.x,
-                regularBias->data.y, regularBias->data.z, regularBiasGravity.data.x, regularBiasGravity.data.y, regularBiasGravity.data.z);
-    GB_DEBUGI(ST_TAG, "EMPTY, selfTestBias: %+d %+d %+d | selfTestBiasGravity: %+.2f %+.2f %+.2f\n", selfTestBias->data.x,
-                selfTestBias->data.y, selfTestBias->data.z, selfTestBiasGravity.data.x, selfTestBiasGravity.data.y, selfTestBiasGravity.data.z);
-
-    /* Get OTP production shift code */
-    uint8_t shiftCode[3];
-#if defined CONFIG_MPU6050
-    CHK_RES(imu->readBytes(imu, SELF_TEST_X, 4, imu->buffer));
-    shiftCode[0] = ((imu->buffer[0] & 0xE0) >> 3) | ((imu->buffer[3] & 0x30) >> 4);
-    shiftCode[1] = ((imu->buffer[1] & 0xE0) >> 3) | ((imu->buffer[3] & 0x0C) >> 2);
-    shiftCode[2] = ((imu->buffer[2] & 0xE0) >> 3) | (imu->buffer[3] & 0x03);
-
-#elif defined CONFIG_MPU6500
-    CHK_RES(imu->readBytes(imu, SELF_TEST_X_ACCEL, 3, shiftCode));
-#endif
-    GB_DEBUGI(ST_TAG, "EMPTY, shiftCode: %+d %+d %+d\n", shiftCode[0], shiftCode[1], shiftCode[2]);
-
-    /* Calulate production shift value */
-    float shiftProduction[3] = {0};
-    for (int i = 0; i < 3; i++) {
-        if (shiftCode[i] != 0) {
-#if defined CONFIG_MPU6050
-            // Equivalent to.. shiftProduction[i] = 0.34f * powf(0.92f/0.34f, (shiftCode[i]-1)
-            // / 30.f)
-            shiftProduction[i] = 0.34f;
-            while (--shiftCode[i]) shiftProduction[i] *= 1.034f;
-
-#elif defined CONFIG_MPU6500
-            shiftProduction[i] = kSelfTestTable[shiftCode[i] - 1];
-            shiftProduction[i] /= accelSensitivity(ACCEL_FS_2G);
-#endif
-        }
-    }
-    GB_DEBUGI(ST_TAG, "EMPTY, shiftProduction: %+.2f %+.2f %+.2f\n", shiftProduction[0], shiftProduction[1],
-                shiftProduction[2]);
-
-    /* Evaluate criterias */
-    *result                 = 0;
-    float shiftResponse[3]  = {0};
-    float shiftVariation[3] = {0};
-    for (int i = 0; i < 3; i++) {
-        shiftResponse[i] = fabs(selfTestBiasGravity.xyz[i] - regularBiasGravity.xyz[i]);
-        // Criteria A
-        if (shiftProduction[i] != 0) {
-            shiftVariation[i] = shiftResponse[i] / shiftProduction[i] - 1;
-            if (fabs(shiftVariation[i]) > kMaxVariation) *result |= 1 << i;
-            // Criteria B
-        }
-        else if (shiftResponse[i] < kMinGravity || shiftResponse[i] > kMaxGravity) {
-            *result |= 1 << i;
-        }
-// Criteria C
-#if defined CONFIG_MPU6050
-            // no criteria C
-#elif defined CONFIG_MPU6500
-        if (fabs(regularBiasGravity.xyz[i] > kMaxGravityOffset)) *result |= 1 << i;
-#endif
-    }
-    GB_DEBUGI(ST_TAG, "EMPTY, shiftResponse: %+.2f %+.2f %+.2f\n", shiftResponse[0], shiftResponse[1], shiftResponse[2]);
-    GB_DEBUGI(ST_TAG, "EMPTY, shiftVariation: %+.2f %+.2f %+.2f\n", shiftVariation[0], shiftVariation[1],
-                shiftVariation[2]);
-
-    GB_DEBUGI(ST_TAG, "Accel self-test: [X=%s] [Y=%s] [Z=%s]\n", ((*result & 0x1) ? "FAIL" : "OK"),
-             ((*result & 0x2) ? "FAIL" : "OK"), ((*result & 0x4) ? "FAIL" : "OK"));
-error_exit:
-    return res;
-}
-
-/**
- * @brief Gyro Self-test.
- * @param result Self-test error for each axis (X=bit0, Y=bit1, Z=bit2). Zero is a pass.
- * @note Bias should be in 250DPS format for both MPU6050 and MPU6500 based models.
- * */
-static GB_RESULT gyroSelfTest(struct imu *imu, raw_axes_t* regularBias, raw_axes_t* selfTestBias, uint8_t* result)
-{
-    GB_RESULT res = GB_OK;
-    const gyro_fs_t kGyroFS = GYRO_FS_250DPS;
-
-#if defined CONFIG_MPU6050
-    // Criteria A: must not exceed +14% variation
-    const float kMaxVariation = .14f;
-    // Criteria B: must be between 10 dps and 105 dps
-    const float kMinDPS = 10.f, kMaxDPS = 105.f;
-
-#elif defined CONFIG_MPU6500
-    // Criteria A: must be within 50% variation
-    const float kMaxVariation = .5f;
-    // Criteria B: must be between 20 dps and 60 dps
-    const float kMinDPS = 20.f, kMaxDPS = 60.f;
-#endif
-
-    /* Convert biases */
-    float_axes_t regularBiasDPS  = gyroDegPerSec_raw(regularBias, kGyroFS);
-    float_axes_t selfTestBiasDPS = gyroDegPerSec_raw(selfTestBias, kGyroFS);
-    GB_DEBUGI(ST_TAG, "EMPTY, regularBias: %+d %+d %+d | regularBiasDPS: %+.2f %+.2f %+.2f\n", regularBias->data.x,
-                regularBias->data.y, regularBias->data.z, regularBiasDPS.data.x, regularBiasDPS.data.y, regularBiasDPS.data.z);
-    GB_DEBUGI(ST_TAG, "EMPTY, selfTestBias: %+d %+d %+d | selfTestBiasDPS: %+.2f %+.2f %+.2f\n", selfTestBias->data.x,
-                selfTestBias->data.y, selfTestBias->data.z, selfTestBiasDPS.data.x, selfTestBiasDPS.data.y, selfTestBiasDPS.data.z);
-
-    /* Get OTP production shift code */
-    uint8_t shiftCode[3];
-#if defined CONFIG_MPU6050
-    CHK_RES(imu->readBytes(imu, SELF_TEST_X, 3, imu->buffer));
-    shiftCode[0] = imu->buffer[0] & 0x1F;
-    shiftCode[1] = imu->buffer[1] & 0x1F;
-    shiftCode[2] = imu->buffer[2] & 0x1F;
-
-#elif defined CONFIG_MPU6500
-    CHK_RES(imu->readBytes(imu, SELF_TEST_X_GYRO, 3, shiftCode));
-#endif
-    GB_DEBUGI(ST_TAG, "EMPTY, shiftCode: %+d %+d %+d\n", shiftCode[0], shiftCode[1], shiftCode[2]);
-
-    /* Calulate production shift value */
-    float shiftProduction[3] = {0};
-    for (int i = 0; i < 3; i++) {
-        if (shiftCode[i] != 0) {
-#if defined CONFIG_MPU6050
-            shiftProduction[i] = 3275.f / gyroSensitivity(kGyroFS);  // should yield 25
-            while (--shiftCode[i]) shiftProduction[i] *= 1.046f;
-
-#elif defined CONFIG_MPU6500
-            shiftProduction[i] = kSelfTestTable[shiftCode[i] - 1];
-            shiftProduction[i] /= gyroSensitivity(kGyroFS);
-#endif
-        }
-    }
-    GB_DEBUGI(ST_TAG, "EMPTY, shiftProduction: %+.2f %+.2f %+.2f\n", shiftProduction[0], shiftProduction[1],
-                shiftProduction[2]);
-
-    /* Evaluate criterias */
-    *result                 = 0;
-    float shiftResponse[3]  = {0};
-    float shiftVariation[3] = {0};
-    for (int i = 0; i < 3; i++) {
-        shiftResponse[i] = fabs(selfTestBiasDPS.xyz[i] - regularBiasDPS.xyz[i]);
-        // Criteria A
-        if (shiftProduction[i] != 0) {
-            shiftVariation[i] = shiftResponse[i] / shiftProduction[i] - 1;
-            if (fabs(shiftVariation[i]) > kMaxVariation) *result |= 1 << i;
-            // Criteria B
-        }
-        else if (shiftResponse[i] < kMinDPS || shiftResponse[i] > kMaxDPS) {
-            *result |= 1 << i;
-        }
-    }
-    GB_DEBUGI(ST_TAG, "EMPTY, shiftResponse: %+.2f %+.2f %+.2f\n", shiftResponse[0], shiftResponse[1], shiftResponse[2]);
-    GB_DEBUGI(ST_TAG, "EMPTY, shiftVariation: %+.2f %+.2f %+.2f\n", shiftVariation[0], shiftVariation[1],
-                shiftVariation[2]);
-
-    GB_DEBUGI(ST_TAG, "Gyro self-test: [X=%s] [Y=%s] [Z=%s]\n", ((*result & 0x1) ? "FAIL" : "OK"),
-             ((*result & 0x2) ? "FAIL" : "OK"), ((*result & 0x4) ? "FAIL" : "OK"));
-error_exit:
-    return res;
+    return imu->readBytes(imu, UB0_REG_FIFO_DATA, length, data);
 }
 
 /**
@@ -1198,20 +966,12 @@ static GB_RESULT getBiases(struct imu *imu, accel_fs_t accelFS, gyro_fs_t gyroFS
     const dlpf_t prevDLPF              = imu->getDigitalLowPassFilter(imu);
     const accel_fs_t prevAccelFS       = imu->getAccelFullScale(imu);
     const gyro_fs_t prevGyroFS         = imu->getGyroFullScale(imu);
-    const fifo_config_t prevFIFOConfig = imu->getFIFOConfig(imu);
-    const bool prevFIFOState           = imu->getFIFOEnabled(imu);
 
     // setup
     CHK_RES(imu->setSampleRate(imu, kSampleRate));
     CHK_RES(imu->setDigitalLowPassFilter(imu, kDLPF));
     CHK_RES(imu->setAccelFullScale(imu, accelFS));
     CHK_RES(imu->setGyroFullScale(imu, gyroFS));
-    CHK_RES(imu->setFIFOConfig(imu, kFIFOConfig));
-    CHK_RES(imu->setFIFOEnabled(imu, true));
-    if (selftest) {
-        CHK_RES(imu->writeBits(imu, ACCEL_CONFIG, ACONFIG_XA_ST_BIT, 3, 0x7));
-        CHK_RES(imu->writeBits(imu, GYRO_CONFIG, GCONFIG_XG_ST_BIT, 3, 0x7));
-    }
     // wait for 200ms for sensors to stabilize
     GB_SleepMs(1000);
 
@@ -1221,8 +981,7 @@ static GB_RESULT getBiases(struct imu *imu, accel_fs_t accelFS, gyro_fs_t gyroFS
 
     for (int i = 0; i < packetCount; i++) {
         GB_SleepMs(4);
-        imu->acceleration(imu, &accelRaw);  // fetch raw data from the registers
-        imu->rotation(imu, &gyroRaw);       // fetch raw data from the registers
+        imu->motion(imu, &accelRaw, &gyroRaw);  // fetch raw data from the registers
         // add up
         accelAvgx += accelRaw.data.x;
         accelAvgy += accelRaw.data.y;
@@ -1270,14 +1029,7 @@ static GB_RESULT getBiases(struct imu *imu, accel_fs_t accelFS, gyro_fs_t gyroFS
     CHK_RES(imu->setDigitalLowPassFilter(imu, prevDLPF));
     CHK_RES(imu->setAccelFullScale(imu, prevAccelFS));
     CHK_RES(imu->setGyroFullScale(imu, prevGyroFS));
-    CHK_RES(imu->setFIFOConfig(imu, prevFIFOConfig));
-    CHK_RES(imu->setFIFOEnabled(imu, prevFIFOState));
 
-    // reset self test mode
-    if (selftest) {
-        CHK_RES(imu->writeBits(imu, ACCEL_CONFIG, ACONFIG_XA_ST_BIT, 3, 0x0));
-        CHK_RES(imu->writeBits(imu, GYRO_CONFIG, GCONFIG_XG_ST_BIT, 3, 0x0));
-    }
 error_exit:
     return res;
 }

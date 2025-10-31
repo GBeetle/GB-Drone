@@ -175,12 +175,15 @@
 #define UB4_REG_OFFSET_USER7   0x7E
 #define UB4_REG_OFFSET_USER8   0x7F
 
-
 #define ICM_WHO_AM_I         (0x47)
 #define FIFO_EN              (0x5F)
-#define FIFO_TEMP_EN         (0x04)
-#define FIFO_GYRO            (0x02)
-#define FIFO_ACCEL           (0x01)
+
+#define FIFO_HEADER_SIZE     (1)
+#define FIFO_ACCEL_SIZE      (6)
+#define FIFO_GYRO_SIZE       (6)
+#define FIFO_TEMP_SIZE       (2)
+#define FIFO_TIME_ST_SIZE    (2)
+#define FIFO_EXTEN_SIZE      (3)
 
 // BANK 1
 #define GYRO_NF_ENABLE       (0x00)
@@ -231,6 +234,10 @@ typedef enum {
 } dlpf_t;
 
 typedef enum {
+    LP_ACCEL_RATE_NONE = 0,
+} lp_accel_rate_t;
+
+typedef enum {
     odr32k    = 0x01,  // LN mode only
     odr16k    = 0x02,  // LN mode only
     odr8k     = 0x03,  // LN mode only
@@ -263,8 +270,15 @@ typedef struct {
     int_lvl_t int1_level : 1;
 }int_config_t;
 
+/*! Clock Source */
+typedef enum {
+    CLOCK_INTERNAL = 0,
+} clock_src_t;
+
 typedef uint8_t int_en_t;
 typedef uint8_t int_stat_t;
+typedef uint8_t selftest_t;
+typedef uint8_t stby_en_t;
 
 typedef uint8_t fifo_config_t;
 static const fifo_config_t FIFO_CFG_NONE	    = (0x0);

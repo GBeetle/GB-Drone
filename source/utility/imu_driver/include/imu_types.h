@@ -22,7 +22,7 @@
 #include "sdkconfig.h"
 #include "lis3mdl.h"
 
-#if CONFIG_IMC42688
+#if CONFIG_ICM42688
 #include "icm42688.h"
 #else
 #include "mpu_types.h"

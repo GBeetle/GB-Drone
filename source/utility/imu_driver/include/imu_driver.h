@@ -148,6 +148,8 @@ struct imu
     fifo_mode_t (*getFIFOMode)(struct imu *imu);
     fifo_config_t (*getFIFOConfig)(struct imu *imu);
     bool (*getFIFOEnabled)(struct imu *imu);
+
+#if defined CONFIG_MPU6500 || defined CONFIG_MPU6000 || defined CONFIG_MPU6050
     //! \}
     //! \name Auxiliary I2C Master
     //! \{
@@ -167,6 +169,9 @@ struct imu
     bool (*getAuxI2CBypass)(struct imu *imu);
     GB_RESULT (*auxI2CWriteByte)(struct imu *imu, uint8_t devAddr, uint8_t regAddr, uint8_t data);
     GB_RESULT (*auxI2CReadByte)(struct imu *imu, uint8_t devAddr, uint8_t regAddr, uint8_t* data);
+#endif
+
+#if defined CONFIG_MPU6500 || defined CONFIG_MPU6000 || defined CONFIG_MPU6050
     //! \}
     //! \name Motion Detection Interrupt
     //! \{
@@ -174,13 +179,13 @@ struct imu
     mot_config_t (*getMotionDetectConfig)(struct imu *imu);
     GB_RESULT (*setMotionFeatureEnabled)(struct imu *imu, bool enable);
     bool (*getMotionFeatureEnabled)(struct imu *imu);
-#if defined CONFIG_MPU6000 || defined CONFIG_MPU6050 || defined CONFIG_MPU9150
     GB_RESULT (*setZeroMotionConfig)(struct imu *imu, zrmot_config_t *config);
     zrmot_config_t (*getZeroMotionConfig)(struct imu *imu);
     GB_RESULT (*setFreeFallConfig)(struct imu *imu, ff_config_t *config);
     ff_config_t (*getFreeFallConfig)(struct imu *imu);
     mot_stat_t (*getMotionDetectStatus)(struct imu *imu);
 #endif
+
     GB_RESULT (*compassReadBytes)(struct imu *imu, uint8_t device_addr, uint8_t regAddr, uint8_t* data, uint32_t size);
     GB_RESULT (*compassWriteByte)(struct imu *imu, uint8_t device_addr, uint8_t regAddr, uint8_t data);
     //! \}
