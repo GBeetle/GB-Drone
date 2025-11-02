@@ -28,7 +28,7 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define MPU_FSPI_CS   10
 #define MPU_INT       9
 #define MPU_INT2      46
-#define MPU_SPI_CLOCK_SPEED SPI_MASTER_FREQ_40M
+#define MPU_SPI_CLOCK_SPEED 1000000
 
 // MPU I2C IO
 #define MPU_SDA 18

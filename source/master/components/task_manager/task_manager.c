@@ -115,18 +115,14 @@ void gb_read_sensor_data(void* arg)
 {
     GB_TickType ticks = 0;
     GB_RESULT res = GB_OK;
-    //selftest_t st_result;
 
     (void) res;
     // imu initialization
     GB_IMU_Init(&imu);
-    CHK_FUNC_EXIT(imu.testConnection(&imu));
     CHK_FUNC_EXIT(imu.initialize(&imu));
 
     // test for sensor is good & horizontal
-    //selftest_t st_result;
-    //CHK_FUNC_EXIT(imu.selfTest(&imu, &st_result));
-    CHK_FUNC_EXIT(imu.setOffsets(&imu, true, false)); // keep static when power up
+    //CHK_FUNC_EXIT(imu.setOffsets(&imu, true, false)); // keep static when power up
 
     GB_DEBUGI(SENSOR_TAG, "imu status: %02x", imu.mpu_status);
 

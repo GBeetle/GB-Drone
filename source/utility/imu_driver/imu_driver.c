@@ -19,6 +19,7 @@
 #include "io_define.h"
 #include "gb_timer.h"
 #include "isr_manager.h"
+#include "gpio_setting.h"
 
 static GB_RESULT initialize(struct imu *imu);
 static GB_RESULT reset(struct imu *imu);
@@ -63,6 +64,17 @@ static GB_RESULT setOffsets(struct imu *imu, bool gyro, bool accel);
 
 const accel_fs_t g_accel_fs = ACCEL_FS_16G;
 const gyro_fs_t g_gyro_fs = GYRO_FS_2000DPS;
+const lis3mdl_scale_t g_lis3mdl_fs = lis3mdl_scale_16_Gs;
+
+// Possible gyro Anti-Alias Filter (AAF) cutoffs for ICM-42688P
+// actual cutoff differs slightly from those of the 42688P
+static aafConfig_t imuAAFConfig[DLPF_MAX] = { // see table in section 5.3
+    [DLPF_42HZ]  = {1, 1, 15},      // actually 42 Hz
+    [DLPF_258HZ] = {21, 440, 6},    // actually 249 Hz
+    [DLPF_536HZ] = {39, 1536, 4},   // actually 524 Hz
+    [DLPF_997HZ] = {63, 3968, 3},   // actually 995 Hz
+    [DLPF_1962HZ] = {63, 3968, 3}, // 995 Hz is the max cut off on the 42605
+};
 
 /**
  * @brief Set communication bus.
@@ -113,11 +125,13 @@ static GB_RESULT writeBytes(struct imu *imu, uint8_t regAddr, size_t length, con
 void GB_IMU_Init(struct imu *imu) {
 
 #if defined CONFIG_MPU_SPI
+    uint8_t mode = 3;
     imu->bus  = &fspi;
     imu->addr = GB_SPI_DEV_0;
 
+    GB_GPIO_Set( MPU_FSPI_SCLK, 1 );
     CHK_EXIT(fspi.begin(&fspi, MPU_FSPI_MOSI, MPU_FSPI_MISO, MPU_FSPI_SCLK, SPI_MAX_DMA_LEN));
-    CHK_EXIT(fspi.addDevice(&fspi, imu->addr, 0, 0, MPU_SPI_CLOCK_SPEED, MPU_FSPI_CS));
+    CHK_EXIT(fspi.addDevice(&fspi, imu->addr, 0, mode, SPI_DEVICE_NO_DUMMY, MPU_SPI_CLOCK_SPEED, MPU_FSPI_CS));
 #endif
 
 #if defined CONFIG_MPU_I2C
@@ -155,10 +169,6 @@ void GB_IMU_Init(struct imu *imu) {
     imu->getLowPowerAccelMode    = NULL;
     imu->setLowPowerAccelRate    = NULL;
     imu->getLowPowerAccelRate    = NULL;
-    imu->setMotionFeatureEnabled = NULL;
-    imu->getMotionFeatureEnabled = NULL;
-    imu->setMotionDetectConfig   = NULL;
-    imu->getMotionDetectConfig   = NULL;
 
     imu->setGyroFullScale  = &setGyroFullScale;
     imu->getGyroFullScale  = &getGyroFullScale;
@@ -297,7 +307,7 @@ static GB_RESULT setBank(struct imu *imu, uint8_t bank) {
 
     // if we are already on this bank, bail
     if (_bank == bank) {
-        return 1;
+        return GB_OK;
     }
 
     _bank = bank;
@@ -306,22 +316,6 @@ static GB_RESULT setBank(struct imu *imu, uint8_t bank) {
 
 /**
  * @brief Initialize imu device and set basic configurations.
- * @details
- *  Init configuration:
- *  - Accel FSR: 4G
- *  - Gyro FSR: 500DPS
- *  - Sample rate: 100Hz
- *  - DLPF: 42Hz
- *  - INT pin: disabled
- *  - FIFO: disabled
- *  - Clock source: gyro PLL \n
- *  For MPU9150 and MPU9250:
- *  - Aux I2C Master: enabled, clock: 400KHz
- *  - Compass: enabled on Aux I2C's Slave 0 and Slave 1
- *
- * @note
- *  - A soft reset is performed first, which takes 100-200ms.
- *  - When using SPI, the primary I2C Slave module is disabled right away.
  * */
 static GB_RESULT initialize(struct imu *imu)
 {
@@ -339,19 +333,32 @@ static GB_RESULT initialize(struct imu *imu)
     CHK_RES(imu->reset(imu));
     CHK_RES(imu->testConnection(imu));
 
-    // turn on accel and gyro in Low Noise (LN) Mode
-    CHK_RES(imu->writeByte(imu, UB0_REG_PWR_MGMT0, 0x0F));
+    CHK_RES(setBank(imu, 0));
+    // Turn off ACC and GYRO so they can be configured
+    // See section 12.9 in ICM-42688-P datasheet v1.7
+    CHK_RES(imu->writeByte(imu, UB0_REG_PWR_MGMT0, UB0_REG_PWR_MGMT0_GYRO_ACCEL_MODE_OFF));
+    // set filter
+    CHK_RES(imu->setDigitalLowPassFilter(imu, DLPF_258HZ));
+    // disable inner filters. default enable
+    // CHK_RES(imu->setFilters(imu, false, false));
+
+    CHK_RES(imu->setInterruptConfig(imu, int_config));
+    CHK_RES(imu->setInterruptEnabled(imu, 0));
+
+    // Disable AFSR to prevent stalls in gyro output. ref: https://github.com/ArduPilot/ardupilot/pu11/25332
+    CHK_RES(imu->readByte(imu, UB0_REG_INTF_CONFIG1, imu->buffer));
+    imu->buffer[0] &= ~UB0_REG_INTF_CONFIG1_AFSR_MASK;
+    imu->buffer[0] |= UB0_REG_INTF_CONFIG1_AFSR_DISABLE;
+    CHK_RES(imu->writeByte(imu, UB0_REG_INTF_CONFIG1, imu->buffer[0]));
+
+    // Turn on ACC and GYRO
+    CHK_RES(setBank(imu, 0));
+    CHK_RES(imu->writeByte(imu, UB0_REG_PWR_MGMT0, UB0_REG_PWR_MGMT0_TEMP_DISABLE_OFF | UB0_REG_PWR_MGMT0_ACCEL_MODE_LN | UB0_REG_PWR_MGMT0_GYRO_MODE_LN));
+    GB_SleepMs (100); // ICM-42688-P datasheet PWR_MGMTO note
 
     CHK_RES(imu->setGyroFullScale(imu, g_gyro_fs));
     CHK_RES(imu->setAccelFullScale(imu, g_accel_fs));
-
-    // disable inner filters (Notch filter, Anti-alias filter, UI filter block)
-    CHK_RES(imu->setFilters(imu, false, false));
-
     CHK_RES(imu->setSampleRate(imu, odr1k << 8 | odr1k));
-
-    CHK_RES(imu->setinterruptConfig(imu,int config));
-    CHK_RES(imu->setinterruptEnabled(imu, 0));
 
 error_exit:
     return res;
@@ -389,6 +396,7 @@ static GB_RESULT testConnection(struct imu *imu)
     const uint8_t wai = imu->whoAmI(imu);
     CHK_RES(imu->lastError(imu));
 
+    GB_DEBUGI(SENSOR_TAG, "testConnection wai: %02x", wai);
     res = (wai == ICM_WHO_AM_I) ? GB_OK : GB_MPU_NOT_FOUND;
 error_exit:
     return res;
@@ -474,7 +482,25 @@ uint16_t getSampleRate(struct imu *imu)
  */
 static GB_RESULT setDigitalLowPassFilter(struct imu *imu, dlpf_t dlpf)
 {
-    return GB_OK;
+    GB_RESULT res = GB_OK;
+
+    (void) dlpf;
+    CHK_RES(setBank(imu, 1));
+    // Configure gyro and accel Anti-Alias Filter (see section 5.3 "ANTI-ALIAS FILTER")
+    CHK_RES(imu->writeByte(imu, UB1_REG_GYRO_CONFIG_STATIC3, imuAAFConfig[dlpf].delt));
+    CHK_RES(imu->writeByte(imu, UB1_REG_GYRO_CONFIG_STATIC4, imuAAFConfig[dlpf].deltSqr & 0xFF));
+    CHK_RES(imu->writeByte(imu, UB1_REG_GYRO_CONFIG_STATIC5, (imuAAFConfig[dlpf].deltSqr >> 8) | (imuAAFConfig[dlpf].bitshift << 4)));
+
+    CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC2, imuAAFConfig[dlpf].delt)) ;
+    CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC3, imuAAFConfig[dlpf].deltSqr & 0xFF)) ;
+    CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC4, (imuAAFConfig[dlpf].deltSqr >> 8) | (imuAAFConfig[dlpf].bitshift << 4)));
+
+    // Configure gyro and acc UI Filters
+    CHK_RES(setBank(imu, 0));
+    CHK_RES(imu->writeByte(imu, UB0_REG_GYRO_ACCEL_CONFIG0, UB0_REG_ACCEL_UI_FILT_BW_LOW_LATENCY | UB0_REG_GYRO_UI_FILT_BW_LOW_LATENCY));
+
+error_exit:
+    return res;
 }
 
 /**
@@ -496,7 +522,7 @@ static GB_RESULT setGyroFullScale(struct imu *imu, gyro_fs_t fsr)
     CHK_RES(setBank(imu, 0));
     CHK_RES(imu->readByte(imu, UB0_REG_GYRO_CONFIG0, &reg));
     // only change FS_SEL in reg
-    reg = (fssel << 5) | (reg & 0x1F);
+    reg = (fsr << 5) | (reg & 0x1F);
     CHK_RES(imu->writeByte(imu, UB0_REG_GYRO_CONFIG0, reg));
 
 error_exit:
@@ -526,7 +552,7 @@ static GB_RESULT setAccelFullScale(struct imu *imu, accel_fs_t fsr)
     CHK_RES(setBank(imu, 0));
     CHK_RES(imu->readByte(imu, UB0_REG_ACCEL_CONFIG0, &reg));
     // only change FS_SEL in reg
-    reg = (fssel << 5) | (reg & 0x1F);
+    reg = (fsr << 5) | (reg & 0x1F);
     CHK_RES(imu->writeByte(imu, UB0_REG_ACCEL_CONFIG0, reg));
 
 error_exit:
@@ -596,7 +622,6 @@ error_exit:
  * */
 raw_axes_t getGyroOffset(struct imu *imu)
 {
-    GB_RESULT res = GB_OK;
     uint8_t reg1, reg2;
     raw_axes_t bias;
 
@@ -673,7 +698,6 @@ error_exit:
  * */
 raw_axes_t getAccelOffset(struct imu *imu)
 {
-    GB_RESULT res = GB_OK;
     uint8_t reg1, reg2;
     raw_axes_t bias;
 
@@ -808,21 +832,20 @@ error_exit:
  */
 static GB_RESULT setInterruptConfig(struct imu *imu, int_config_t config)
 {
-    GB_RESULT res =GB_OK;
-    uint8_t reg;
+    GB_RESULT res = GB_OK;
 
     CHK_RES(imu->readByte(imu, UB0_REG_INT_CONFIG, imu->buffer));
     // zero the bits we're setting, but keep the others we're not setting as they are;
-    const uint8_t INT_PIN_CONFIG_BITMASK = (1 << INT_CFG_INT2_MODE) | (1 << |NT_CFG_INT2_DRIVE_CIRCUITI) |
-                                            (1 << |NT_CFG_INT2_POLARITY) | (1 << INT_CFG_INT1_MODE) |
+    const uint8_t INT_PIN_CONFIG_BITMASK = (1 << INT_CFG_INT2_MODE) | (1 << INT_CFG_INT2_DRIVE_CIRCUIT) |
+                                            (1 << INT_CFG_INT2_POLARITY) | (1 << INT_CFG_INT1_MODE) |
                                             (1<< INT_CFG_INT1_DRIVE_CIRCUIT) | (1 << INT_CFG_INT1_POLARITY);
     imu->buffer[0] &= ~INT_PIN_CONFIG_BITMASK;
     imu->buffer[0] |= config.int2_mode << INT_CFG_INT2_MODE;
     imu->buffer[0] |= config.int2_drive << INT_CFG_INT2_DRIVE_CIRCUIT;
     imu->buffer[0] |= config.int2_level << INT_CFG_INT2_POLARITY;
-    imu->buffer[0] |= config.int1_mode << INT_CFG_INTI_MODE;
+    imu->buffer[0] |= config.int1_mode << INT_CFG_INT1_MODE;
     imu->buffer[0] |= config.int1_drive << INT_CFG_INT1_DRIVE_CIRCUIT;
-    imu->buffer[0] |- config.int1_level << INT_CFG_INT1_POLARITY;
+    imu->buffer[0] |= config.int1_level << INT_CFG_INT1_POLARITY;
 
     CHK_RES(imu->writeByte(imu, UB0_REG_INT_CONFIG, imu->buffer[0]));
 
@@ -838,10 +861,10 @@ int_config_t getInterruptConfig(struct imu *imu)
     CHK_VAL(imu->readByte(imu, UB0_REG_INT_CONFIG, imu->buffer));
 
     int_config_t config;
-    config.int2_mode = (int_mode_t)((imu->buffer[0] >> INT_CFG_INT2_MODE) & 0x1);    I
+    config.int2_mode = (int_mode_t)((imu->buffer[0] >> INT_CFG_INT2_MODE) & 0x1);
     config.int2_drive = (int_drive_t)((imu->buffer[0] >> INT_CFG_INT2_DRIVE_CIRCUIT) & 0x1);
-    config.int2_level = (int_ivl_t)((imu->buffer[0] >> INT_CFG_INT2_POLARITY) & 0x1);
-    config.int1_mode = (int_mode_t)((imu->buffer[0] >> INT_CFG_iNT1_MODE) & 0x1);
+    config.int2_level = (int_lvl_t)((imu->buffer[0] >> INT_CFG_INT2_POLARITY) & 0x1);
+    config.int1_mode = (int_mode_t)((imu->buffer[0] >> INT_CFG_INT1_MODE) & 0x1);
     config.int1_drive = (int_drive_t)((imu->buffer[0] >> INT_CFG_INT1_DRIVE_CIRCUIT) & 0x1);
     config.int1_level = (int_lvl_t)((imu->buffer[0] >> INT_CFG_INT1_POLARITY) & 0x1);
 
@@ -858,9 +881,9 @@ static GB_RESULT setInterruptEnabled(struct imu *imu, int_en_t mask)
     uint8_t reg;
 
     CHK_RES(imu->readByte(imu, UB0_REG_INT_CONFIG1, &reg));
-    reg &= ~0x10; // only for ODR < 4kHz.
-    CHK_RES(imu->writeByte(imu, UB0_REG_INT_CONFIG1, reg));// route UI data ready interrupt to INT1
-    CHK_RES(imu->writeByte(imu, UB0_REG_INT_SOURCE0, 0x18));
+    reg &= ~0x10;  // INT_ASYNC_RESET
+    CHK_RES(imu->writeByte(imu, UB0_REG_INT_CONFIG1, reg));
+    CHK_RES(imu->writeByte(imu, UB0_REG_INT_SOURCE0, 0x18)); // route UI data ready interrupt to INT1
 
 error_exit:
     return res;
@@ -877,17 +900,12 @@ int_en_t getInterruptEnabled(struct imu *imu)
 
 /**
  * @brief Change FIFO mode.
- *
- * Options:
- * `FIFO_MODE_OVERWRITE`: When the fifo is full, additional writes will be
- *  written to the fifo,replacing the oldest data.
- * `FIFO_MODE_STOP_FULL`: When the fifo is full, additional writes will not be written to fifo.
  * */
 static GB_RESULT setFIFOMode(struct imu *imu, fifo_mode_t mode)
 {
     GB_RESULT res = GB_OK;
 
-    CHK_RES(imu->writeByte(imu, UB0_REG_FIFO_CONFIG,mode));
+    CHK_RES(imu->writeByte(imu, UB0_REG_FIFO_CONFIG, mode));
 
 error_exit:
     return res;
@@ -926,7 +944,6 @@ fifo_config_t getFIFOConfig(struct imu *imu)
 
 /**
  * @brief Return number of written bytes in the FIFO.
- * @note FIFO overflow generates an interrupt which can be check with getInterruptStatus().
  * */
 uint16_t getFIFOCount(struct imu *imu)
 {
@@ -955,21 +972,17 @@ static GB_RESULT getBiases(struct imu *imu, accel_fs_t accelFS, gyro_fs_t gyroFS
     GB_RESULT res = GB_OK;
     // configurations to compute biases
     const uint16_t kSampleRate      = 1000;
-    const dlpf_t kDLPF              = DLPF_188HZ;
-    const fifo_config_t kFIFOConfig = FIFO_CFG_ACCEL | FIFO_CFG_GYRO;
     int32_t accelAvgx = 0, accelAvgy = 0, accelAvgz = 0;
     int32_t gyroAvgx  = 0, gyroAvgy  = 0, gyroAvgz  = 0;
     float_axes_t accelG;   // accel axes in (g) gravity format
     float_axes_t gyroDPS;  // gyro axes in (DPS) º/s format
     // backup previous configuration
     const uint16_t prevSampleRate      = imu->getSampleRate(imu);
-    const dlpf_t prevDLPF              = imu->getDigitalLowPassFilter(imu);
     const accel_fs_t prevAccelFS       = imu->getAccelFullScale(imu);
     const gyro_fs_t prevGyroFS         = imu->getGyroFullScale(imu);
 
     // setup
     CHK_RES(imu->setSampleRate(imu, kSampleRate));
-    CHK_RES(imu->setDigitalLowPassFilter(imu, kDLPF));
     CHK_RES(imu->setAccelFullScale(imu, accelFS));
     CHK_RES(imu->setGyroFullScale(imu, gyroFS));
     // wait for 200ms for sensors to stabilize
@@ -1026,7 +1039,6 @@ static GB_RESULT getBiases(struct imu *imu, accel_fs_t accelFS, gyro_fs_t gyroFS
     }
     // set back previous configs
     CHK_RES(imu->setSampleRate(imu, prevSampleRate));
-    CHK_RES(imu->setDigitalLowPassFilter(imu, prevDLPF));
     CHK_RES(imu->setAccelFullScale(imu, prevAccelFS));
     CHK_RES(imu->setGyroFullScale(imu, prevGyroFS));
 
@@ -1080,22 +1092,71 @@ error_exit:
 
 inline uint8_t accelFSRvalue(const accel_fs_t fs)
 {
-    return 2 << fs;
+    uint8_t acc_fs = 0;
+
+    switch (fs) {
+    case ACCEL_FS_16G:
+        acc_fs = 16;
+        break;
+    case ACCEL_FS_8G:
+        acc_fs = 8;
+        break;
+    case ACCEL_FS_4G:
+        acc_fs = 4;
+        break;
+    case ACCEL_FS_2G:
+        acc_fs = 2;
+        break;
+    default:
+        ;
+    }
+
+    return acc_fs;
 }
 
 inline uint16_t gyroFSRvalue(const gyro_fs_t fs)
 {
-    return 250 << fs;
+    float gyro_fs = 0;
+
+    switch (fs) {
+    case GYRO_FS_2000DPS:
+        gyro_fs = 2000;
+        break;
+    case GYRO_FS_1000DPS:
+        gyro_fs = 1000;
+        break;
+    case GYRO_FS_500DPS:
+        gyro_fs = 500;
+        break;
+    case GYRO_FS_250DPS:
+        gyro_fs = 250;
+        break;
+    case GYRO_FS_125DPS:
+        gyro_fs = 125;
+        break;
+    case GYRO_FS_62_5DPS:
+        gyro_fs = 62.5;
+        break;
+    case GYRO_FS_31_25DPS:
+        gyro_fs = 31.25;
+        break;
+    case GYRO_FS_15_625DPS:
+        gyro_fs = 15.625;
+        break;
+    default:
+        ;
+    }
+    return gyro_fs;
 }
 
 inline uint16_t accelSensitivity(const accel_fs_t fs)
 {
-    return 16384 >> fs;
+    return 0;
 }
 
 inline float gyroSensitivity(const gyro_fs_t fs)
 {
-    return 131.f / (1 << fs);
+    return 0;
 }
 
 inline float accelResolution(const accel_fs_t fs)
@@ -1152,16 +1213,6 @@ inline float_axes_t gyroRadPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_
 
 inline float magResolution(const lis3mdl_scale_t fs)
 {
-    switch (fs) {
-        case lis3mdl_scale_4_Gs:
-            return LIS3MDL_MAG_SENSITIVITY_FOR_FS_4GA;
-        case lis3mdl_scale_8_Gs:
-            return LIS3MDL_MAG_SENSITIVITY_FOR_FS_8GA;
-        case lis3mdl_scale_12_Gs:
-            return LIS3MDL_MAG_SENSITIVITY_FOR_FS_12GA;
-        case lis3mdl_scale_16_Gs:
-            return LIS3MDL_MAG_SENSITIVITY_FOR_FS_16GA;
-    }
     return 0;
 }
 
@@ -1176,11 +1227,10 @@ inline float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const lis3mdl_scale
 
 inline float tempCelsius(const int16_t temp)
 {
-    // TEMP_degC = ((TEMP_OUT – RoomTemp_Offset)/Temp_Sensitivity) + DegreesCelsius_Offset
-    return (temp - kRoomTempOffset) * kTempResolution + kCelsiusOffset;
+    return 0;
 }
 
 inline float tempFahrenheit(const int16_t temp)
 {
-    return (temp - kRoomTempOffset) * kTempResolution * 1.8f + kFahrenheitOffset;
+    return 0;
 }

@@ -33,7 +33,7 @@
 #define UB0_REG_INT_CONFIG           0x14
 #define INT_CFG_INT2_MODE            (5)
 #define INT_CFG_INT2_DRIVE_CIRCUIT   (4)
-#define INT_CFG_INT2_POLARITY	     (3)
+#define INT_CFG_INT2_POLARITY         (3)
 #define INT_CFG_INT1_MODE            (2)
 #define INT_CFG_INT1_DRIVE_CIRCUIT   (1)
 #define INT_CFG_INT1_POLARITY        (0)
@@ -72,12 +72,26 @@
 // break
 #define UB0_REG_SIGNAL_PATH_RESET    0x4B
 #define UB0_REG_INTF_CONFIG0         0x4C
-#define UB0_REG_INTF_CONFIG1         0x4D
-#define UB0_REG_PWR_MGMT0            0x4E
+
+#define UB0_REG_INTF_CONFIG1                0x4D
+#define UB0_REG_INTF_CONFIG1_AFSR_MASK      0xC0
+#define UB0_REG_INTF_CONFIG1_AFSR_DISABLE   0x40
+
+#define UB0_REG_PWR_MGMT0                      0x4E
+#define UB0_REG_PWR_MGMT0_ACCEL_MODE_LN        (3 << 0)
+#define UB0_REG_PWR_MGMT0_GYRO_MODE_LN         (3 << 2)
+#define UB0_REG_PWR_MGMT0_GYRO_ACCEL_MODE_OFF  ((0 << 0) | (0 << 2))
+#define UB0_REG_PWR_MGMT0_TEMP_DISABLE_OFF     (0 << 5)
+#define UB0_REG_PWR_MGMT0_TEMP_DISABLE_ON      (1 << 5)
+
 #define UB0_REG_GYRO_CONFIG0         0x4F
 #define UB0_REG_ACCEL_CONFIG0        0x50
 #define UB0_REG_GYRO_CONFIG1         0x51
-#define UB0_REG_GYRO_ACCEL_CONFIG0   0x52
+
+#define UB0_REG_GYRO_ACCEL_CONFIG0             0x52
+#define UB0_REG_ACCEL_UI_FILT_BW_LOW_LATENCY   (15 << 4)
+#define UB0_REG_GYRO_UI_FILT_BW_LOW_LATENCY    (15 << 0)
+
 #define UB0_REG_ACCEFL_CONFIG1       0x53
 #define UB0_REG_TMST_CONFIG          0x54
 // break
@@ -86,10 +100,10 @@
 
 // break
 #define UB0_REG_FIFO_CONFIG1        0x5F
-#define FIFO_CFG_RESUME_PARTIAL_RD	(6)
-#define FIFO_CFG_WM_GT_TH	        (5)
-#define FIFO_CFG_HIRES_EN	        (4)
-#define FIFO_CFG_TMST_FSYNC_EN	    (3)
+#define FIFO_CFG_RESUME_PARTIAL_RD    (6)
+#define FIFO_CFG_WM_GT_TH            (5)
+#define FIFO_CFG_HIRES_EN            (4)
+#define FIFO_CFG_TMST_FSYNC_EN        (3)
 #define FIFO_CFG_TEMP_EN            (2)
 #define FIFO_CFG_GYRO_EN            (1)
 #define FIFO_CFG_ACCEL_EN           (0)
@@ -223,14 +237,12 @@ typedef enum {
 
 /*! Digital low-pass filter (based on gyro bandwidth) */
 typedef enum {
-    DLPF_1449Hz  = 0,
-    DLPF_680Hz   = 1,
-    DLPF_329Hz   = 2,
-    DLPF_162Hz   = 3,
-    DLPF_80Hz    = 4,
-    DLPF_40Hz    = 5,
-    DLPF_20HZ    = 6,
-    DLPF_10HZ    = 7,
+    DLPF_42HZ   = 0,
+    DLPF_258HZ  = 1,
+    DLPF_536HZ  = 2,
+    DLPF_997HZ  = 3,
+    DLPF_1962HZ = 4,
+    DLPF_MAX,
 } dlpf_t;
 
 typedef enum {
@@ -275,15 +287,21 @@ typedef enum {
     CLOCK_INTERNAL = 0,
 } clock_src_t;
 
+typedef struct aafConfig_t {
+    uint8_t delt;
+    uint16_t deltSqr;
+    uint8_t bitshift;
+} aafConfig_t;
+
 typedef uint8_t int_en_t;
 typedef uint8_t int_stat_t;
 typedef uint8_t selftest_t;
 typedef uint8_t stby_en_t;
 
 typedef uint8_t fifo_config_t;
-static const fifo_config_t FIFO_CFG_NONE	    = (0x0);
-static const fifo_config_t FIFO_CFG_GYRO	    = (1 << FIFO_CFG_GYRO_EN);
-static const fifo_config_t FIFO_CFG_ACCEL	    = (1 << FIFO_CFG_ACCEL_EN);
+static const fifo_config_t FIFO_CFG_NONE        = (0x0);
+static const fifo_config_t FIFO_CFG_GYRO        = (1 << FIFO_CFG_GYRO_EN);
+static const fifo_config_t FIFO_CFG_ACCEL        = (1 << FIFO_CFG_ACCEL_EN);
 static const fifo_config_t FIFO_CFG_TEMPERATURE = (1 << FIFO_CFG_TEMP_EN);
 
 typedef uint8_t fifo_mode_t;
