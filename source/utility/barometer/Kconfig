@@ -1,0 +1,29 @@
+menu "Barometer Driver"
+
+    choice BARO_CHOICE
+        prompt "Barometer Chip Selection"
+        default MS5611
+        help
+            This helps to choose Barometer host stack
+
+        config MS5611
+            bool "MS5611"
+
+        config BMP280
+            bool "BMP280"
+    endchoice
+
+    choice BARO_RROTOCAL
+        prompt "Barometer Connection Protocol"
+        default BARO_I2C
+        help
+            This helps to choose BARO connection protocol
+
+        config BARO_I2C
+            bool "BARO_I2C"
+
+        config BARO_SPI
+            bool "BARO_SPI"
+    endchoice
+
+endmenu

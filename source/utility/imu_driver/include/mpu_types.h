@@ -22,7 +22,7 @@
 #include <stdbool.h>
 #include "mpu_registers.h"
 #include "sdkconfig.h"
-#include "lis3mdl.h"
+#include "compass_driver.h"
 
 #define IMU_SAMPLE_RATE 300
 
@@ -494,7 +494,7 @@ static const auxi2c_slv_t BMP_SLAVE_READ_DATA  = AUXI2C_SLAVE_1;  // change mode
 
 static const uint8_t MAG_DATA_LENGTH = 8;  // bytes
 
-#elif defined CONFIG_AUX_LIS3MDL
+#elif defined CONFIG_AUX_COMPASS
 
 #define COMPASS_I2CADDRESS       LIS3MDL_I2C_ADDRESS_2
 #define COMPASS_SAMPLE_RATE_MAX  1000  // 1000 Hz

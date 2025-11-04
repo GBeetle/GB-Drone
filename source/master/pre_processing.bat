@@ -6,7 +6,7 @@ set "vendorSourceDir=%cd%\..\vendor\esp32"
 set "utilitySourceDir=%cd%\..\utility"
 set "targetDir=%cd%\components"
 set "vendorSourceFolders=i2c_bus log_sys spi_bus gb_timer gpio_setting esc file_system buzzer"
-set "utilitySourceFolders=Fusion error_handle imu_driver lis3mdl bmp280 nrf24 max1704x"
+set "utilitySourceFolders=Fusion error_handle imu_driver compass barometer nrf24 max1704x"
 
 rem create target dir
 if not exist "%targetDir%" (

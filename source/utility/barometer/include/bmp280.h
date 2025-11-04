@@ -31,11 +31,11 @@ typedef enum {  //
     BMP280_I2C_ADDRESS_1 = 0x77 //!< I2C address when SDO pin is high
 } bmp_i2caddr_t;
 
-#ifdef CONFIG_BMP_I2C
+#ifdef CONFIG_BARO_I2C
 #include "i2c_bus.h"
 typedef struct i2c bmp_bus_t;
 typedef bmp_i2caddr_t bmp_addr_handle_t;
-#elif CONFIG_BMP_SPI
+#elif CONFIG_BARO_SPI
 #include "spi_bus.h"
 typedef struct spi bmp_bus_t;
 typedef spi_device_handle_t bmp_addr_handle_t;
@@ -260,17 +260,6 @@ int32_t compensate_temperature(bmp280_t *dev, int32_t adc_temp, int32_t *fine_te
  * Return value is in Pa, 24 integer bits and 8 fractional bits.
  */
 uint32_t compensate_pressure(bmp280_t *dev, int32_t adc_press, int32_t fine_temp);
-
-int32_t applyBarometerMedianFilter(int32_t newPressureReading);
-void performBaroCalibrationCycle(float baroPressureSamp);
-
-bool isBaroCalibrationFinished();
-float getBaroGroundAltitude();
-/**@}*/
-
-float pressureToAltitude(const float pressure);
-
-extern bmp280_t bmp280_device;
 
 #endif  // __BMP280_H__
 

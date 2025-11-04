@@ -29,12 +29,12 @@ menu "IMU Driver"
             bool "MPU_SPI"
     endchoice
 
-    config AUX_LIS3MDL
-        bool "enable AUX_LIS3MDL"
+    config AUX_COMPASS
+        bool "enable AUX_COMPASS"
         default "n"
 
-    config AUX_BMP280
-        bool "enable AUX_BMP280"
+    config AUX_BAROMETER
+        bool "enable AUX_BAROMETER"
         default "n"
 
 endmenu

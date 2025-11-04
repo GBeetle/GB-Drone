@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "sdkconfig.h"
-#include "lis3mdl.h"
+#include "compass_driver.h"
 
 #if CONFIG_ICM42688
 #include "icm42688.h"

@@ -17,7 +17,6 @@
 
 #include "imu_driver.h"
 #include "io_define.h"
-#include "bmp280.h"
 #include "gb_timer.h"
 #include "isr_manager.h"
 #include "imu_types.h"
@@ -126,7 +125,7 @@ static GB_RESULT setMagfullScale(struct imu *imu, lis3mdl_scale_t scale);
 static GB_RESULT heading(struct imu *imu, raw_axes_t* mag);
 static GB_RESULT motion_mag(struct imu *imu, raw_axes_t* accel, raw_axes_t* gyro, raw_axes_t* mag);
 
-static GB_RESULT bmp280Init(struct imu *imu, bmp280_params_t *params);
+static GB_RESULT baroInit(struct imu *imu);
 static GB_RESULT baroGetData(struct imu *imu, baro_t *baro);
 
 static GB_RESULT selfTest(struct imu *imu, selftest_t* result);
@@ -318,7 +317,7 @@ void GB_IMU_Init(struct imu *imu) {
     imu->motion_mag                = &motion_mag;
 
     // bmp280
-    imu->bmp280Init  = &bmp280Init;
+    imu->baroInit  = &baroInit;
     imu->baroGetData = &baroGetData;
 
     imu->selfTest      = &selfTest;
@@ -468,11 +467,8 @@ static GB_RESULT initialize(struct imu *imu)
 
     CHK_RES(imu->compassInit(imu));
 
-#if defined CONFIG_AUX_BMP280
-    bmp280_params_t bmp280_params;
-
-    CHK_RES(bmp280_init_default_params(&bmp280_params));
-    CHK_RES(imu->bmp280Init(imu, &bmp280_params));
+#if defined CONFIG_AUX_BAROMETER
+    CHK_RES(imu->baroInit(imu));
 
     // waitting for bmp280 initialized done
     GB_SleepMs(1000);
@@ -2135,32 +2131,32 @@ static GB_RESULT mpu_read_calibration_data(struct imu *imu)
 {
     GB_RESULT res = GB_OK;
 
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x88, (uint8_t *)&imu->bmp280_dev.dig_T1, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x8a, (uint8_t *)&imu->bmp280_dev.dig_T2, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x8c, (uint8_t *)&imu->bmp280_dev.dig_T3, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x8e, (uint8_t *)&imu->bmp280_dev.dig_P1, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x90, (uint8_t *)&imu->bmp280_dev.dig_P2, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x92, (uint8_t *)&imu->bmp280_dev.dig_P3, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x94, (uint8_t *)&imu->bmp280_dev.dig_P4, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x96, (uint8_t *)&imu->bmp280_dev.dig_P5, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x98, (uint8_t *)&imu->bmp280_dev.dig_P6, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x9a, (uint8_t *)&imu->bmp280_dev.dig_P7, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x9c, (uint8_t *)&imu->bmp280_dev.dig_P8, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x9e, (uint8_t *)&imu->bmp280_dev.dig_P9, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x88, (uint8_t *)&imu->baro_dev.dig_T1, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x8a, (uint8_t *)&imu->baro_dev.dig_T2, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x8c, (uint8_t *)&imu->baro_dev.dig_T3, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x8e, (uint8_t *)&imu->baro_dev.dig_P1, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x90, (uint8_t *)&imu->baro_dev.dig_P2, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x92, (uint8_t *)&imu->baro_dev.dig_P3, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x94, (uint8_t *)&imu->baro_dev.dig_P4, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x96, (uint8_t *)&imu->baro_dev.dig_P5, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x98, (uint8_t *)&imu->baro_dev.dig_P6, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x9a, (uint8_t *)&imu->baro_dev.dig_P7, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x9c, (uint8_t *)&imu->baro_dev.dig_P8, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0x9e, (uint8_t *)&imu->baro_dev.dig_P9, 2));
 
     GB_DEBUGD(BMP_TAG, "Calibration data received:");
-    GB_DEBUGD(BMP_TAG, "dig_T1=%d", imu->bmp280_dev.dig_T1);
-    GB_DEBUGD(BMP_TAG, "dig_T2=%d", imu->bmp280_dev.dig_T2);
-    GB_DEBUGD(BMP_TAG, "dig_T3=%d", imu->bmp280_dev.dig_T3);
-    GB_DEBUGD(BMP_TAG, "dig_P1=%d", imu->bmp280_dev.dig_P1);
-    GB_DEBUGD(BMP_TAG, "dig_P2=%d", imu->bmp280_dev.dig_P2);
-    GB_DEBUGD(BMP_TAG, "dig_P3=%d", imu->bmp280_dev.dig_P3);
-    GB_DEBUGD(BMP_TAG, "dig_P4=%d", imu->bmp280_dev.dig_P4);
-    GB_DEBUGD(BMP_TAG, "dig_P5=%d", imu->bmp280_dev.dig_P5);
-    GB_DEBUGD(BMP_TAG, "dig_P6=%d", imu->bmp280_dev.dig_P6);
-    GB_DEBUGD(BMP_TAG, "dig_P7=%d", imu->bmp280_dev.dig_P7);
-    GB_DEBUGD(BMP_TAG, "dig_P8=%d", imu->bmp280_dev.dig_P8);
-    GB_DEBUGD(BMP_TAG, "dig_P9=%d", imu->bmp280_dev.dig_P9);
+    GB_DEBUGD(BMP_TAG, "dig_T1=%d", imu->baro_dev.dig_T1);
+    GB_DEBUGD(BMP_TAG, "dig_T2=%d", imu->baro_dev.dig_T2);
+    GB_DEBUGD(BMP_TAG, "dig_T3=%d", imu->baro_dev.dig_T3);
+    GB_DEBUGD(BMP_TAG, "dig_P1=%d", imu->baro_dev.dig_P1);
+    GB_DEBUGD(BMP_TAG, "dig_P2=%d", imu->baro_dev.dig_P2);
+    GB_DEBUGD(BMP_TAG, "dig_P3=%d", imu->baro_dev.dig_P3);
+    GB_DEBUGD(BMP_TAG, "dig_P4=%d", imu->baro_dev.dig_P4);
+    GB_DEBUGD(BMP_TAG, "dig_P5=%d", imu->baro_dev.dig_P5);
+    GB_DEBUGD(BMP_TAG, "dig_P6=%d", imu->baro_dev.dig_P6);
+    GB_DEBUGD(BMP_TAG, "dig_P7=%d", imu->baro_dev.dig_P7);
+    GB_DEBUGD(BMP_TAG, "dig_P8=%d", imu->baro_dev.dig_P8);
+    GB_DEBUGD(BMP_TAG, "dig_P9=%d", imu->baro_dev.dig_P9);
 error_exit:
     return res;
 }
@@ -2170,32 +2166,32 @@ static GB_RESULT mpu_read_hum_calibration_data(struct imu *imu)
     uint16_t h4, h5;
     GB_RESULT res = GB_OK;
 
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0xa1, &imu->bmp280_dev.dig_H1, 1));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0xe1, (uint8_t *)&imu->bmp280_dev.dig_H2, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0xe3, &imu->bmp280_dev.dig_H3, 1));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0xa1, &imu->baro_dev.dig_H1, 1));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0xe1, (uint8_t *)&imu->baro_dev.dig_H2, 2));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0xe3, &imu->baro_dev.dig_H3, 1));
     CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0xe4, (uint8_t *)&h4, 2));
     CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0xe5, (uint8_t *)&h5, 2));
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0xe7, (uint8_t *)&imu->bmp280_dev.dig_H6, 1));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, 0xe7, (uint8_t *)&imu->baro_dev.dig_H6, 1));
 
-    imu->bmp280_dev.dig_H4 = (h4 & 0x00ff) << 4 | (h4 & 0x0f00) >> 8;
-    imu->bmp280_dev.dig_H5 = h5 >> 4;
+    imu->baro_dev.dig_H4 = (h4 & 0x00ff) << 4 | (h4 & 0x0f00) >> 8;
+    imu->baro_dev.dig_H5 = h5 >> 4;
     GB_DEBUGD(BMP_TAG, "Calibration data received:");
-    GB_DEBUGD(BMP_TAG, "dig_H1=%d", imu->bmp280_dev.dig_H1);
-    GB_DEBUGD(BMP_TAG, "dig_H2=%d", imu->bmp280_dev.dig_H2);
-    GB_DEBUGD(BMP_TAG, "dig_H3=%d", imu->bmp280_dev.dig_H3);
-    GB_DEBUGD(BMP_TAG, "dig_H4=%d", imu->bmp280_dev.dig_H4);
-    GB_DEBUGD(BMP_TAG, "dig_H5=%d", imu->bmp280_dev.dig_H5);
-    GB_DEBUGD(BMP_TAG, "dig_H6=%d", imu->bmp280_dev.dig_H6);
+    GB_DEBUGD(BMP_TAG, "dig_H1=%d", imu->baro_dev.dig_H1);
+    GB_DEBUGD(BMP_TAG, "dig_H2=%d", imu->baro_dev.dig_H2);
+    GB_DEBUGD(BMP_TAG, "dig_H3=%d", imu->baro_dev.dig_H3);
+    GB_DEBUGD(BMP_TAG, "dig_H4=%d", imu->baro_dev.dig_H4);
+    GB_DEBUGD(BMP_TAG, "dig_H5=%d", imu->baro_dev.dig_H5);
+    GB_DEBUGD(BMP_TAG, "dig_H6=%d", imu->baro_dev.dig_H6);
 error_exit:
     return res;
 }
 
-static GB_RESULT bmp280Init(struct imu *imu, bmp280_params_t *params)
+static GB_RESULT baroInit(struct imu *imu)
 {
     GB_RESULT res = GB_OK;
+    bmp280_params_t bmp280_params;
 
-    CHK_NULL(params, GB_BMP_DEVICE_NULL);
-
+    CHK_RES(bmp280_init_default_params(&bmp280_params));
     CHK_RES(imu->setAuxI2CReset(imu));
     // must delay, or compass may not be initialized
     GB_SleepMs(50);
@@ -2216,13 +2212,13 @@ static GB_RESULT bmp280Init(struct imu *imu, bmp280_params_t *params)
     CHK_RES(imu->setAuxI2CEnabled(imu, true));
 #endif
 
-    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, BMP280_REG_ID, &imu->bmp280_dev.id, 1));
+    CHK_RES(imu->compassReadBytes(imu, BMP280_I2C_ADDRESS_1, BMP280_REG_ID, &imu->baro_dev.id, 1));
 
-    if (imu->bmp280_dev.id != BMP280_CHIP_ID && imu->bmp280_dev.id != BME280_CHIP_ID)
+    if (imu->baro_dev.id != BMP280_CHIP_ID && imu->baro_dev.id != BME280_CHIP_ID)
     {
-        CHK_LOGE(GB_BMP_DEV_ID_ERROR,
+        CHK_LOGE(GB_BARO_DEV_ID_ERROR,
                 "Invalid chip ID: expected: 0x%x (BME280) or 0x%x (BMP280) got: 0x%x",
-                BME280_CHIP_ID, BMP280_CHIP_ID, imu->bmp280_dev.id);
+                BME280_CHIP_ID, BMP280_CHIP_ID, imu->baro_dev.id);
     }
     // Soft reset.
     CHK_RES(imu->compassWriteByte(imu, BMP280_I2C_ADDRESS_1, BMP280_REG_RESET, BMP280_RESET_VALUE));
@@ -2234,27 +2230,27 @@ static GB_RESULT bmp280Init(struct imu *imu, bmp280_params_t *params)
             break;
     }
     CHK_RES(mpu_read_calibration_data(imu));
-    if (imu->bmp280_dev.id == BME280_CHIP_ID)
+    if (imu->baro_dev.id == BME280_CHIP_ID)
     {
         CHK_RES(mpu_read_hum_calibration_data(imu));
     }
 
-    uint8_t config = (params->standby << 5) | (params->filter << 2);
+    uint8_t config = (bmp280_params.standby << 5) | (bmp280_params.filter << 2);
 
     GB_DEBUGD(BMP_TAG, "Writing config reg=%x", config);
     CHK_RES(imu->compassWriteByte(imu, BMP280_I2C_ADDRESS_1, BMP280_REG_CONFIG, config));
 
-    if (params->mode == BMP280_MODE_FORCED)
+    if (bmp280_params.mode == BMP280_MODE_FORCED)
     {
-        params->mode = BMP280_MODE_SLEEP;  // initial mode for forced is sleep
+        bmp280_params.mode = BMP280_MODE_SLEEP;  // initial mode for forced is sleep
     }
 
-    uint8_t ctrl = (params->oversampling_temperature << 5) | (params->oversampling_pressure << 2) | (params->mode);
+    uint8_t ctrl = (bmp280_params.oversampling_temperature << 5) | (bmp280_params.oversampling_pressure << 2) | (bmp280_params.mode);
 
-    if (imu->bmp280_dev.id == BME280_CHIP_ID)
+    if (imu->baro_dev.id == BME280_CHIP_ID)
     {
         // Write crtl hum reg first, only active after write to BMP280_REG_CTRL.
-        uint8_t ctrl_hum = params->oversampling_humidity;
+        uint8_t ctrl_hum = bmp280_params.oversampling_humidity;
         GB_DEBUGD(BMP_TAG, "Writing ctrl hum reg=%x", ctrl_hum);
         CHK_RES(imu->compassWriteByte(imu, BMP280_I2C_ADDRESS_1, BMP280_REG_CTRL_HUM, ctrl_hum));
     }
@@ -2296,7 +2292,7 @@ static GB_RESULT bmp280Init(struct imu *imu, bmp280_params_t *params)
     CHK_RES(imu->setAuxI2CSlaveConfig(imu, &kSlaveReadDataConfig));
     CHK_RES(imu->setAuxI2CSlaveEnabled(imu, BMP_SLAVE_READ_DATA, true));
 
-    GB_DEBUGI(SENSOR_TAG, "Aux BMP280 Init done, chip id: 0x%x", imu->bmp280_dev.id);
+    GB_DEBUGI(SENSOR_TAG, "Aux BMP280 Init done, chip id: 0x%x", imu->baro_dev.id);
 error_exit:
     return res;
 }
@@ -2318,8 +2314,8 @@ static GB_RESULT baroGetData(struct imu *imu, baro_t *baro)
     adc_pressure = imu->buffer[0] << 12 | imu->buffer[1] << 4 | imu->buffer[2] >> 4;
     adc_temp     = imu->buffer[3] << 12 | imu->buffer[4] << 4 | imu->buffer[5] >> 4;
 
-    temperature = compensate_temperature(&imu->bmp280_dev, adc_temp, &fine_temp) / 100.0f;  //°
-    pressure    = compensate_pressure(&imu->bmp280_dev, adc_pressure, fine_temp) / 256.0f;  //Pa
+    temperature = compensate_temperature(&imu->baro_dev, adc_temp, &fine_temp) / 100.0f;  //°
+    pressure    = compensate_pressure(&imu->baro_dev, adc_pressure, fine_temp) / 256.0f;  //Pa
 
     //中位值滤波
     pressure = applyBarometerMedianFilter(pressure * 10) / 10.0f;
@@ -2379,7 +2375,7 @@ static GB_RESULT compassInit(struct imu *imu)
     res = imu->compassWhoAmI(imu);
     if (GB_OK == res && LIS3MDL_CHIP_ID == imu->buffer[0])
     {
-#ifdef CONFIG_AUX_LIS3MDL
+#ifdef CONFIG_AUX_COMPASS
         imu->mpu_status |= IMU_MAG_STATUS_BIT;
         GB_DEBUGI(SENSOR_TAG, "LIS3MDL Compass Chip Selected");
 
@@ -2394,7 +2390,7 @@ static GB_RESULT compassInit(struct imu *imu)
         CHK_RES(imu->compassSetMeasurementMode(imu, lis3mdl_continuous_measurement));
         GB_SleepMs(50);
 #else
-        GB_DEBUGD(SENSOR_TAG, "CONFIG_AUX_LIS3MDL not enabled");
+        GB_DEBUGD(SENSOR_TAG, "CONFIG_AUX_COMPASS not enabled");
         CHK_RES(GB_MPU_AUXDEV_NOT_ENABLE);
 #endif
     }

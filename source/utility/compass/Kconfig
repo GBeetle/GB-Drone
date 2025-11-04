@@ -1,0 +1,29 @@
+menu "Compass Driver"
+
+    choice BARO_CHOICE
+        prompt "Compass Chip Selection"
+        default QMC5883L
+        help
+            This helps to choose Compass host stack
+
+        config QMC5883L
+            bool "QMC5883L"
+
+        config LIS3MDL
+            bool "LIS3MDL"
+    endchoice
+
+    choice COMPASS_RROTOCAL
+        prompt "Compass Connection Protocol"
+        default COMPASS_I2C
+        help
+            This helps to choose Compass connection protocol
+
+        config COMPASS_I2C
+            bool "COMPASS_I2C"
+
+        config COMPASS_SPI
+            bool "COMPASS_SPI"
+    endchoice
+
+endmenu

@@ -42,8 +42,8 @@
 #include "imu_types.h"
 #include "log_sys.h"
 #include "error_handle.h"
-#include "bmp280.h"
-#include "lis3mdl.h"
+#include "baro_driver.h"
+#include "compass_driver.h"
 
 
 #ifdef CONFIG_MPU_I2C
@@ -200,7 +200,7 @@ struct imu
     GB_RESULT (*heading)(struct imu *imu, raw_axes_t* mag);
     GB_RESULT (*motion_mag)(struct imu *imu, raw_axes_t* accel, raw_axes_t* gyro, raw_axes_t* mag);
 
-    GB_RESULT (*bmp280Init)(struct imu *imu, bmp280_params_t *params);
+    GB_RESULT (*baroInit)(struct imu *imu);
     GB_RESULT (*baroGetData)(struct imu *imu, baro_t *baro);
     //! \}
     //! \name Miscellaneous
@@ -251,7 +251,7 @@ struct imu
     mpu_addr_handle_t addr; /*!< I2C address / SPI device handle */
     uint8_t buffer[16];     /*!< Commom buffer for temporary data */
     GB_RESULT err;          /*!< Holds last error code */
-    bmp280_t bmp280_dev;
+    baro_dev_t baro_dev;
     uint8_t mpu_status;
 };
 

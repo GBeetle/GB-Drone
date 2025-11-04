@@ -62,6 +62,12 @@ static GB_RESULT getBiases(struct imu *imu, accel_fs_t accelFS, gyro_fs_t gyroFS
                          bool selftest);
 static GB_RESULT setOffsets(struct imu *imu, bool gyro, bool accel);
 
+static GB_RESULT compassInit(struct imu *imu);
+static GB_RESULT heading(struct imu *imu, raw_axes_t* mag);
+
+static GB_RESULT baroInit(struct imu *imu);
+static GB_RESULT baroGetData(struct imu *imu, baro_t *baro);
+
 const accel_fs_t g_accel_fs = ACCEL_FS_16G;
 const gyro_fs_t g_gyro_fs = GYRO_FS_2000DPS;
 const lis3mdl_scale_t g_lis3mdl_fs = lis3mdl_scale_16_Gs;
@@ -129,9 +135,12 @@ void GB_IMU_Init(struct imu *imu) {
     imu->bus  = &fspi;
     imu->addr = GB_SPI_DEV_0;
 
-    GB_GPIO_Set( MPU_FSPI_SCLK, 1 );
     CHK_EXIT(fspi.begin(&fspi, MPU_FSPI_MOSI, MPU_FSPI_MISO, MPU_FSPI_SCLK, SPI_MAX_DMA_LEN));
-    CHK_EXIT(fspi.addDevice(&fspi, imu->addr, 0, mode, SPI_DEVICE_NO_DUMMY, MPU_SPI_CLOCK_SPEED, MPU_FSPI_CS));
+    CHK_EXIT(fspi.addDevice(&fspi, imu->addr, 8, mode, SPI_DEVICE_NO_DUMMY, MPU_SPI_CLOCK_SPEED, MPU_FSPI_CS));
+
+#if defined CONFIG_AUX_BAROMETER
+    CHK_EXIT(fspi.addDevice(&fspi, GB_SPI_DEV_1, 8, mode, SPI_DEVICE_NO_DUMMY, BARO_SPI_CLOCK_SPEED, BARO_SPI_CS));
+#endif
 #endif
 
 #if defined CONFIG_MPU_I2C
@@ -222,6 +231,12 @@ void GB_IMU_Init(struct imu *imu) {
     imu->writeBits  = &writeBits;
     imu->writeByte  = &writeByte;
     imu->writeBytes = &writeBytes;
+
+    imu->baroInit    = &baroInit;
+    imu->baroGetData = &baroGetData;
+
+    imu->compassInit = &compassInit;
+    imu->heading     = &heading;
 }
 
 /**
@@ -360,6 +375,11 @@ static GB_RESULT initialize(struct imu *imu)
     CHK_RES(imu->setAccelFullScale(imu, g_accel_fs));
     CHK_RES(imu->setSampleRate(imu, odr1k << 8 | odr1k));
 
+#if defined CONFIG_AUX_BAROMETER
+    CHK_RES(imu->baroInit(imu));
+    imu->mpu_status |= IMU_BARO_STATUS_BIT;
+#endif
+
 error_exit:
     return res;
 }
@@ -396,7 +416,6 @@ static GB_RESULT testConnection(struct imu *imu)
     const uint8_t wai = imu->whoAmI(imu);
     CHK_RES(imu->lastError(imu));
 
-    GB_DEBUGI(SENSOR_TAG, "testConnection wai: %02x", wai);
     res = (wai == ICM_WHO_AM_I) ? GB_OK : GB_MPU_NOT_FOUND;
 error_exit:
     return res;
@@ -1086,6 +1105,76 @@ static GB_RESULT setOffsets(struct imu *imu, bool gyro_offset_enable, bool accel
     //GB_DEBUGE(ERROR_TAG, "get Bias gyro: %x, %x, %x\n", gyro.data.x, gyro.data.y, gyro.data.z);
     //GB_DEBUGE(ERROR_TAG, "get Bias accel: %x, %x, %x\n", accel.data.x, accel.data.y, accel.data.z);
     GB_SleepMs(500);
+error_exit:
+    return res;
+}
+
+static GB_RESULT baroInit(struct imu *imu)
+{
+    GB_RESULT res = GB_OK;
+
+    CHK_RES(ms5611_init_desc(&(imu->baro_dev), &fspi, GB_SPI_DEV_1));
+    CHK_RES(ms5611_init(&(imu->baro_dev), MS5611_OSR_4096));
+    GB_DEBUGI(SENSOR_TAG, "Aux Barometer Init done, chip id: 0x%x", imu->baro_dev.id);
+error_exit:
+    return res;
+}
+
+static GB_RESULT baroGetData(struct imu *imu, baro_t *baro)
+{
+    GB_RESULT res = GB_OK;
+    int32_t adc_pressure, adc_temp;
+    float temperature, pressure;
+    int32_t fine_temp;
+
+    if (!(imu->mpu_status & IMU_BARO_STATUS_BIT))
+    {
+        // BMP280 not available
+        goto error_exit;
+    }
+    CHK_RES(ms5611_get_sensor_data(&(imu->baro_dev), &pressure, &temperature));
+
+    //中位值滤波
+    pressure = applyBarometerMedianFilter(pressure * 10) / 10.0f;
+    if (isBaroCalibrationFinished())
+    {
+        //计算去除地面高度后相对高度
+        baro->altitude = pressureToAltitude(pressure) - getBaroGroundAltitude();
+    }
+    else
+    {
+        performBaroCalibrationCycle(pressure);
+        baro->altitude = 0.0f;
+    }
+    baro->temperature = temperature;
+    baro->pressure    = pressure;
+
+    GB_DEBUGI(SENSOR_TAG, "DEBUG baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ] [%d, %d] \n", baro->pressure, baro->temperature, baro->altitude, adc_pressure, adc_temp);
+error_exit:
+    return res;
+}
+
+static GB_RESULT compassInit(struct imu *imu)
+{
+    GB_RESULT res = GB_OK;
+
+error_exit:
+    return res;
+}
+
+/**
+ * @brief Read compass data.
+ * */
+static GB_RESULT heading(struct imu *imu, raw_axes_t* mag)
+{
+    GB_RESULT res = GB_OK;
+
+    if (!(imu->mpu_status & IMU_MAG_STATUS_BIT)) {
+        // compass not available
+        goto error_exit;
+    }
+
+    //
 error_exit:
     return res;
 }
