@@ -131,9 +131,9 @@ float_axes_t accelGravity_raw(const raw_axes_t *raw_axes, const accel_fs_t fs);
 float_axes_t gyroDegPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_t fs);
 float_axes_t gyroRadPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_t fs);
 
-uint8_t magFSRvalue(const lis3mdl_scale_t fs);
-float magResolution(const lis3mdl_scale_t fs);
-float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const lis3mdl_scale_t fs);
+uint8_t magFSRvalue(const compass_scale_t fs);
+float magResolution(const compass_scale_t fs);
+float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const compass_scale_t fs);
 
 float tempCelsius(const int16_t temp);
 float tempFahrenheit(const int16_t temp);

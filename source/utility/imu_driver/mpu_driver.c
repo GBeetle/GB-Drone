@@ -118,9 +118,9 @@ static GB_RESULT compassWriteByte(struct imu *imu, uint8_t device_addr, uint8_t 
 static GB_RESULT compassInit(struct imu *imu);
 static GB_RESULT compassWhoAmI(struct imu *imu);
 static GB_RESULT compassReset(struct imu *imu);
-static GB_RESULT compassSetMeasurementMode(struct imu *imu, lis3mdl_measurement_mode_t mode);
+static GB_RESULT compassSetMeasurementMode(struct imu *imu, compass_measurement_mode_t mode);
 static GB_RESULT compassSetSampleMode(struct imu *imu, mag_mode_t mode);
-static GB_RESULT setMagfullScale(struct imu *imu, lis3mdl_scale_t scale);
+static GB_RESULT setMagfullScale(struct imu *imu, compass_scale_t scale);
 
 static GB_RESULT heading(struct imu *imu, raw_axes_t* mag);
 static GB_RESULT motion_mag(struct imu *imu, raw_axes_t* accel, raw_axes_t* gyro, raw_axes_t* mag);
@@ -137,7 +137,7 @@ static GB_RESULT setOffsets(struct imu *imu, bool gyro, bool accel);
 
 const accel_fs_t g_accel_fs = ACCEL_FS_16G;
 const gyro_fs_t g_gyro_fs = GYRO_FS_2000DPS;
-const lis3mdl_scale_t g_lis3mdl_fs = lis3mdl_scale_16_Gs;
+const compass_scale_t g_compass_fs = lis3mdl_scale_16_Gs;
 
 /**
  * @brief Set communication bus.
@@ -2383,7 +2383,7 @@ static GB_RESULT compassInit(struct imu *imu)
         // SPI MODE: In write mode, the contents of I2C_SLV0_DO (Register 99) will be written to the slave device.
         // I2C MODE: Auxiliary Pass-Through Mode
         /* configure the magnetometer */
-        CHK_RES(imu->setMagfullScale(imu, g_lis3mdl_fs));
+        CHK_RES(imu->setMagfullScale(imu, g_compass_fs));
         //GB_SleepMs(50);
         CHK_RES(imu->compassSetSampleMode(imu, lis3mdl_hpm_300));
         //GB_SleepMs(50);
@@ -2526,7 +2526,7 @@ error_exit:
  * @brief set LIS3MDL FULL-scale range
  * @details
  * */
-static GB_RESULT setMagfullScale(struct imu *imu, lis3mdl_scale_t scale)
+static GB_RESULT setMagfullScale(struct imu *imu, compass_scale_t scale)
 {
     GB_RESULT res = GB_OK;
     uint8_t ctrl_reg2;
@@ -2561,7 +2561,7 @@ error_exit:
  *  - Setting to MAG_MODE_POWER_DOWN will disable readings from compass and disable (free) Aux I2C slaves 0 and 1.
  *    It will not disable Aux I2C Master I/F though! To enable back, use compassInit().
  * */
-static GB_RESULT compassSetMeasurementMode(struct imu *imu, lis3mdl_measurement_mode_t mode)
+static GB_RESULT compassSetMeasurementMode(struct imu *imu, compass_measurement_mode_t mode)
 {
     uint8_t ctrl_reg3 = 0x00;
     GB_RESULT res = GB_OK;
@@ -3120,7 +3120,7 @@ inline float_axes_t gyroRadPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_
     return axes;
 }
 
-inline float magResolution(const lis3mdl_scale_t fs)
+inline float magResolution(const compass_scale_t fs)
 {
     switch (fs) {
         case lis3mdl_scale_4_Gs:
@@ -3135,7 +3135,7 @@ inline float magResolution(const lis3mdl_scale_t fs)
     return 0;
 }
 
-inline float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const lis3mdl_scale_t fs)
+inline float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const compass_scale_t fs)
 {
     float_axes_t axes;
     axes.data.x = raw_axes->data.x * magResolution(fs);

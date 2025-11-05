@@ -75,7 +75,7 @@ static inline GB_RESULT get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRa
     *gyroDPS = gyroDegPerSec_raw(gyroRaw, g_gyro_fs);
     if (magRaw->data.x != 0 || magRaw->data.y != 0 || magRaw->data.z != 0)
     {
-        *magDPS = magGauss_raw(magRaw, g_lis3mdl_fs);
+        *magDPS = magGauss_raw(magRaw, g_compass_fs);
     }
 
 //error_exit:
@@ -528,7 +528,7 @@ void nrf24_interrupt_func(void *arg)
         {
             radio.stopListening(&radio);
             GB_RESULT report = radio.write(&radio, &out_package, sizeof(GB_LORA_PACKAGE_T));
-            if (report >= 0)
+            if (report == GB_OK)
             {
                 GB_DEBUGV(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));
                 lora_state = LORA_RECEIVE;

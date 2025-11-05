@@ -19,18 +19,21 @@
 #define __MS5611_H__
 
 #include <stdint.h>
+#include "sdkconfig.h"
 #include "results.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef CONFIG_BARO_I2C
+#if defined CONFIG_BARO_I2C
 #include "i2c_bus.h"
 typedef struct i2c baro_bus_t;
-#elif CONFIG_BARO_SPI
+#elif defined CONFIG_BARO_SPI
 #include "spi_bus.h"
 typedef struct spi baro_bus_t;
+#else
+#error "No protocol defined for barometer"
 #endif
 typedef uint8_t baro_addr_t;
 
@@ -112,7 +115,7 @@ GB_RESULT ms5611_init(ms5611_t *dev, ms5611_osr_t osr);
  * @param[out] temperature Temperature, degrees Celsius
  * @return `GB_OK` on success
  */
-GB_RESULT ms5611_get_sensor_data(ms5611_t *dev, int32_t *pressure, float *temperature);
+GB_RESULT ms5611_get_sensor_data(ms5611_t *dev, float *pressure, float *temperature);
 
 #ifdef __cplusplus
 }

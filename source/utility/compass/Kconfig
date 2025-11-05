@@ -1,6 +1,6 @@
 menu "Compass Driver"
 
-    choice BARO_CHOICE
+    choice COMPASS_CHOICE
         prompt "Compass Chip Selection"
         default QMC5883L
         help

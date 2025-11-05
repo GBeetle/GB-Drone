@@ -13,9 +13,9 @@ menu "Barometer Driver"
             bool "BMP280"
     endchoice
 
-    choice BARO_RROTOCAL
+    choice BARO_PROTOCAL
         prompt "Barometer Connection Protocol"
-        default BARO_I2C
+        default BARO_SPI
         help
             This helps to choose BARO connection protocol
 

@@ -24,15 +24,13 @@
 #if defined CONFIG_QMC5883L
 #include "qmc5883l.h"
 typedef qmc5883l_t compass_dev_t;
+typedef qmc5883l_range_t compass_scale_t;
+typedef uint8_t mag_mode_t;
+typedef uint8_t compass_measurement_mode_t;
 #elif defined CONFIG_LIS3MDL
 #include "lis3mdl.h"
+typedef lis3mdl_scale_t compass_scale_t;
+typedef lis3mdl_measurement_mode_t compass_measurement_mode_t;
 #endif
-
-int32_t applyBarometerMedianFilter(int32_t newPressureReading);
-void performBaroCalibrationCycle(float baroPressureSamp);
-
-bool isBaroCalibrationFinished();
-float getBaroGroundAltitude();
-float pressureToAltitude(const float pressure);
 
 #endif  //__COMPASS_DRIVER_H__

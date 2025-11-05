@@ -195,8 +195,8 @@ struct imu
     GB_RESULT (*compassWhoAmI)(struct imu *imu);
     GB_RESULT (*compassReset)(struct imu *imu);
     GB_RESULT (*compassSetSampleMode)(struct imu *imu, mag_mode_t mode);
-    GB_RESULT (*compassSetMeasurementMode)(struct imu *imu, lis3mdl_measurement_mode_t mode);
-    GB_RESULT (*setMagfullScale)(struct imu *imu, lis3mdl_scale_t scale);
+    GB_RESULT (*compassSetMeasurementMode)(struct imu *imu, compass_measurement_mode_t mode);
+    GB_RESULT (*setMagfullScale)(struct imu *imu, compass_scale_t scale);
     GB_RESULT (*heading)(struct imu *imu, raw_axes_t* mag);
     GB_RESULT (*motion_mag)(struct imu *imu, raw_axes_t* accel, raw_axes_t* gyro, raw_axes_t* mag);
 
@@ -252,6 +252,7 @@ struct imu
     uint8_t buffer[16];     /*!< Commom buffer for temporary data */
     GB_RESULT err;          /*!< Holds last error code */
     baro_dev_t baro_dev;
+    compass_dev_t compass_dev;
     uint8_t mpu_status;
 };
 
@@ -259,6 +260,6 @@ void GB_IMU_Init(struct imu *imu);
 
 extern const accel_fs_t g_accel_fs;
 extern const gyro_fs_t g_gyro_fs;
-extern const lis3mdl_scale_t g_lis3mdl_fs;
+extern const compass_scale_t g_compass_fs;
 
 #endif /* end of include guard: _MPU_DRIVER_H__ */

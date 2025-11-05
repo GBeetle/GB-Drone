@@ -70,7 +70,7 @@ static GB_RESULT baroGetData(struct imu *imu, baro_t *baro);
 
 const accel_fs_t g_accel_fs = ACCEL_FS_16G;
 const gyro_fs_t g_gyro_fs = GYRO_FS_2000DPS;
-const lis3mdl_scale_t g_lis3mdl_fs = lis3mdl_scale_16_Gs;
+const compass_scale_t g_compass_fs = QMC5883L_RNG_8;
 
 // Possible gyro Anti-Alias Filter (AAF) cutoffs for ICM-42688P
 // actual cutoff differs slightly from those of the 42688P
@@ -1113,9 +1113,9 @@ static GB_RESULT baroInit(struct imu *imu)
 {
     GB_RESULT res = GB_OK;
 
-    CHK_RES(ms5611_init_desc(&(imu->baro_dev), &fspi, GB_SPI_DEV_1));
+    CHK_RES(ms5611_init_desc(&(imu->baro_dev), (baro_bus_t*)&fspi, GB_SPI_DEV_1));
     CHK_RES(ms5611_init(&(imu->baro_dev), MS5611_OSR_4096));
-    GB_DEBUGI(SENSOR_TAG, "Aux Barometer Init done, chip id: 0x%x", imu->baro_dev.id);
+    GB_DEBUGI(SENSOR_TAG, "Aux Barometer Init done");
 error_exit:
     return res;
 }
@@ -1123,13 +1123,11 @@ error_exit:
 static GB_RESULT baroGetData(struct imu *imu, baro_t *baro)
 {
     GB_RESULT res = GB_OK;
-    int32_t adc_pressure, adc_temp;
     float temperature, pressure;
-    int32_t fine_temp;
 
     if (!(imu->mpu_status & IMU_BARO_STATUS_BIT))
     {
-        // BMP280 not available
+        // Barometer not available
         goto error_exit;
     }
     CHK_RES(ms5611_get_sensor_data(&(imu->baro_dev), &pressure, &temperature));
@@ -1149,7 +1147,7 @@ static GB_RESULT baroGetData(struct imu *imu, baro_t *baro)
     baro->temperature = temperature;
     baro->pressure    = pressure;
 
-    GB_DEBUGI(SENSOR_TAG, "DEBUG baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ] [%d, %d] \n", baro->pressure, baro->temperature, baro->altitude, adc_pressure, adc_temp);
+    GB_DEBUGI(SENSOR_TAG, "DEBUG baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ]\n", baro->pressure, baro->temperature, baro->altitude);
 error_exit:
     return res;
 }
@@ -1157,6 +1155,20 @@ error_exit:
 static GB_RESULT compassInit(struct imu *imu)
 {
     GB_RESULT res = GB_OK;
+    uint8_t chip_id = 0;
+
+    CHK_RES(i2c0.begin(&i2c0, COMPASS_I2C_SDA, COMPASS_I2C_SCL, COMPASS_I2C_CLOCK_SPEED));
+    CHK_RES(i2c0.addDevice(&i2c0, QMC5883L_I2C_ADDR_DEF, COMPASS_I2C_CLOCK_SPEED));
+
+    CHK_RES(qmc5883l_init_desc(&(imu->compass_dev), &i2c0, QMC5883L_I2C_ADDR_DEF));
+    CHK_RES(qmc5883l_set_config(&(imu->compass_dev), QMC5883L_DR_200, QMC5883L_OSR_512, g_compass_fs));
+    CHK_RES(qmc5883l_get_chip_id(&(imu->compass_dev), &chip_id));
+
+    if (chip_id == QMC5883L_CHIP_ID)
+    {
+        imu->mpu_status |= IMU_MAG_STATUS_BIT;
+        GB_DEBUGI(SENSOR_TAG, "QMC5883L Compass Chip Selected");
+    }
 
 error_exit:
     return res;
@@ -1174,7 +1186,8 @@ static GB_RESULT heading(struct imu *imu, raw_axes_t* mag)
         goto error_exit;
     }
 
-    //
+    CHK_RES(qmc5883l_get_raw_data(&(imu->compass_dev), (qmc5883l_raw_data_t *)mag));
+
 error_exit:
     return res;
 }
@@ -1300,12 +1313,12 @@ inline float_axes_t gyroRadPerSec_raw(const raw_axes_t *raw_axes, const gyro_fs_
     return axes;
 }
 
-inline float magResolution(const lis3mdl_scale_t fs)
+inline float magResolution(const compass_scale_t fs)
 {
-    return 0;
+    return (fs == QMC5883L_RNG_2 ? 2000.0 : 8000.0) / 32768;;
 }
 
-inline float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const lis3mdl_scale_t fs)
+inline float_axes_t magGauss_raw(const raw_axes_t *raw_axes, const compass_scale_t fs)
 {
     float_axes_t axes;
     axes.data.x = raw_axes->data.x * magResolution(fs);

@@ -18,6 +18,7 @@
 #include <stddef.h>
 #include "ms5611.h"
 #include "gb_timer.h"
+#include "error_handle.h"
 
 #define CMD_CONVERT_D1 0x40
 #define CMD_CONVERT_D2 0x50
@@ -33,12 +34,12 @@
 
 static inline GB_RESULT read_bytes(ms5611_t *dev, uint8_t reg, uint8_t *r, size_t length)
 {
-    return dev->readWriteBytesWithConfig(dev, dev->addr, reg, length, r, NULL, 0, 8, 0);
+    return dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, reg, length, r, NULL, 0, 8, 0);
 }
 
 static inline GB_RESULT send_command(ms5611_t *dev, uint8_t cmd)
 {
-    return dev->readWriteBytesWithConfig(dev, dev->addr, 0X00, 1, NULL, &cmd, 0, 8, 0);
+    return dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0X00, 1, NULL, &cmd, 0, 8, 0);
 }
 
 static inline uint16_t shuffle(uint16_t val)
@@ -51,17 +52,17 @@ static inline GB_RESULT read_prom(ms5611_t *dev)
     GB_RESULT res = GB_OK;
     uint16_t tmp;
 
-    CHK_RES(read_bytes(&dev->i2c_dev, PROM_ADDR_SENS, &tmp, 2));
+    CHK_RES(read_bytes(dev, PROM_ADDR_SENS, (uint8_t *)&tmp, 2));
     dev->config_data.sens = shuffle(tmp);
-    CHK_RES(read_bytes(&dev->i2c_dev, PROM_ADDR_OFF, &tmp, 2));
+    CHK_RES(read_bytes(dev, PROM_ADDR_OFF, (uint8_t *)&tmp, 2));
     dev->config_data.off = shuffle(tmp);
-    CHK_RES(read_bytes(&dev->i2c_dev, PROM_ADDR_TCS, &tmp, 2));
+    CHK_RES(read_bytes(dev, PROM_ADDR_TCS, (uint8_t *)&tmp, 2));
     dev->config_data.tcs = shuffle(tmp);
-    CHK_RES(read_bytes(&dev->i2c_dev, PROM_ADDR_TCO, &tmp, 2));
+    CHK_RES(read_bytes(dev, PROM_ADDR_TCO, (uint8_t *)&tmp, 2));
     dev->config_data.tco = shuffle(tmp);
-    CHK_RES(read_bytes(&dev->i2c_dev, PROM_ADDR_T_REF, &tmp, 2));
+    CHK_RES(read_bytes(dev, PROM_ADDR_T_REF, (uint8_t *)&tmp, 2));
     dev->config_data.t_ref = shuffle(tmp);
-    CHK_RES(read_bytes(&dev->i2c_dev, PROM_ADDR_TEMPSENS, &tmp, 2));
+    CHK_RES(read_bytes(dev, PROM_ADDR_TEMPSENS,(uint8_t *)&tmp, 2));
     dev->config_data.tempsens = shuffle(tmp);
 
 error_exit:
@@ -73,7 +74,7 @@ static GB_RESULT read_adc(ms5611_t *dev, uint32_t *result)
     GB_RESULT res = GB_OK;
     uint8_t tmp[3];
 
-    CHK_RES(read_bytes(&dev->i2c_dev, 0, tmp, 3));
+    CHK_RES(read_bytes(dev, 0, tmp, 3));
     *result = (tmp[0] << 16) | (tmp[1] << 8) | tmp[2];
 
 error_exit:
@@ -161,7 +162,7 @@ error_exit:
     return res;
 }
 
-GB_RESULT ms5611_get_sensor_data(ms5611_t *dev, int32_t *pressure, float *temperature)
+GB_RESULT ms5611_get_sensor_data(ms5611_t *dev, float *pressure, float *temperature)
 {
     GB_RESULT res = GB_OK;
 

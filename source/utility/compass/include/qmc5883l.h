@@ -21,17 +21,20 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "results.h"
+#include "sdkconfig.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef CONFIG_COMPASS_I2C
+#if defined CONFIG_COMPASS_I2C
 #include "i2c_bus.h"
 typedef struct i2c compass_bus_t;
-#elif CONFIG_COMPASS_SPI
+#elif compass_bus_t CONFIG_COMPASS_SPI
 #include "spi_bus.h"
 typedef struct spi compass_bus_t;
+#else
+#error "No protocol defined for compass"
 #endif
 typedef uint8_t compass_addr_t;
 
@@ -39,6 +42,7 @@ typedef uint8_t compass_addr_t;
  * Default I2C address
  */
 #define QMC5883L_I2C_ADDR_DEF 0x0d
+#define QMC5883L_CHIP_ID      0xff
 
 /**
  * Output data rate

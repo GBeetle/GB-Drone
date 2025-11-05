@@ -26,6 +26,7 @@
  */
 
 #include "qmc5883l.h"
+#include "error_handle.h"
 
 #define REG_XOUT_L 0x00
 #define REG_XOUT_H 0x01
@@ -46,12 +47,12 @@
 
 inline static GB_RESULT write_reg(qmc5883l_t *dev, uint8_t reg, uint8_t val)
 {
-    return dev->writeBytes(dev, dev->addr, reg, 1, &val);
+    return dev->bus->writeBytes(dev->bus, dev->addr, reg, 1, &val);
 }
 
 inline static GB_RESULT read_reg(qmc5883l_t *dev, uint8_t reg, uint8_t *val)
 {
-    return dev->readBytes(dev, dev->addr, reg, 1, &val);
+    return dev->bus->readBytes(dev->bus, dev->addr, reg, 1, val);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -182,11 +183,10 @@ error_exit:
 GB_RESULT qmc5883l_get_raw_data(qmc5883l_t *dev, qmc5883l_raw_data_t *raw)
 {
     GB_RESULT res = GB_OK;
-    uint8_t v;
 
     CHK_NULL(dev && raw, GB_COMPASS_DEVICE_NULL);
 
-    CHK_RES(dev->readBytes(dev, dev->addr, REG_XOUT_L, 6, raw));
+    CHK_RES(dev->bus->readBytes(dev->bus, dev->addr, REG_XOUT_L, 6, (uint8_t*)raw));
 
 error_exit:
     return res;
@@ -196,7 +196,7 @@ GB_RESULT qmc5883l_raw_to_mg(qmc5883l_t *dev, qmc5883l_raw_data_t *raw, qmc5883l
 {
     GB_RESULT res = GB_OK;
 
-    CHK_NULL(dev && raw && data);
+    CHK_NULL(dev && raw && data, GB_COMPASS_DEVICE_NULL);
 
     float f = (dev->range == QMC5883L_RNG_2 ? 2000.0 : 8000.0) / 32768;
 
@@ -224,8 +224,8 @@ GB_RESULT qmc5883l_get_raw_temp(qmc5883l_t *dev, int16_t *temp)
 {
     GB_RESULT res = GB_OK;
 
-    CHK_NULL(dev && temp);
-    CHK_RES(dev->readBytes(dev, dev->addr, REG_TOUT_L, 2, temp));
+    CHK_NULL(dev && temp, GB_COMPASS_DEVICE_NULL);
+    CHK_RES(dev->bus->readBytes(dev->bus, dev->addr, REG_TOUT_L, 2, (uint8_t*)temp));
 
 error_exit:
     return res;

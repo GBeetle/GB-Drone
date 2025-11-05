@@ -2111,6 +2111,24 @@ CONFIG_WIFI_PROV_STA_ALL_CHANNEL_SCAN=y
 # end of Wi-Fi Provisioning Manager
 
 #
+# Barometer Driver
+#
+CONFIG_MS5611=y
+# CONFIG_BMP280 is not set
+CONFIG_BARO_I2C=y
+# CONFIG_BARO_SPI is not set
+# end of Barometer Driver
+
+#
+# Compass Driver
+#
+CONFIG_QMC5883L=y
+# CONFIG_LIS3MDL is not set
+CONFIG_COMPASS_I2C=y
+# CONFIG_COMPASS_SPI is not set
+# end of Compass Driver
+
+#
 # IMU Driver
 #
 # CONFIG_MPU6050 is not set
@@ -2118,8 +2136,8 @@ CONFIG_WIFI_PROV_STA_ALL_CHANNEL_SCAN=y
 CONFIG_ICM42688=y
 # CONFIG_MPU_I2C is not set
 CONFIG_MPU_SPI=y
-# CONFIG_AUX_LIS3MDL is not set
-# CONFIG_AUX_BMP280 is not set
+# CONFIG_AUX_COMPASS is not set
+# CONFIG_AUX_BAROMETER is not set
 # end of IMU Driver
 
 #
