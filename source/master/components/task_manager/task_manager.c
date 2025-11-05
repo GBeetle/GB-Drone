@@ -141,10 +141,10 @@ void gb_read_sensor_data(void* arg)
         CHK_FUNC_EXIT(imu.heading(&imu, &magRaw));
         CHK_FUNC_EXIT(imu.baroGetData(&imu, &baro_data));
 
-        GB_DEBUGD(SENSOR_TAG, "Queue gyroRaw.x %d, gyroRaw.y %d, gyroRaw.z %d\n", gyroRaw.data.x, gyroRaw.data.y, gyroRaw.data.z);
-        GB_DEBUGD(SENSOR_TAG, "Queue accelRaw.x %d, accelRaw.y %d, accelRaw.z %d\n", accelRaw.data.x, accelRaw.data.y, accelRaw.data.z);
-        GB_DEBUGD(SENSOR_TAG, "Queue magRaw.x %d, magRaw.y %d, magRaw.z %d\n", magRaw.data.x, magRaw.data.y, magRaw.data.z);
-        GB_DEBUGD(SENSOR_TAG, "Queue baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ] \n", baro_data.pressure, baro_data.temperature, baro_data.altitude);
+        GB_DEBUGI(SENSOR_TAG, "Queue gyroRaw.x %d, gyroRaw.y %d, gyroRaw.z %d\n", gyroRaw.data.x, gyroRaw.data.y, gyroRaw.data.z);
+        GB_DEBUGI(SENSOR_TAG, "Queue accelRaw.x %d, accelRaw.y %d, accelRaw.z %d\n", accelRaw.data.x, accelRaw.data.y, accelRaw.data.z);
+        GB_DEBUGI(SENSOR_TAG, "Queue magRaw.x %d, magRaw.y %d, magRaw.z %d\n", magRaw.data.x, magRaw.data.y, magRaw.data.z);
+        GB_DEBUGI(SENSOR_TAG, "Queue baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ] \n", baro_data.pressure, baro_data.temperature, baro_data.altitude);
 
         if (gyroRaw.data.x != 0 && gyroRaw.data.y != 0 && gyroRaw.data.z != 0)
             xQueueSend(gyroQueue, &gyroRaw, portMAX_DELAY);

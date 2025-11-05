@@ -377,8 +377,14 @@ static GB_RESULT initialize(struct imu *imu)
 
 #if defined CONFIG_AUX_BAROMETER
     CHK_RES(imu->baroInit(imu));
-    imu->mpu_status |= IMU_BARO_STATUS_BIT;
 #endif
+
+#if defined CONFIG_AUX_COMPASS
+    imu->compassInit(imu);
+#endif
+
+    imu->mpu_status |= IMU_GYRO_STATUS_BIT;
+    imu->mpu_status |= IMU_ACCEL_STATUS_BIT;
 
 error_exit:
     return res;
@@ -1115,6 +1121,8 @@ static GB_RESULT baroInit(struct imu *imu)
 
     CHK_RES(ms5611_init_desc(&(imu->baro_dev), (baro_bus_t*)&fspi, GB_SPI_DEV_1));
     CHK_RES(ms5611_init(&(imu->baro_dev), MS5611_OSR_4096));
+
+    imu->mpu_status |= IMU_BARO_STATUS_BIT;
     GB_DEBUGI(SENSOR_TAG, "Aux Barometer Init done");
 error_exit:
     return res;
