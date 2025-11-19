@@ -178,6 +178,7 @@ void GB_IMU_Init(struct imu *imu) {
     imu->getLowPowerAccelMode    = NULL;
     imu->setLowPowerAccelRate    = NULL;
     imu->getLowPowerAccelRate    = NULL;
+    imu->setFilters              = &setFilters;
 
     imu->setGyroFullScale  = &setGyroFullScale;
     imu->getGyroFullScale  = &getGyroFullScale;
@@ -376,12 +377,14 @@ static GB_RESULT initialize(struct imu *imu)
     CHK_RES(imu->setSampleRate(imu, odr1k << 8 | odr1k));
 
 #if defined CONFIG_AUX_BAROMETER
-    CHK_RES(imu->baroInit(imu));
+    //CHK_RES(imu->baroInit(imu));
 #endif
 
 #if defined CONFIG_AUX_COMPASS
     imu->compassInit(imu);
 #endif
+
+    CHK_RES(imu->testConnection(imu));
 
     imu->mpu_status |= IMU_GYRO_STATUS_BIT;
     imu->mpu_status |= IMU_ACCEL_STATUS_BIT;
@@ -422,6 +425,7 @@ static GB_RESULT testConnection(struct imu *imu)
     const uint8_t wai = imu->whoAmI(imu);
     CHK_RES(imu->lastError(imu));
 
+    GB_DEBUGI(SENSOR_TAG, "Who Am I: %02x", wai);
     res = (wai == ICM_WHO_AM_I) ? GB_OK : GB_MPU_NOT_FOUND;
 error_exit:
     return res;
@@ -509,14 +513,14 @@ static GB_RESULT setDigitalLowPassFilter(struct imu *imu, dlpf_t dlpf)
 {
     GB_RESULT res = GB_OK;
 
-    (void) dlpf;
     CHK_RES(setBank(imu, 1));
     // Configure gyro and accel Anti-Alias Filter (see section 5.3 "ANTI-ALIAS FILTER")
     CHK_RES(imu->writeByte(imu, UB1_REG_GYRO_CONFIG_STATIC3, imuAAFConfig[dlpf].delt));
     CHK_RES(imu->writeByte(imu, UB1_REG_GYRO_CONFIG_STATIC4, imuAAFConfig[dlpf].deltSqr & 0xFF));
     CHK_RES(imu->writeByte(imu, UB1_REG_GYRO_CONFIG_STATIC5, (imuAAFConfig[dlpf].deltSqr >> 8) | (imuAAFConfig[dlpf].bitshift << 4)));
 
-    CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC2, imuAAFConfig[dlpf].delt)) ;
+    CHK_RES(setBank(imu, 2));
+    CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC2, imuAAFConfig[dlpf].delt << 1)) ;
     CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC3, imuAAFConfig[dlpf].deltSqr & 0xFF)) ;
     CHK_RES(imu->writeByte(imu, UB2_REG_ACCEL_CONFIG_STATIC4, (imuAAFConfig[dlpf].deltSqr >> 8) | (imuAAFConfig[dlpf].bitshift << 4)));
 

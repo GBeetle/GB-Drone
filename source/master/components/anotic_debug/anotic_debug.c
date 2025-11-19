@@ -15,6 +15,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <math.h>
 #include "anotic_debug.h"
 
 #define ANOTIC_DEBUG_V2 0
@@ -24,10 +25,12 @@ uint8_t __bswap_8(uint8_t value)
     return (value>>4) | (value<<4);
 }
 
-uint16_t float2int16(float value, int scale)
+int16_t float2int16(float value, int scale)
 {
-    uint32_t num = value * scale;
-    return num & 0xffffffff;
+    int32_t num = (int32_t)roundf(value * scale);
+    if (num > INT16_MAX) num = INT16_MAX;
+    if (num < INT16_MIN) num = INT16_MIN;
+    return num;
 }
 
 int anotc_init_data(uint8_t *send_buffer, uint32_t *realLen, uint8_t command_id, uint32_t arg_nums, ...)

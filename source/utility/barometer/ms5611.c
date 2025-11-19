@@ -25,21 +25,23 @@
 #define CMD_ADC_READ   0x00
 #define CMD_RESET      0x1E
 
+#define PROM_ADDR_MANU     0xa0
 #define PROM_ADDR_SENS     0xa2
 #define PROM_ADDR_OFF      0xa4
 #define PROM_ADDR_TCS      0xa6
 #define PROM_ADDR_TCO      0xa8
 #define PROM_ADDR_T_REF    0xaa
 #define PROM_ADDR_TEMPSENS 0xac
+#define PROM_ADDR_CRC      0xae
 
 static inline GB_RESULT read_bytes(ms5611_t *dev, uint8_t reg, uint8_t *r, size_t length)
 {
-    return dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, reg, length, r, NULL, 0, 8, 0);
+    return dev->bus->readBytes(dev->bus, dev->addr, reg, length, r);
 }
 
 static inline GB_RESULT send_command(ms5611_t *dev, uint8_t cmd)
 {
-    return dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0X00, 1, NULL, &cmd, 0, 8, 0);
+    return dev->bus->writeByte(dev->bus, dev->addr, cmd, 1);
 }
 
 static inline uint16_t shuffle(uint16_t val)
@@ -47,11 +49,43 @@ static inline uint16_t shuffle(uint16_t val)
     return ((val & 0xff00) >> 8) | ((val & 0xff) << 8);
 }
 
+static inline GB_RESULT ms5611_crc(uint16_t *prom)
+{
+    int32_t i, j;
+    uint32_t res = 0;
+    uint8_t crc = prom[7] & 0xF;
+    prom[7] &= 0xFF00;
+
+    bool blankEeprom = true;
+
+    for (i = 0; i < 16; i++) {
+        if (prom[i >> 1]) {
+            blankEeprom = false;
+        }
+        if (i & 1)
+            res ^= ((prom[i >> 1]) & 0x00FF);
+        else
+            res ^= (prom[i >> 1] >> 8);
+        for (j = 8; j > 0; j--) {
+            if (res & 0x8000)
+                res ^= 0x1800;
+            res <<= 1;
+        }
+    }
+    prom[7] |= crc;
+    if (!blankEeprom && crc == ((res >> 12) & 0xF))
+        return GB_OK;
+
+    return GB_BARO_DEV_ID_ERROR;
+}
+
 static inline GB_RESULT read_prom(ms5611_t *dev)
 {
     GB_RESULT res = GB_OK;
     uint16_t tmp;
 
+    CHK_RES(read_bytes(dev, PROM_ADDR_MANU, (uint8_t *)&tmp, 2));
+    dev->config_data.menu = shuffle(tmp);
     CHK_RES(read_bytes(dev, PROM_ADDR_SENS, (uint8_t *)&tmp, 2));
     dev->config_data.sens = shuffle(tmp);
     CHK_RES(read_bytes(dev, PROM_ADDR_OFF, (uint8_t *)&tmp, 2));
@@ -64,6 +98,12 @@ static inline GB_RESULT read_prom(ms5611_t *dev)
     dev->config_data.t_ref = shuffle(tmp);
     CHK_RES(read_bytes(dev, PROM_ADDR_TEMPSENS,(uint8_t *)&tmp, 2));
     dev->config_data.tempsens = shuffle(tmp);
+    CHK_RES(read_bytes(dev, PROM_ADDR_CRC,(uint8_t *)&tmp, 2));
+    dev->config_data.crc = shuffle(tmp);
+
+    GB_DUMPI(BMP_TAG, (uint8_t*)&(dev->config_data), sizeof(ms5611_config_data_t));
+
+    CHK_RES(ms5611_crc((uint16_t*)&(dev->config_data)));
 
 error_exit:
     return res;
@@ -220,6 +260,8 @@ GB_RESULT ms5611_get_sensor_data(ms5611_t *dev, float *pressure, float *temperat
     // P = digital pressure value  * SENS - OFF = (D1 * SENS/2^21 -OFF)/2^15
     *pressure = (int32_t)(((int64_t)raw_pressure * (sens / 0x200000) - off) / 32768);
     *temperature = (float)temp / 100.0;
+
+    GB_DEBUGI(SENSOR_TAG, "RAW baro_data: [0x%08x, 0x%08x]\n", raw_pressure, raw_temperature);
 
 error_exit:
     return res;

@@ -57,12 +57,14 @@ typedef enum
  */
 typedef struct
 {
+    uint16_t menu;
     uint16_t sens;       //!< C1 Pressure sensitivity                             | SENS_t1
     uint16_t off;        //!< C2 Pressure offset                                  | OFF_t1
     uint16_t tcs;        //!< C3 Temperature coefficient of pressure sensitivity  | TCS
     uint16_t tco;        //!< C4 Temperature coefficient of pressure offset       | TCO
     uint16_t t_ref;      //!< C5 Reference temperature                            | T_ref
     uint16_t tempsens;   //!< C6 Temperature coefficient of the temperature       | TEMPSENSE
+    uint16_t crc;
 } ms5611_config_data_t;
 
 /**

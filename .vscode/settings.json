@@ -120,7 +120,8 @@
         "math.h": "c",
         "stdbool.h": "c",
         "inttypes.h": "c",
-        "lis3mdl.h": "c"
+        "lis3mdl.h": "c",
+        "stddef.h": "c"
     },
     "C_Cpp.dimInactiveRegions": false,
     "idf.pythonInstallPath": "D:\\Espressif\\tools\\idf-python\\3.11.2\\python.exe",
