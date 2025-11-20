@@ -328,7 +328,7 @@ GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t r
         transaction[i].command_bits = commandBits;
         transaction[i].address_bits = addrBits;
         transaction[i].dummy_bits = dummyBits;
-        transaction[i].base.flags = 0;
+        transaction[i].base.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR | SPI_TRANS_VARIABLE_DUMMY;
         transaction[i].base.cmd = 0;
         transaction[i].base.addr = regAddr & SPIBUS_WRITE;
         transaction[i].base.length = process_len * 8;
