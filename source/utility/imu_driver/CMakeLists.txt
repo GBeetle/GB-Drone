@@ -10,6 +10,7 @@ else()
     message(WARNING "IMU drivers not defined.")
 endif()
 
+list(APPEND SOURCES "filter.c")
 set(COMPONENT_SRCS ${SOURCES})
 
 set(COMPONENT_REQUIRES spi_bus i2c_bus log_sys error_handle io_define compass barometer isr_manager gb_timer gpio_setting pwm)

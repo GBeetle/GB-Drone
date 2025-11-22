@@ -21,6 +21,10 @@
 #include "isr_manager.h"
 #include "gpio_setting.h"
 #include "pwm.h"
+#include "filter.h"
+
+#define GYRO_FILTER_ENABLE    1
+#define GYRO_JUMP_THRESHOLD   1000.0f
 
 static GB_RESULT initialize(struct imu *imu);
 static GB_RESULT reset(struct imu *imu);
@@ -72,6 +76,11 @@ static GB_RESULT baroGetData(struct imu *imu, baro_t *baro);
 const accel_fs_t g_accel_fs = ACCEL_FS_16G;
 const gyro_fs_t g_gyro_fs = GYRO_FS_2000DPS;
 const compass_scale_t g_compass_fs = QMC5883L_RNG_8;
+
+#if GYRO_FILTER_ENABLE
+#define GYRO_CUTOFF_FREQ       30.0f
+BWLowPass *gryp_filter = NULL;
+#endif
 
 // Possible gyro Anti-Alias Filter (AAF) cutoffs for ICM-42688P
 // actual cutoff differs slightly from those of the 42688P
@@ -331,6 +340,13 @@ static GB_RESULT setBank(struct imu *imu, uint8_t bank) {
     return imu->writeByte(imu, REG_BANK_SEL, bank);
 }
 
+static int16_t limit_filter(int16_t new_val, int16_t last_val)
+{
+    if (abs(new_val - last_val) > GYRO_JUMP_THRESHOLD)
+        return last_val;
+    return new_val;
+}
+
 /**
  * @brief Initialize imu device and set basic configurations.
  * */
@@ -383,7 +399,7 @@ static GB_RESULT initialize(struct imu *imu)
     // Turn on ACC and GYRO
     CHK_RES(setBank(imu, 0));
     CHK_RES(imu->writeByte(imu, UB0_REG_PWR_MGMT0, UB0_REG_PWR_MGMT0_TEMP_DISABLE_OFF | UB0_REG_PWR_MGMT0_ACCEL_MODE_LN | UB0_REG_PWR_MGMT0_GYRO_MODE_LN));
-    GB_SleepMs (100); // ICM-42688-P datasheet PWR_MGMTO note
+    GB_SleepMs(100); // ICM-42688-P datasheet PWR_MGMTO note
 
     CHK_RES(imu->setGyroFullScale(imu, g_gyro_fs));
     CHK_RES(imu->setAccelFullScale(imu, g_accel_fs));
@@ -401,6 +417,10 @@ static GB_RESULT initialize(struct imu *imu)
 
     imu->mpu_status |= IMU_GYRO_STATUS_BIT;
     imu->mpu_status |= IMU_ACCEL_STATUS_BIT;
+
+#if GYRO_FILTER_ENABLE
+    gryp_filter = create_bw_low_pass_filter(2, IMU_SAMPLE_RATE, GYRO_CUTOFF_FREQ);
+#endif
 
 error_exit:
     return res;
@@ -813,10 +833,24 @@ error_exit:
 static GB_RESULT rotation(struct imu *imu, raw_axes_t* gyro)
 {
     GB_RESULT res = GB_OK;
+    static raw_axes_t last_gyro = GB_RAW_DATA_ZERO;
+
     CHK_RES(imu->readBytes(imu, UB0_REG_GYRO_DATA_X1, 6, imu->buffer));
     gyro->data.x = imu->buffer[0] << 8 | imu->buffer[1];
     gyro->data.y = imu->buffer[2] << 8 | imu->buffer[3];
     gyro->data.z = imu->buffer[4] << 8 | imu->buffer[5];
+
+    gyro->data.x = limit_filter(gyro->data.x, last_gyro.data.x);
+    gyro->data.y = limit_filter(gyro->data.y, last_gyro.data.y);
+    gyro->data.z = limit_filter(gyro->data.z, last_gyro.data.z);
+
+#if GYRO_FILTER_ENABLE
+    gyro->data.x = bw_low_pass(gryp_filter, gyro->data.x);
+    gyro->data.y = bw_low_pass(gryp_filter, gyro->data.y);
+    gyro->data.z = bw_low_pass(gryp_filter, gyro->data.z);
+
+    last_gyro = *gyro;
+#endif
 error_exit:
     return res;
 }
