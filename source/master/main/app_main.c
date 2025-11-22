@@ -26,6 +26,7 @@
 #include "ms5611.h"
 #include "spi_bus.h"
 #include "io_define.h"
+#include "gpio_setting.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -58,6 +59,9 @@ void app_main(void)
     ms5611_t dev;
     fspi.begin(&fspi, MPU_FSPI_MOSI, MPU_FSPI_MISO, MPU_FSPI_SCLK, SPI_MAX_DMA_LEN);
     fspi.addDevice(&fspi, GB_SPI_DEV_1, 8, 0, SPI_DEVICE_NO_DUMMY, BARO_SPI_CLOCK_SPEED, BARO_SPI_CS);
+
+    //GB_GPIO_Reset( BARO_SPI_CS );
+    //GB_GPIO_SetDirection( BARO_SPI_CS, GB_GPIO_OUTPUT );
     ms5611_init_desc(&dev, &fspi, GB_SPI_DEV_1);
     ms5611_init(&dev, MS5611_OSR_256);
 

@@ -12,7 +12,7 @@ endif()
 
 set(COMPONENT_SRCS ${SOURCES})
 
-set(COMPONENT_REQUIRES spi_bus i2c_bus log_sys error_handle io_define compass barometer isr_manager gb_timer gpio_setting)
+set(COMPONENT_REQUIRES spi_bus i2c_bus log_sys error_handle io_define compass barometer isr_manager gb_timer gpio_setting pwm)
 
 set(COMPONENT_ADD_INCLUDEDIRS "include")
 

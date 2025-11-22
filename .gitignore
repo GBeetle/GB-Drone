@@ -90,6 +90,7 @@ source/master/components/esc
 source/master/components/file_system
 source/master/components/buzzer
 source/master/components/max1704x
+source/master/components/pwm
 
 source/remote/components/error_handle
 source/remote/components/i2c_bus

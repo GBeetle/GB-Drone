@@ -16,6 +16,7 @@
  */
 
 #include <stddef.h>
+#include <string.h>
 #include "ms5611.h"
 #include "gb_timer.h"
 #include "error_handle.h"
@@ -34,28 +35,30 @@
 #define PROM_ADDR_TEMPSENS 0xac
 #define PROM_ADDR_CRC      0xae
 
-static inline GB_RESULT read_bytes(ms5611_t *dev, uint8_t reg, uint8_t *r, size_t length)
+static inline GB_RESULT send_command(ms5611_t *dev, uint8_t cmd)
 {
     GB_RESULT res = GB_OK;
-    uint8_t w_data = 0x00;
 
-    if (reg != 0x00)
-    {
-        CHK_RES(dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, 1, NULL, &reg, 0, 0, 0));
-    }
-
-    for (int i = 0; i < length; i++)
-    {
-        CHK_RES(dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, 1, r + i, &w_data, 0, 0, 0));
-    }
+    //GB_GPIO_Set(BARO_SPI_CS, 0);
+    CHK_RES(dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, 0x00, 1, NULL, &cmd, 0, 0, 0));
+    //GB_GPIO_Set(BARO_SPI_CS, 1);
 
 error_exit:
     return res;
 }
 
-static inline GB_RESULT send_command(ms5611_t *dev, uint8_t cmd)
+static inline GB_RESULT read_bytes(ms5611_t *dev, uint8_t cmd, uint8_t *r, size_t length)
 {
-    return dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, 1, NULL, &cmd, 0, 0, 0);
+    GB_RESULT res = GB_OK;
+
+    CHK_RES(send_command(dev, cmd));
+    //GB_GPIO_Set(BARO_SPI_CS, 0);
+    CHK_RES(dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, 0x00, length, r, NULL, 0, 0, 0));
+    //CHK_RES(dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, cmd, length, r, NULL, 8, 0, 0));
+    //GB_GPIO_Set(BARO_SPI_CS, 1);
+
+error_exit:
+    return res;
 }
 
 static inline uint16_t shuffle(uint16_t val)
@@ -98,6 +101,13 @@ static inline GB_RESULT read_prom(ms5611_t *dev)
     GB_RESULT res = GB_OK;
     uint16_t tmp;
 
+#if 0
+    uint8_t buf[20] = {0};
+    CHK_RES(read_bytes(dev, PROM_ADDR_MANU, buf, 20));
+    GB_DUMPI(BMP_TAG, buf, sizeof(buf));
+#endif
+
+#if 1
     CHK_RES(read_bytes(dev, PROM_ADDR_MANU, (uint8_t *)&tmp, 2));
     dev->config_data.menu = shuffle(tmp);
     CHK_RES(read_bytes(dev, PROM_ADDR_SENS, (uint8_t *)&tmp, 2));
@@ -118,6 +128,7 @@ static inline GB_RESULT read_prom(ms5611_t *dev)
     GB_DUMPI(BMP_TAG, (uint8_t*)&(dev->config_data), sizeof(ms5611_config_data_t));
 
     CHK_RES(ms5611_crc((uint16_t*)&(dev->config_data)));
+#endif
 
 error_exit:
     return res;
@@ -208,7 +219,7 @@ GB_RESULT ms5611_init(ms5611_t *dev, ms5611_osr_t osr)
     // First of all we need to reset the chip
     CHK_RES(ms5611_reset(dev));
     // Wait a bit for the device to reset
-    GB_SleepMs(100);
+    GB_SleepMs(3000);
     // Get the config
     CHK_RES(read_prom(dev));
 

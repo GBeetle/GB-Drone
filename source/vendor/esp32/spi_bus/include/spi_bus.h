@@ -101,8 +101,8 @@ struct spi {
     GB_RESULT (*writeBits)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
     GB_RESULT (*writeByte)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t data);
     GB_RESULT (*writeBytes)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, const uint8_t *data);
-    GB_RESULT (*readWriteBytesWithConfig)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data,
-                                      uint8_t commandBits, uint8_t addrBits, uint8_t dummyBits);
+    GB_RESULT (*readWriteBytesWithConfig)(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint16_t cmd, size_t length,
+                                      uint8_t *r_data, uint8_t *w_data, uint8_t commandBits, uint8_t addrBits, uint8_t dummyBits);
 
     /**
      * *** READING interface ***

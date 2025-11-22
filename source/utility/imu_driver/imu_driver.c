@@ -20,6 +20,7 @@
 #include "gb_timer.h"
 #include "isr_manager.h"
 #include "gpio_setting.h"
+#include "pwm.h"
 
 static GB_RESULT initialize(struct imu *imu);
 static GB_RESULT reset(struct imu *imu);
@@ -344,6 +345,13 @@ static GB_RESULT initialize(struct imu *imu)
         .int1_drive = 1,
         .int1_level = 1,
     }; // push-pull, pulsed, active HIGH interrupts
+    GB_PWM_TYPE_T pwm_dev = {
+        .timer = 0,
+        .channel = 0,
+        .resolution = 10,
+        .io = MPU_INT2,
+        .freq = 50000,
+    };
 
     // reset device (wait a little to clear all registers)
     CHK_RES(imu->reset(imu));
@@ -360,6 +368,11 @@ static GB_RESULT initialize(struct imu *imu)
 
     CHK_RES(imu->setInterruptConfig(imu, int_config));
     CHK_RES(imu->setInterruptEnabled(imu, 0));
+
+    // set external clock
+    CHK_RES(imu->writeByte(imu, UB1_REG_INTF_CONFIG5, 0x04));
+    CHK_RES(GB_PWM_Init(&pwm_dev));
+    CHK_RES(GB_PWM_Start(pwm_dev));
 
     // Disable AFSR to prevent stalls in gyro output. ref: https://github.com/ArduPilot/ardupilot/pu11/25332
     CHK_RES(imu->readByte(imu, UB0_REG_INTF_CONFIG1, imu->buffer));

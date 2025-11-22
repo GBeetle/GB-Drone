@@ -35,6 +35,7 @@ typedef uint32_t GB_RESULT;
 #define GB_SPI_CFG_FAIL         0x80000004
 #define GB_SPI_RMV_FAIL         0x80000005
 #define GB_SPI_INVALID_SIZE     0x80000006
+#define GB_SPI_BUF_TOO_SMALL    0x80000007
 
 #define GB_I2C_RW_FAIL               0x80000010
 #define GB_I2C_CFG_FAIL              0x80000011
@@ -102,5 +103,8 @@ typedef uint32_t GB_RESULT;
 #define GB_FTP_INIT_FAIL        0x80000900
 #define GB_FTP_CONNECT_FAIL     0x80000901
 #define GB_FTP_GET_IP_FAIL      0x80000902
+
+#define GB_PWM_INIT_FAIL        0x80000a00
+#define GB_PWM_START_FAIL       0x80000a01
 
 #endif /* end of include guard: _GB_RESULTS__ */

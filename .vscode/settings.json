@@ -23,6 +23,7 @@
         "source/master/components/file_system": true,
         "source/master/components/buzzer": true,
         "source/master/components/max1704x": true,
+        "source/master/components/pwm": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
@@ -61,6 +62,7 @@
         "source/master/components/file_system": true,
         "source/master/components/buzzer": true,
         "source/master/components/max1704x": true,
+        "source/master/components/pwm": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,

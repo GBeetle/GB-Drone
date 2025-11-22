@@ -21,6 +21,8 @@
 #include <stdint.h>
 #include "sdkconfig.h"
 #include "results.h"
+#include "io_define.h"
+#include "gpio_setting.h"
 
 #ifdef __cplusplus
 extern "C" {

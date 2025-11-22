@@ -38,8 +38,8 @@ static GB_RESULT writeBit(struct spi *spi, uint64_t devAddr, uint64_t regAddr, u
 static GB_RESULT writeBits(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
 static GB_RESULT writeByte(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint8_t data);
 static GB_RESULT writeBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, const uint8_t *data);
-static GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data,
-                                      uint8_t commandBits, uint8_t addrBits, uint8_t dummyBits);
+static GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint16_t cmd, size_t length,
+                                          uint8_t *r_data, uint8_t *w_data, uint8_t commandBits, uint8_t addrBits, uint8_t dummyBits);
 /*******************************************************************************
  * READING
  ******************************************************************************/
@@ -305,8 +305,8 @@ static GB_RESULT readWriteBytes(struct spi *spi, uint64_t devAddr, uint64_t regA
     return GB_OK;
 }
 
-GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data,
-                                   uint8_t commandBits, uint8_t addrBits, uint8_t dummyBits)
+GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t regAddr, uint16_t cmd, size_t length,
+                                   uint8_t *r_data, uint8_t *w_data, uint8_t commandBits, uint8_t addrBits, uint8_t dummyBits)
 {
     esp_err_t err = ESP_OK;
     int remain_len = length;
@@ -328,9 +328,11 @@ GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t r
         transaction[i].command_bits = commandBits;
         transaction[i].address_bits = addrBits;
         transaction[i].dummy_bits = dummyBits;
-        transaction[i].base.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR | SPI_TRANS_VARIABLE_DUMMY;
-        transaction[i].base.cmd = 0;
-        transaction[i].base.addr = regAddr & SPIBUS_WRITE;
+        transaction[i].base.flags = SPI_TRANS_VARIABLE_ADDR;   // remove default addr length
+        if(commandBits > 0)
+            transaction[i].base.flags |= SPI_TRANS_VARIABLE_CMD;
+        transaction[i].base.cmd = cmd;
+        transaction[i].base.addr = regAddr;
         transaction[i].base.length = process_len * 8;
         transaction[i].base.rxlength = 0;
         transaction[i].base.user = NULL;
