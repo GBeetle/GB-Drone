@@ -48,32 +48,40 @@ void app_main(void)
     //GB_GPIO_SetDirection( TEST_IMU_IO, GB_GPIO_OUTPUT );
 
     GB_DEBUGI(GB_INFO, "Taks Create Start");
-    xTaskCreatePinnedToCore( gb_sensor_fusion, "gb_sensor_fusion", 5120, NULL, configMAX_PRIORITIES - 1, NULL, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( gb_read_sensor_data, "gb_read_sensor_data", 4096, NULL, configMAX_PRIORITIES - 2, &mpu_isr_handle, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( nrf24_interrupt_func, "nrf24 interrupt", 4096, NULL, configMAX_PRIORITIES - 1, &nrf24_isr_handle, tskNO_AFFINITY);
-    xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
+    //xTaskCreatePinnedToCore( gb_sensor_fusion, "gb_sensor_fusion", 5120, NULL, configMAX_PRIORITIES - 1, NULL, tskNO_AFFINITY );
+    //xTaskCreatePinnedToCore( gb_read_sensor_data, "gb_read_sensor_data", 4096, NULL, configMAX_PRIORITIES - 2, &mpu_isr_handle, tskNO_AFFINITY );
+    //xTaskCreatePinnedToCore( nrf24_interrupt_func, "nrf24 interrupt", 4096, NULL, configMAX_PRIORITIES - 1, &nrf24_isr_handle, tskNO_AFFINITY);
+    //xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
 
     GB_DEBUGI(GB_INFO, "Taks Create DONE");
 
-#if 0
+#if 1
     ms5611_t dev;
     fspi.begin(&fspi, MPU_FSPI_MOSI, MPU_FSPI_MISO, MPU_FSPI_SCLK, SPI_MAX_DMA_LEN);
-    fspi.addDevice(&fspi, GB_SPI_DEV_1, 8, 0, SPI_DEVICE_NO_DUMMY, BARO_SPI_CLOCK_SPEED, BARO_SPI_CS);
+    fspi.addDevice(&fspi, GB_SPI_DEV_1, 8, 0, SPI_DEVICE_NO_DUMMY, BARO_SPI_CLOCK_SPEED, -1);
 
-    //GB_GPIO_Reset( BARO_SPI_CS );
-    //GB_GPIO_SetDirection( BARO_SPI_CS, GB_GPIO_OUTPUT );
+    GB_GPIO_Reset( MPU_FSPI_CS );
+    GB_GPIO_SetDirection( MPU_FSPI_CS, GB_GPIO_OUTPUT );
+    GB_GPIO_Set(MPU_FSPI_CS, 1);
+
+    GB_GPIO_Reset( BARO_SPI_CS );
+    GB_GPIO_SetDirection( BARO_SPI_CS, GB_GPIO_OUTPUT );
+    GB_GPIO_Set(BARO_SPI_CS, 1);
     ms5611_init_desc(&dev, &fspi, GB_SPI_DEV_1);
-    ms5611_init(&dev, MS5611_OSR_256);
+    ms5611_init(&dev, MS5611_OSR_4096);
 
     while (1)
     {
-        float pressure, temperature;
-        ms5611_get_sensor_data(&dev, &pressure, &temperature);
+        float pressure, temperature, altitude;
+        if (GB_OK != ms5611_get_sensor_data(&dev, &pressure, &temperature))
+            continue;
+        altitude = pressureToAltitude(pressure);
 
-        GB_DEBUGI(GB_INFO, "pressure: %f, temperature: %f", pressure, temperature);
+        GB_DEBUGI(GB_INFO, "pressure: %f, temperature: %f, altitude: %f", pressure, temperature, altitude);
 
         GB_SleepMs(1000);
     }
 #endif
+
     return;
 }

@@ -149,7 +149,11 @@ void GB_IMU_Init(struct imu *imu) {
     CHK_EXIT(fspi.addDevice(&fspi, imu->addr, 8, mode, SPI_DEVICE_NO_DUMMY, MPU_SPI_CLOCK_SPEED, MPU_FSPI_CS));
 
 #if defined CONFIG_AUX_BAROMETER
-    CHK_EXIT(fspi.addDevice(&fspi, GB_SPI_DEV_1, 8, mode, SPI_DEVICE_NO_DUMMY, BARO_SPI_CLOCK_SPEED, BARO_SPI_CS));
+    mode = 0;
+    GB_GPIO_Reset( BARO_SPI_CS );
+    GB_GPIO_SetDirection( BARO_SPI_CS, GB_GPIO_OUTPUT );
+    GB_GPIO_Set(BARO_SPI_CS, 1);
+    CHK_EXIT(fspi.addDevice(&fspi, GB_SPI_DEV_1, 8, mode, SPI_DEVICE_NO_DUMMY, BARO_SPI_CLOCK_SPEED, -1));
 #endif
 #endif
 
@@ -406,7 +410,7 @@ static GB_RESULT initialize(struct imu *imu)
     CHK_RES(imu->setSampleRate(imu, odr1k << 8 | odr1k));
 
 #if defined CONFIG_AUX_BAROMETER
-    //CHK_RES(imu->baroInit(imu));
+    CHK_RES(imu->baroInit(imu));
 #endif
 
 #if defined CONFIG_AUX_COMPASS
@@ -1189,10 +1193,10 @@ static GB_RESULT baroGetData(struct imu *imu, baro_t *baro)
         // Barometer not available
         goto error_exit;
     }
-    CHK_RES(ms5611_get_sensor_data(&(imu->baro_dev), &pressure, &temperature));
+    CHK_RES_NOLOG(ms5611_get_sensor_data(&(imu->baro_dev), &pressure, &temperature));
 
     //中位值滤波
-    pressure = applyBarometerMedianFilter(pressure * 10) / 10.0f;
+    //pressure = applyBarometerMedianFilter(pressure * 10) / 10.0f;
     if (isBaroCalibrationFinished())
     {
         //计算去除地面高度后相对高度
@@ -1202,12 +1206,15 @@ static GB_RESULT baroGetData(struct imu *imu, baro_t *baro)
     {
         performBaroCalibrationCycle(pressure);
         baro->altitude = 0.0f;
+        goto error_exit;
     }
     baro->temperature = temperature;
     baro->pressure    = pressure;
 
-    GB_DEBUGI(SENSOR_TAG, "DEBUG baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ]\n", baro->pressure, baro->temperature, baro->altitude);
+    //GB_DEBUGI(SENSOR_TAG, "DEBUG baro_data: [%+6.2fPa %+6.2fC %+6.2fcm ]\n", baro->pressure, baro->temperature, baro->altitude);
 error_exit:
+    if (res == GB_BARO_DATA_NOT_READY)
+        res = GB_OK;
     return res;
 }
 

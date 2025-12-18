@@ -29,6 +29,14 @@
         }                           \
     } while(0)
 
+#define CHK_RES_NOLOG(val) do {      \
+        GB_RESULT _val = (val);      \
+        if (_val != GB_OK) {         \
+            res = _val;              \
+            goto error_exit;        \
+        }                           \
+    } while(0)
+
 #define CHK_BOOL(val) do {          \
         if (!(val)) {                 \
             GB_DEBUGE(CHK_TAG, "[CHK_BOOL] failed at file: %s, func: %s, line: %d, val = %d", __FILE__, __FUNCTION__, __LINE__, val); \

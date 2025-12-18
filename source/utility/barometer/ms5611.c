@@ -35,13 +35,23 @@
 #define PROM_ADDR_TEMPSENS 0xac
 #define PROM_ADDR_CRC      0xae
 
+typedef enum {
+    MS5611_PRESSURE_START = 0,
+    MS5611_PRESSURE_WAITTING,
+    MS5611_TEMP_START,
+    MS5611_TEMP_WAITTING,
+    MS5611_STATE_COUNT,
+} MS5611_STATE_T;
+
+static MS5611_STATE_T ms5611_state = MS5611_PRESSURE_START;
+
 static inline GB_RESULT send_command(ms5611_t *dev, uint8_t cmd)
 {
     GB_RESULT res = GB_OK;
 
-    //GB_GPIO_Set(BARO_SPI_CS, 0);
+    GB_GPIO_Set(BARO_SPI_CS, 0);
     CHK_RES(dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, 0x00, 1, NULL, &cmd, 0, 0, 0));
-    //GB_GPIO_Set(BARO_SPI_CS, 1);
+    GB_GPIO_Set(BARO_SPI_CS, 1);
 
 error_exit:
     return res;
@@ -51,11 +61,10 @@ static inline GB_RESULT read_bytes(ms5611_t *dev, uint8_t cmd, uint8_t *r, size_
 {
     GB_RESULT res = GB_OK;
 
-    CHK_RES(send_command(dev, cmd));
-    //GB_GPIO_Set(BARO_SPI_CS, 0);
+    GB_GPIO_Set(BARO_SPI_CS, 0);
+    CHK_RES(dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, 0x00, 1, NULL, &cmd, 0, 0, 0));
     CHK_RES(dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, 0x00, length, r, NULL, 0, 0, 0));
-    //CHK_RES(dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, cmd, length, r, NULL, 8, 0, 0));
-    //GB_GPIO_Set(BARO_SPI_CS, 1);
+    GB_GPIO_Set(BARO_SPI_CS, 1);
 
 error_exit:
     return res;
@@ -101,13 +110,6 @@ static inline GB_RESULT read_prom(ms5611_t *dev)
     GB_RESULT res = GB_OK;
     uint16_t tmp;
 
-#if 0
-    uint8_t buf[20] = {0};
-    CHK_RES(read_bytes(dev, PROM_ADDR_MANU, buf, 20));
-    GB_DUMPI(BMP_TAG, buf, sizeof(buf));
-#endif
-
-#if 1
     CHK_RES(read_bytes(dev, PROM_ADDR_MANU, (uint8_t *)&tmp, 2));
     dev->config_data.menu = shuffle(tmp);
     CHK_RES(read_bytes(dev, PROM_ADDR_SENS, (uint8_t *)&tmp, 2));
@@ -128,7 +130,6 @@ static inline GB_RESULT read_prom(ms5611_t *dev)
     GB_DUMPI(BMP_TAG, (uint8_t*)&(dev->config_data), sizeof(ms5611_config_data_t));
 
     CHK_RES(ms5611_crc((uint16_t*)&(dev->config_data)));
-#endif
 
 error_exit:
     return res;
@@ -146,7 +147,7 @@ error_exit:
     return res;
 }
 
-static void wait_conversion(ms5611_t *dev)
+void wait_conversion(ms5611_t *dev)
 {
     uint32_t us = 8220;
     switch (dev->osr)
@@ -160,15 +161,61 @@ static void wait_conversion(ms5611_t *dev)
     GB_SleepMs(us / 1000 + 1);
 }
 
+static bool check_conversion(ms5611_t *dev, bool start)
+{
+    uint32_t us = 8220;
+    static uint64_t start_timer = 0;
+    uint64_t check_timer = 0;
+    switch (dev->osr)
+    {
+        case MS5611_OSR_256: us = 500; break;   // 0.5ms
+        case MS5611_OSR_512: us = 1100; break;  // 1.1ms
+        case MS5611_OSR_1024: us = 2100; break; // 2.1ms
+        case MS5611_OSR_2048: us = 4100; break; // 4.1ms
+        case MS5611_OSR_4096: us = 8220; break; // 8.22ms
+    }
+    if (start)
+    {
+        GB_GetTimerUs(&start_timer);
+    }
+    else
+    {
+        GB_GetTimerUs(&check_timer);
+        if (check_timer - start_timer > us)
+        {
+            start_timer = 0;
+            return true;
+        }
+    }
+    return false;
+}
+
 static inline GB_RESULT get_raw_temperature(ms5611_t *dev, uint32_t *result)
 {
     GB_RESULT res = GB_OK;
 
-    CHK_RES(send_command(dev, CMD_CONVERT_D2 + dev->osr));
-    wait_conversion(dev);
-    CHK_RES(read_adc(dev, result));
+    if (ms5611_state == MS5611_TEMP_START)
+    {
+        CHK_RES(send_command(dev, CMD_CONVERT_D2 + dev->osr));
+        ms5611_state++;
+        check_conversion(dev, true);
+        CHK_RES_NOLOG(GB_BARO_DATA_NOT_READY);
+    }
+    else if (ms5611_state == MS5611_TEMP_WAITTING)
+    {
+        if (check_conversion(dev, false))
+        {
+            ms5611_state++;
+            CHK_RES(read_adc(dev, result));
+        }
+        else
+        {
+            CHK_RES_NOLOG(GB_BARO_DATA_NOT_READY);
+        }
+    }
 
 error_exit:
+    ms5611_state %= MS5611_STATE_COUNT;
     return res;
 }
 
@@ -176,11 +223,28 @@ static inline GB_RESULT get_raw_pressure(ms5611_t *dev, uint32_t *result)
 {
     GB_RESULT res = GB_OK;
 
-    CHK_RES(send_command(dev, CMD_CONVERT_D1 + dev->osr));
-    wait_conversion(dev);
-    CHK_RES(read_adc(dev, result));
+    if (ms5611_state == MS5611_PRESSURE_START)
+    {
+        CHK_RES(send_command(dev, CMD_CONVERT_D1 + dev->osr));
+        ms5611_state++;
+        check_conversion(dev, true);
+        CHK_RES_NOLOG(GB_BARO_DATA_NOT_READY);
+    }
+    else if (ms5611_state == MS5611_PRESSURE_WAITTING)
+    {
+        if (check_conversion(dev, false))
+        {
+            ms5611_state++;
+            CHK_RES(read_adc(dev, result));
+        }
+        else
+        {
+            CHK_RES_NOLOG(GB_BARO_DATA_NOT_READY);
+        }
+    }
 
 error_exit:
+    ms5611_state %= MS5611_STATE_COUNT;
     return res;
 }
 
@@ -219,7 +283,7 @@ GB_RESULT ms5611_init(ms5611_t *dev, ms5611_osr_t osr)
     // First of all we need to reset the chip
     CHK_RES(ms5611_reset(dev));
     // Wait a bit for the device to reset
-    GB_SleepMs(3000);
+    GB_SleepMs(300);
     // Get the config
     CHK_RES(read_prom(dev));
 
@@ -234,11 +298,11 @@ GB_RESULT ms5611_get_sensor_data(ms5611_t *dev, float *pressure, float *temperat
     CHK_NULL(dev && pressure && temperature, GB_BARO_DEVICE_NULL);
 
     // Second order temperature compensation see datasheet p8
-    uint32_t raw_pressure = 0;
-    uint32_t raw_temperature = 0;
+    static uint32_t raw_pressure = 0;
+    static uint32_t raw_temperature = 0;
 
-    CHK_RES(get_raw_pressure(dev, &raw_pressure));
-    CHK_RES(get_raw_temperature(dev, &raw_temperature));
+    CHK_RES_NOLOG(get_raw_pressure(dev, &raw_pressure));
+    CHK_RES_NOLOG(get_raw_temperature(dev, &raw_temperature));
 
     // dT = D2 - T_ref = D2 - C5 * 2^8
     int32_t dt = raw_temperature - ((int32_t)dev->config_data.t_ref << 8);
@@ -286,8 +350,9 @@ GB_RESULT ms5611_get_sensor_data(ms5611_t *dev, float *pressure, float *temperat
     *pressure = (int32_t)(((int64_t)raw_pressure * (sens / 0x200000) - off) / 32768);
     *temperature = (float)temp / 100.0;
 
-    GB_DEBUGI(SENSOR_TAG, "RAW baro_data: [0x%08x, 0x%08x]\n", raw_pressure, raw_temperature);
+    //GB_DEBUGI(SENSOR_TAG, "RAW baro_data: [0x%08x, 0x%08x]\n", raw_pressure, raw_temperature);
 
 error_exit:
+    //GB_DEBUGI(SENSOR_TAG, "MS5611 STATE: %d, [0x%08x, 0x%08x]\n", ms5611_state, raw_pressure, raw_temperature);
     return res;
 }

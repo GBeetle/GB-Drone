@@ -134,7 +134,7 @@ float getBaroGroundAltitude()
  */
 float pressureToAltitude(const float pressure)
 {
-    return (1.0f - pow(pressure / 101325.0f, 0.190295f)) * 443300.7692f;
+    return (1.0f - powf(pressure / 101325.0f, 0.190295f)) * 443300.7692f;
 }
 
 //气压计1个标准大气压校准
@@ -152,9 +152,9 @@ void performBaroCalibrationCycle(float baroPressureSamp)
         return;
     }
 
-    if (fabs(baroGroundPressureError) < (baroGroundPressure * 0.00005f))  // 0.005% calibration error (should give c. 10cm calibration error)
+    if (fabs(baroGroundPressureError) < (baroGroundPressure * 0.0005f))  // 0.05% calibration error (should give c. 10cm calibration error)
     {
-        if ((getTimerMs - baroCalibrationTimeout) > 1000)
+        if ((getTimerMs - baroCalibrationTimeout) > 10000)
         {
             baroGroundAltitude = pressureToAltitude(baroGroundPressure);
             baroCalibrationFinished = true;
@@ -163,6 +163,7 @@ void performBaroCalibrationCycle(float baroPressureSamp)
     else
     {
         baroCalibrationTimeout = getTimerMs;
+        //GB_DEBUGE(ERROR_TAG, "Start Calibration");
     }
 }
 
