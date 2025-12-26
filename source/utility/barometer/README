@@ -73,9 +73,17 @@ void app_main(void)
     while (1)
     {
         float pressure, temperature, altitude;
-        ms5611_get_sensor_data(&dev, &pressure, &temperature);
-        altitude = pressureToAltitude(pressure);
-
+        if (GB_OK != ms5611_get_sensor_data(&dev, &pressure, &temperature))
+            continue;
+        if (isBaroCalibrationFinished())
+        {
+            altitude = pressureToAltitude(pressure) - getBaroGroundAltitude();
+        }
+        else
+        {
+            performBaroCalibrationCycle(pressure);
+            continue;
+        }
         GB_DEBUGI(GB_INFO, "pressure: %f, temperature: %f, altitude: %f", pressure, temperature, altitude);
 
         GB_SleepMs(1000);

@@ -134,7 +134,7 @@ float getBaroGroundAltitude()
  */
 float pressureToAltitude(const float pressure)
 {
-    return (1.0f - powf(pressure / 101325.0f, 0.190295f)) * 443300.7692f;
+    return (1.0f - powf(pressure / 101325.0f, 0.190295f)) * 443300.7692f; // cm
 }
 
 //气压计1个标准大气压校准
@@ -154,7 +154,7 @@ void performBaroCalibrationCycle(float baroPressureSamp)
 
     if (fabs(baroGroundPressureError) < (baroGroundPressure * 0.0005f))  // 0.05% calibration error (should give c. 10cm calibration error)
     {
-        if ((getTimerMs - baroCalibrationTimeout) > 10000)
+        if ((getTimerMs - baroCalibrationTimeout) > 5000)
         {
             baroGroundAltitude = pressureToAltitude(baroGroundPressure);
             baroCalibrationFinished = true;
@@ -201,7 +201,7 @@ int32_t applyBarometerMedianFilter(int32_t newPressureReading)
 
     if (medianFilterReady)
     {
-        if (fabs(previousPressureReading - newPressureReading) < PRESSURE_DELTA_GLITCH_THRESHOLD)
+        if (abs(previousPressureReading - newPressureReading) < PRESSURE_DELTA_GLITCH_THRESHOLD)
         {
             barometerFilterSamples[currentFilterSampleIndex] = newPressureReading;
             currentFilterSampleIndex = nextSampleIndex;

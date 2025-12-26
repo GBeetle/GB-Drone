@@ -31,7 +31,7 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define MPU_SPI_CLOCK_SPEED 24000000
 
 #define BARO_SPI_CS          3
-#define BARO_SPI_CLOCK_SPEED 1000000
+#define BARO_SPI_CLOCK_SPEED 20000000
 
 #define COMPASS_I2C_SCL  17
 #define COMPASS_I2C_SDA  18

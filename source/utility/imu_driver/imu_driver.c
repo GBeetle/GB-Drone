@@ -1177,8 +1177,6 @@ static GB_RESULT baroInit(struct imu *imu)
     CHK_RES(ms5611_init_desc(&(imu->baro_dev), (baro_bus_t*)&fspi, GB_SPI_DEV_1));
     CHK_RES(ms5611_init(&(imu->baro_dev), MS5611_OSR_4096));
 
-    imu->mpu_status |= IMU_BARO_STATUS_BIT;
-    GB_DEBUGI(SENSOR_TAG, "Aux Barometer Init done");
 error_exit:
     return res;
 }
@@ -1187,19 +1185,20 @@ static GB_RESULT baroGetData(struct imu *imu, baro_t *baro)
 {
     GB_RESULT res = GB_OK;
     float temperature, pressure;
+    static bool statusInit = false;
 
-    if (!(imu->mpu_status & IMU_BARO_STATUS_BIT))
-    {
-        // Barometer not available
-        goto error_exit;
-    }
     CHK_RES_NOLOG(ms5611_get_sensor_data(&(imu->baro_dev), &pressure, &temperature));
 
     //中位值滤波
-    //pressure = applyBarometerMedianFilter(pressure * 10) / 10.0f;
+    //pressure = applyBarometerMedianFilter(pressure);
     if (isBaroCalibrationFinished())
     {
-        //计算去除地面高度后相对高度
+        if (!statusInit)
+        {
+            imu->mpu_status |= IMU_BARO_STATUS_BIT;
+            GB_DEBUGI(SENSOR_TAG, "Barometer Init done");
+            statusInit = true;
+        }
         baro->altitude = pressureToAltitude(pressure) - getBaroGroundAltitude();
     }
     else

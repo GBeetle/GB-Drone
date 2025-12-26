@@ -66,6 +66,8 @@ static inline GB_RESULT read_bytes(ms5611_t *dev, uint8_t cmd, uint8_t *r, size_
     CHK_RES(dev->bus->readWriteBytesWithConfig(dev->bus, dev->addr, 0x00, 0x00, length, r, NULL, 0, 0, 0));
     GB_GPIO_Set(BARO_SPI_CS, 1);
 
+    //GB_DUMPI("ADC", r, length);
+
 error_exit:
     return res;
 }
@@ -172,7 +174,7 @@ static bool check_conversion(ms5611_t *dev, bool start)
         case MS5611_OSR_512: us = 1100; break;  // 1.1ms
         case MS5611_OSR_1024: us = 2100; break; // 2.1ms
         case MS5611_OSR_2048: us = 4100; break; // 4.1ms
-        case MS5611_OSR_4096: us = 8220; break; // 8.22ms
+        case MS5611_OSR_4096: us = 10000; break; // 10ms
     }
     if (start)
     {
@@ -194,6 +196,7 @@ static inline GB_RESULT get_raw_temperature(ms5611_t *dev, uint32_t *result)
 {
     GB_RESULT res = GB_OK;
 
+#if 1
     if (ms5611_state == MS5611_TEMP_START)
     {
         CHK_RES(send_command(dev, CMD_CONVERT_D2 + dev->osr));
@@ -213,6 +216,11 @@ static inline GB_RESULT get_raw_temperature(ms5611_t *dev, uint32_t *result)
             CHK_RES_NOLOG(GB_BARO_DATA_NOT_READY);
         }
     }
+#else
+    CHK_RES(send_command(dev, CMD_CONVERT_D2 + dev->osr));
+    wait_conversion(dev);
+    CHK_RES(read_adc(dev, result));
+#endif
 
 error_exit:
     ms5611_state %= MS5611_STATE_COUNT;
@@ -223,6 +231,7 @@ static inline GB_RESULT get_raw_pressure(ms5611_t *dev, uint32_t *result)
 {
     GB_RESULT res = GB_OK;
 
+#if 1
     if (ms5611_state == MS5611_PRESSURE_START)
     {
         CHK_RES(send_command(dev, CMD_CONVERT_D1 + dev->osr));
@@ -242,6 +251,11 @@ static inline GB_RESULT get_raw_pressure(ms5611_t *dev, uint32_t *result)
             CHK_RES_NOLOG(GB_BARO_DATA_NOT_READY);
         }
     }
+#else
+    CHK_RES(send_command(dev, CMD_CONVERT_D1 + dev->osr));
+    wait_conversion(dev);
+    CHK_RES(read_adc(dev, result));
+#endif
 
 error_exit:
     ms5611_state %= MS5611_STATE_COUNT;
@@ -347,7 +361,7 @@ GB_RESULT ms5611_get_sensor_data(ms5611_t *dev, float *pressure, float *temperat
 
     // Temperature compensated pressure (10...1200mbar with 0.01mbar resolution
     // P = digital pressure value  * SENS - OFF = (D1 * SENS/2^21 -OFF)/2^15
-    *pressure = (int32_t)(((int64_t)raw_pressure * (sens / 0x200000) - off) / 32768);
+    *pressure = (int32_t)(((int64_t)raw_pressure * (sens / 0x200000) - off) / 32768) * 0.01; // Pa
     *temperature = (float)temp / 100.0;
 
     //GB_DEBUGI(SENSOR_TAG, "RAW baro_data: [0x%08x, 0x%08x]\n", raw_pressure, raw_temperature);
