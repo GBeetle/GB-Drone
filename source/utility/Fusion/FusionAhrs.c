@@ -142,6 +142,7 @@ void FusionAhrsUpdate(FusionAhrs *const ahrs, const FusionVector gyroscope, cons
     FusionVector halfAccelerometerFeedback = FUSION_VECTOR_ZERO;
     ahrs->accelerometerIgnored = true;
     if (FusionVectorIsZero(accelerometer) == false) {
+        GB_DEBUGD(SENSOR_TAG, "line: %d, accelerometer x: %f, y: %f, z: %f", __LINE__, accelerometer.axis.x, accelerometer.axis.y, accelerometer.axis.z);
 
         // Calculate accelerometer feedback scaled by 0.5
         ahrs->halfAccelerometerFeedback = Feedback(FusionVectorNormalise(accelerometer), halfGravity);
@@ -150,22 +151,29 @@ void FusionAhrsUpdate(FusionAhrs *const ahrs, const FusionVector gyroscope, cons
         if (ahrs->initialising || ((FusionVectorMagnitudeSquared(ahrs->halfAccelerometerFeedback) <= ahrs->settings.accelerationRejection))) {
             ahrs->accelerometerIgnored = false;
             ahrs->accelerationRecoveryTrigger -= 9;
+            GB_DEBUGD(SENSOR_TAG, "line: %d, halfAccelerometerFeedback x: %f, y: %f, z: %f", __LINE__,
+                      ahrs->halfAccelerometerFeedback.axis.x, ahrs->halfAccelerometerFeedback.axis.y, ahrs->halfAccelerometerFeedback.axis.z);
         } else {
             ahrs->accelerationRecoveryTrigger += 1;
+            GB_DEBUGD(SENSOR_TAG, "line: %d, halfAccelerometerFeedback x: %f, y: %f, z: %f", __LINE__,
+                      ahrs->halfAccelerometerFeedback.axis.x, ahrs->halfAccelerometerFeedback.axis.y, ahrs->halfAccelerometerFeedback.axis.z);
         }
 
         // Don't ignore accelerometer during acceleration recovery
         if (ahrs->accelerationRecoveryTrigger > ahrs->accelerationRecoveryTimeout) {
             ahrs->accelerationRecoveryTimeout = 0;
             ahrs->accelerometerIgnored = false;
+            GB_DEBUGD(SENSOR_TAG, "line: %d", __LINE__);
         } else {
             ahrs->accelerationRecoveryTimeout = ahrs->settings.recoveryTriggerPeriod;
+            GB_DEBUGD(SENSOR_TAG, "line: %d", __LINE__);
         }
         ahrs->accelerationRecoveryTrigger = Clamp(ahrs->accelerationRecoveryTrigger, 0, ahrs->settings.recoveryTriggerPeriod);
 
         // Apply accelerometer feedback
         if (ahrs->accelerometerIgnored == false) {
             halfAccelerometerFeedback = ahrs->halfAccelerometerFeedback;
+            GB_DEBUGD(SENSOR_TAG, "line: %d", __LINE__);
         }
     }
 
@@ -216,6 +224,7 @@ void FusionAhrsUpdate(FusionAhrs *const ahrs, const FusionVector gyroscope, cons
 
     // Apply feedback to gyroscope
     const FusionVector adjustedHalfGyroscope = FusionVectorAdd(halfGyroscope, FusionVectorMultiplyScalar(FusionVectorAdd(halfAccelerometerFeedback, halfMagnetometerFeedback), ahrs->rampedGain));
+    GB_DEBUGD(SENSOR_TAG, "line: %d, adjustedHalfGyroscope x: %f, y: %f, z: %f", __LINE__, adjustedHalfGyroscope.axis.x, adjustedHalfGyroscope.axis.y, adjustedHalfGyroscope.axis.z);
 
     // Integrate rate of change of quaternion
     ahrs->quaternion = FusionQuaternionAdd(ahrs->quaternion, FusionQuaternionMultiplyVector(ahrs->quaternion, FusionVectorMultiplyScalar(adjustedHalfGyroscope, deltaTime)));

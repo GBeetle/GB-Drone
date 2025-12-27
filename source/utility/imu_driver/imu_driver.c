@@ -23,8 +23,8 @@
 #include "pwm.h"
 #include "filter.h"
 
-#define GYRO_FILTER_ENABLE    1
-#define GYRO_JUMP_THRESHOLD   1000.0f
+#define GYRO_FILTER_ENABLE    0
+#define GYRO_JUMP_THRESHOLD   (INT16_MAX / 2)    // half of full scale
 
 static GB_RESULT initialize(struct imu *imu);
 static GB_RESULT reset(struct imu *imu);
@@ -79,7 +79,9 @@ const compass_scale_t g_compass_fs = QMC5883L_RNG_8;
 
 #if GYRO_FILTER_ENABLE
 #define GYRO_CUTOFF_FREQ       30.0f
-BWLowPass *gryp_filter = NULL;
+BWLowPass *gryp_filter_x = NULL;
+BWLowPass *gryp_filter_y = NULL;
+BWLowPass *gryp_filter_z = NULL;
 #endif
 
 // Possible gyro Anti-Alias Filter (AAF) cutoffs for ICM-42688P
@@ -423,7 +425,9 @@ static GB_RESULT initialize(struct imu *imu)
     imu->mpu_status |= IMU_ACCEL_STATUS_BIT;
 
 #if GYRO_FILTER_ENABLE
-    gryp_filter = create_bw_low_pass_filter(2, IMU_SAMPLE_RATE, GYRO_CUTOFF_FREQ);
+    gryp_filter_x = create_bw_low_pass_filter(2, IMU_SAMPLE_RATE, GYRO_CUTOFF_FREQ);
+    gryp_filter_y = create_bw_low_pass_filter(2, IMU_SAMPLE_RATE, GYRO_CUTOFF_FREQ);
+    gryp_filter_z = create_bw_low_pass_filter(2, IMU_SAMPLE_RATE, GYRO_CUTOFF_FREQ);
 #endif
 
 error_exit:
@@ -849,9 +853,9 @@ static GB_RESULT rotation(struct imu *imu, raw_axes_t* gyro)
     gyro->data.z = limit_filter(gyro->data.z, last_gyro.data.z);
 
 #if GYRO_FILTER_ENABLE
-    gyro->data.x = bw_low_pass(gryp_filter, gyro->data.x);
-    gyro->data.y = bw_low_pass(gryp_filter, gyro->data.y);
-    gyro->data.z = bw_low_pass(gryp_filter, gyro->data.z);
+    gyro->data.x = bw_low_pass(gryp_filter_x, gyro->data.x);
+    gyro->data.y = bw_low_pass(gryp_filter_y, gyro->data.y);
+    gyro->data.z = bw_low_pass(gryp_filter_z, gyro->data.z);
 
     last_gyro = *gyro;
 #endif

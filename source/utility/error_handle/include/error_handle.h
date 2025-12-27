@@ -46,7 +46,7 @@
     } while(0)
 
 #define CHK_NULL(val, error_code) do {         \
-        if (val == NULL) {         \
+        if (!val) {                \
             GB_DEBUGE(CHK_TAG, "[CHK_NULL] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, error_code); \
             res = error_code;      \
             goto error_exit;       \

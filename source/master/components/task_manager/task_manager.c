@@ -189,17 +189,20 @@ void gb_sensor_fusion(void* arg)
     // Fusion initialization
     const FusionMatrix gyroscopeMisalignment = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     const FusionVector gyroscopeSensitivity = {{1.0f, 1.0f, 1.0f}};
-    const FusionVector gyroscopeOffset = {{0.0f, 0.0f, 0.0f}}; // For MPU6050 using setOffsets to remove bias error
+    const FusionVector gyroscopeOffset = {
+        .axis.x = -7.02f * gyroResolution(g_gyro_fs),
+        .axis.y = -18.32f * gyroResolution(g_gyro_fs),
+        .axis.z = 5.65f * gyroResolution(g_gyro_fs)};
 
     const FusionMatrix accelerometerMisalignment = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
     const FusionVector accelerometerSensitivity = {
-        .axis.x = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2056.73),
-        .axis.y = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2036.68),
-        .axis.z = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2071.70)};
+        .axis.x = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2046.88),
+        .axis.y = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2044.67),
+        .axis.z = (float)(INT16_MAX) / accelFSRvalue(g_accel_fs) / (2045.95)};
     const FusionVector accelerometerOffset = {
-        .axis.x = 60.50f * accelResolution(g_accel_fs),
-        .axis.y = -34.09f * accelResolution(g_accel_fs),
-        .axis.z = 181.67f * accelResolution(g_accel_fs)};
+        .axis.x = -1.17f * accelResolution(g_accel_fs),
+        .axis.y = -4.52f * accelResolution(g_accel_fs),
+        .axis.z = -30.97f * accelResolution(g_accel_fs)};
 
     const FusionMatrix softIronMatrix = {{{2.38f, 0.04f, -0.04f}, {0.04f, 2.49f, -0.09f}, {-0.04f, -0.09f, 2.70f}}};
     const FusionVector hardIronOffset = {{0.33f, -0.77f, 1.14f}};
@@ -228,7 +231,6 @@ void gb_sensor_fusion(void* arg)
 
         //GB_GPIO_Set( TEST_IMU_IO, 1 );
 
-        // 0.3ms start
         CHK_FUNC_EXIT(get_sensor_data(&accelRaw, &gyroRaw, &magRaw, &accelG, &gyroDPS, &magDPS, &baro_data));
 
         // Acquire latest sensor data
@@ -263,7 +265,6 @@ void gb_sensor_fusion(void* arg)
         const FusionQuaternion quat = FusionAhrsGetQuaternion(&ahrs);
         const FusionEuler euler = FusionQuaternionToEuler(quat);
         const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
-        // 0.3ms end
 
         if (xSemaphoreTake(motionStateMutex, portMAX_DELAY) == pdTRUE)
         {
