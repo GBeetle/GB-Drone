@@ -108,4 +108,8 @@ typedef uint32_t GB_RESULT;
 #define GB_PWM_INIT_FAIL        0x80000a00
 #define GB_PWM_START_FAIL       0x80000a01
 
+#define GB_UART_WRITE_FAIL      0x80000b00
+#define GB_UART_READ_FAIL       0x80000b01
+#define GB_UART_WR_SIZE_MIS     0x80000b02
+
 #endif /* end of include guard: _GB_RESULTS__ */

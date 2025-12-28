@@ -24,6 +24,9 @@
         "source/master/components/buzzer": true,
         "source/master/components/max1704x": true,
         "source/master/components/pwm": true,
+        "source/master/components/gps_driver": true,
+        "source/master/components/minmea": true,
+        "source/master/components/uart_bus": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
@@ -63,6 +66,9 @@
         "source/master/components/buzzer": true,
         "source/master/components/max1704x": true,
         "source/master/components/pwm": true,
+        "source/master/components/gps_driver": true,
+        "source/master/components/minmea": true,
+        "source/master/components/uart_bus": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
