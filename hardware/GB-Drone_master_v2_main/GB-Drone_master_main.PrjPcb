@@ -131,6 +131,10 @@ DItemRevisionGUID=
 GenerateClassCluster=0
 DocumentUniqueId=WWEPAVKI
 
+[GeneratedDocument1]
+DocumentPath=Project Outputs for GB-Drone_master_main\Design Rule Check - PCB1.html
+DItemRevisionGUID=
+
 [Configuration1]
 Name=Sources
 ParameterCount=0
