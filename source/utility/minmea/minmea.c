@@ -77,7 +77,7 @@ bool minmea_check(const char *sentence, bool strict)
     while (*sentence == '\r' || *sentence == '\n') {
         sentence++;
     }
-    
+
     if (*sentence) {
         return false;
     }
@@ -661,6 +661,7 @@ int minmea_getdatetime(struct tm *tm, const struct minmea_date *date, const stru
     return 0;
 }
 
+#if 0
 int minmea_gettime(struct timespec *ts, const struct minmea_date *date, const struct minmea_time *time_)
 {
     struct tm tm;
@@ -676,5 +677,6 @@ int minmea_gettime(struct timespec *ts, const struct minmea_date *date, const st
         return -1;
     }
 }
+#endif
 
 /* vim: set ts=4 sw=4 et: */

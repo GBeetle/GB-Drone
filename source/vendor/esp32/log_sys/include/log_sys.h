@@ -53,6 +53,7 @@ extern const char* LORA_TAG;
 extern const char* FS_TAG;
 extern const char* DISP_TAG;
 extern const char* BATTERY_TAG;
+extern const char* GPS_TAG;
 
 void GB_LogSystemInit(void);
 void GB_PrintLog(GB_LOG_LEVEL level, const char *tag, const char* format, ...);

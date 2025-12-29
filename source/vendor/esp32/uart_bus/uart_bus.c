@@ -85,7 +85,7 @@ static GB_RESULT writeBytes(struct uart *uart, size_t length, const uint8_t *dat
 
     if (result < 0)
         return GB_UART_WRITE_FAIL;
-    else (result != length)
+    else if (result != length)
         return GB_UART_WR_SIZE_MIS;
 
     return GB_OK;
@@ -97,7 +97,7 @@ static GB_RESULT readBytes(struct uart *uart, size_t length, uint8_t *data)
 
     if (result < 0)
         return GB_UART_READ_FAIL;
-    else (result != length)
+    else if (result != length)
         return GB_UART_WR_SIZE_MIS;
 
     return GB_OK;
@@ -105,7 +105,7 @@ static GB_RESULT readBytes(struct uart *uart, size_t length, uint8_t *data)
 
 static GB_RESULT readLine(struct uart *uart, size_t length, uint8_t *data)
 {
-    if (fgets(data, length, stdin) == NULL)
+    if (fgets((char*)data, length, stdin) == NULL)
     {
         return GB_UART_READ_FAIL;
     }

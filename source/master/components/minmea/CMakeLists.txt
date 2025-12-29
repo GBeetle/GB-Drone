@@ -1,3 +1,18 @@
+if(ESP_PLATFORM)
+
+set(COMPONENT_SRCS "minmea.c")
+set(CMAKE_C_FLAGS
+    "-mlongcalls")
+set(CMAKE_CXX_FLAGS
+    "-mlongcalls")
+
+set(COMPONENT_REQUIRES log_sys error_handle)
+set(COMPONENT_ADD_INCLUDEDIRS ".")
+
+register_component()
+
+else()
+
 cmake_minimum_required(VERSION 3.3)
 
 project(minmea)
@@ -46,3 +61,5 @@ if(MSVC)
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         RENAME minmea_compat.h)
 endif()
+
+endif() # ESP_PLATFORM

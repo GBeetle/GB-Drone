@@ -37,25 +37,6 @@ void app_main(void)
     GB_MutexInitialize();
 
     GB_SleepMs(5000);     // Waiting USB Log Ready
-    if (GB_OK == GB_SDCardFileSystem_Init())
-    {
-        GB_DEBUGI(GB_INFO, "Setting Log to SD Card");
-        GB_Log2fileEnable();
-    }
-
-    // TEST IO
-    //GB_GPIO_Reset( TEST_IMU_IO );
-    //GB_GPIO_SetDirection( TEST_IMU_IO, GB_GPIO_OUTPUT );
-
-    GB_DEBUGI(GB_INFO, "Taks Create Start");
-    //xTaskCreatePinnedToCore( gb_sensor_fusion, "gb_sensor_fusion", 5120, NULL, configMAX_PRIORITIES - 1, NULL, tskNO_AFFINITY );
-    //xTaskCreatePinnedToCore( gb_read_sensor_data, "gb_read_sensor_data", 4096, NULL, configMAX_PRIORITIES - 2, &mpu_isr_handle, tskNO_AFFINITY );
-    //xTaskCreatePinnedToCore( nrf24_interrupt_func, "nrf24 interrupt", 4096, NULL, configMAX_PRIORITIES - 1, &nrf24_isr_handle, tskNO_AFFINITY);
-    xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
-
-    GB_DEBUGI(GB_INFO, "Taks Create DONE");
-
-#if 1
     ms5611_t dev;
     fspi.begin(&fspi, MPU_FSPI_MOSI, MPU_FSPI_MISO, MPU_FSPI_SCLK, SPI_MAX_DMA_LEN);
     fspi.addDevice(&fspi, GB_SPI_DEV_1, 8, 0, SPI_DEVICE_NO_DUMMY, BARO_SPI_CLOCK_SPEED, -1);
@@ -88,6 +69,5 @@ void app_main(void)
 
         GB_SleepMs(1000);
     }
-#endif
     return;
 }

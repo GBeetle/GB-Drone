@@ -37,6 +37,7 @@ const char* LORA_TAG = "[LORA]";
 const char* FS_TAG = "[FS]";
 const char* DISP_TAG = "[TFT]";
 const char* BATTERY_TAG = "[BAT]";
+const char* GPS_TAG = "[GPS]";
 
 void GB_LogSystemInit()
 {
@@ -50,6 +51,7 @@ void GB_LogSystemInit()
     esp_log_level_set(FS_TAG, ESP_LOG_INFO);
     esp_log_level_set(DISP_TAG, ESP_LOG_DEBUG);
     esp_log_level_set(BATTERY_TAG, ESP_LOG_DEBUG);
+    esp_log_level_set(GPS_TAG, ESP_LOG_DEBUG);
 
 #ifdef CONFIG_UART_LOG_ENABLE
     uart_config_t uart_config = {
