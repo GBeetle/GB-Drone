@@ -111,5 +111,6 @@ typedef uint32_t GB_RESULT;
 #define GB_UART_WRITE_FAIL      0x80000b00
 #define GB_UART_READ_FAIL       0x80000b01
 #define GB_UART_WR_SIZE_MIS     0x80000b02
+#define GB_UART_INIT_FAIL       0x80000b03
 
 #endif /* end of include guard: _GB_RESULTS__ */

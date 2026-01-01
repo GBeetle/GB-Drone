@@ -33,7 +33,7 @@ struct uart {
 
     GB_RESULT (*writeBytes)(struct uart *uart, size_t length, const uint8_t *data);
     GB_RESULT (*readBytes)(struct uart *uart, size_t length, uint8_t *data);
-    GB_RESULT (*readLine)(struct uart *uart, size_t length, uint8_t *data);
+    GB_RESULT (*readLine)(struct uart *uart, size_t maxlen, uint8_t *data, uint8_t start_char);
 };
 
 // Default Objects

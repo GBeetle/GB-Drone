@@ -30,6 +30,9 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "gps_driver.h"
+#include "uart_bus.h"
+#include "driver/uart.h"
 
 void app_main(void)
 {
@@ -37,23 +40,29 @@ void app_main(void)
     GB_MutexInitialize();
 
     GB_SleepMs(5000);     // Waiting USB Log Ready
-    if (GB_OK == GB_SDCardFileSystem_Init())
+
+    GB_DEBUGI(GPS_TAG, "GB_GPS_Init Start");
+    GB_GPS_Init();
+    GB_GPS_INFO_T gps = {
+        .latitude = 0.0f,
+        .longitude = 0.0f,
+        .altitude = 0.0f,
+    };
+
+    while (1)
     {
-        GB_DEBUGI(GB_INFO, "Setting Log to SD Card");
-        GB_Log2fileEnable();
+        memset(&gps, 0x00, sizeof(GB_GPS_INFO_T));
+        if (GB_GPS_ReadUBX(&gps) == GB_OK) {
+            GB_DEBUGI(GPS_TAG,
+                "lat=%.7f lon=%.7f alt=%.2f fix=%d sv=%d",
+                gps.latitude,
+                gps.longitude,
+                gps.altitude,
+                gps.fix_type,
+                gps.num_sv);
+        }
+
+        GB_SleepMs(1000);
     }
-
-    // TEST IO
-    //GB_GPIO_Reset( TEST_IMU_IO );
-    //GB_GPIO_SetDirection( TEST_IMU_IO, GB_GPIO_OUTPUT );
-
-    GB_DEBUGI(GB_INFO, "Taks Create Start");
-    xTaskCreatePinnedToCore( gb_sensor_fusion, "gb_sensor_fusion", 5120, NULL, configMAX_PRIORITIES - 1, NULL, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( gb_read_sensor_data, "gb_read_sensor_data", 4096, NULL, configMAX_PRIORITIES - 2, &mpu_isr_handle, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( nrf24_interrupt_func, "nrf24 interrupt", 4096, NULL, configMAX_PRIORITIES - 1, &nrf24_isr_handle, tskNO_AFFINITY);
-    xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
-
-    GB_DEBUGI(GB_INFO, "Taks Create DONE");
-
     return;
 }

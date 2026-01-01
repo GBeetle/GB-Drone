@@ -24,9 +24,12 @@ typedef struct gps_info
     float latitude;
     float longitude;
     float altitude;
+    uint8_t fix_type;
+    uint8_t num_sv;
 } GB_GPS_INFO_T;
 
 GB_RESULT GB_GPS_Init();
-GB_RESULT GB_GPS_ReadData(GB_GPS_INFO_T *gpsInfo);
+GB_RESULT GB_GPS_ReadNMEA(GB_GPS_INFO_T *gpsInfo);
+GB_RESULT GB_GPS_ReadUBX(GB_GPS_INFO_T *gpsInfo);
 
 #endif /* end of include guard: _GPS_DIRVER_H__ */
