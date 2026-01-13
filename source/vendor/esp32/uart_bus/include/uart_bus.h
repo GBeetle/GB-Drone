@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include "error_handle.h"
 
-#define GB_UART_RTX_BUF_SIZE 1004
+#define GB_UART_RTX_BUF_SIZE 1024
 
 typedef int GB_UART_Port;
 

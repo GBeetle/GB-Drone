@@ -25,6 +25,7 @@
 #include "esc_system.h"
 #include "task_manager.h"
 #include "max1704x.h"
+#include "gps_driver.h"
 
 typedef struct
 {
@@ -138,7 +139,7 @@ void gb_read_sensor_data(void* arg)
 
         CHK_FUNC_EXIT(imu.rotation(&imu, &gyroRaw));
         CHK_FUNC_EXIT(imu.acceleration(&imu, &accelRaw));
-        CHK_FUNC_EXIT(imu.heading(&imu, &magRaw));
+        //CHK_FUNC_EXIT(imu.heading(&imu, &magRaw));
         CHK_FUNC_EXIT(imu.baroGetData(&imu, &baro_data));
 
         GB_DEBUGD(SENSOR_TAG, "Queue gyroRaw.x %d, gyroRaw.y %d, gyroRaw.z %d\n", gyroRaw.data.x, gyroRaw.data.y, gyroRaw.data.z);
@@ -494,6 +495,7 @@ void nrf24_interrupt_func(void *arg)
     GB_LoraSystemInit(LORA_RECEIVE, 0, &lora_state);
     GB_Max1704xInit(&dev);
     GB_Max1704xStart(&dev);
+    //GB_GPS_Init();
     nrf24_isr_register();
 
     while (1)

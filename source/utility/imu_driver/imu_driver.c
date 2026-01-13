@@ -1255,6 +1255,7 @@ static GB_RESULT heading(struct imu *imu, raw_axes_t* mag)
         goto error_exit;
     }
 
+    // TODO: Always fread 0x00 from qmc5883l, FIX IT
     CHK_RES(qmc5883l_get_raw_data(&(imu->compass_dev), (qmc5883l_raw_data_t *)mag));
 
 error_exit:
