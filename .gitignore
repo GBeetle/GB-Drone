@@ -52,6 +52,7 @@ Mkfile.old
 dkms.conf
 
 pictures
+config.json
 
 # Build Output Directory
 source/master/build
@@ -116,3 +117,9 @@ tools/esp-idf-ftpServer/managed_components
 tools/esp-idf-ftpServer/dependencies.lock
 
 source/utility/tinygl/assets
+
+# AI Tools
+node_modules
+package-lock.json
+package.json
+~
