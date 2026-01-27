@@ -19,6 +19,17 @@
 #define __PMW3901_DRIVER_H__
 
 #include <stdint.h>
+#include <stdbool.h>
+#include "error_handle.h"
+#include "spi_bus.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#define PMW3901_CHIP_ID      0x49
+#define PMW3901_INV_CHIP_ID  0xB6
 
 typedef struct motionBurst_s {
     union {
@@ -44,23 +55,28 @@ typedef struct motionBurst_s {
     uint8_t minRawData;
 
     uint16_t shutter;
-} __attribute__((packed)) motionBurst_t;
+} __attribute__((packed)) GB_PMW3901_MOTION_T;
 
-/**
- * Initialize the PMW3901 sensor
- *
- * @param csPin Chip Select pin as defined in deck pinout driver.
- *
- * @return  true if init successful else false.
- */
-bool pmw3901Init(uint32_t csPin);
+typedef struct
+{
+    struct spi *bus;
+    GB_SPI_DEV_T dev_id;
+    uint8_t cs_pin;
+    bool initialized;
+} GB_PMW3901_DEV_T;
 
-/**
- * Read the current accumulated motion.
- *
- * @param csPin   Chip Select pin as defined in deck pinout driver.
- * @param motion  A filled in motionBurst_t structure with the latest motion information
- */
-void pmw3901ReadMotion(uint32_t csPin, motionBurst_t *motion);
+GB_RESULT GB_PMW3901_InitDesc(GB_PMW3901_DEV_T *dev, struct spi *bus, GB_SPI_DEV_T dev_id, uint8_t cs_pin);
+
+GB_RESULT GB_PMW3901_Init(GB_PMW3901_DEV_T *dev);
+
+GB_RESULT GB_PMW3901_ReadMotion(GB_PMW3901_DEV_T *dev, GB_PMW3901_MOTION_T *motion);
+
+GB_RESULT GB_PMW3901_GetMotion(GB_PMW3901_DEV_T *dev, uint16_t *deltaX, uint16_t *deltaY);
+
+GB_RESULT GB_PMW3901_CheckMotion(GB_PMW3901_DEV_T *dev, bool *motion_occurred);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  //__PMW3901_DRIVER_H__

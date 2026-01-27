@@ -96,6 +96,8 @@ source/master/components/pwm
 source/master/components/gps_driver
 source/master/components/minme
 source/master/components/uart_bus
+source/master/components/laser
+source/master/components/optical_flow
 
 source/remote/components/error_handle
 source/remote/components/i2c_bus

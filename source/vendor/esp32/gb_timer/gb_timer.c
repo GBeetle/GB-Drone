@@ -36,6 +36,12 @@ GB_RESULT GB_SleepMs(uint64_t time)
     return GB_OK;
 }
 
+GB_RESULT GB_SleepUs(uint64_t time)
+{
+    esp_rom_delay_us((uint32_t) time);
+    return GB_OK;
+}
+
 GB_RESULT GB_GetTicks(GB_TickType *ticks)
 {
     *ticks = xTaskGetTickCount();

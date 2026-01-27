@@ -1,96 +1,46 @@
-/*
- * This file is part of GB-Drone project (https://github.com/GBeetle/GB-Drone).
- * Copyright (c) 2022 GBeetle.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 3.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+/*******************************************************************************
+ Copyright (C) 2016, STMicroelectronics International N.V.
+ All rights reserved.
 
-#ifndef __VL53L1X_DRIVER_H__
-#define __VL53L1X_DRIVER_H__
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+ * Neither the name of STMicroelectronics nor the
+ names of its contributors may be used to endorse or promote products
+ derived from this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
+ NON-INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS ARE DISCLAIMED.
+ IN NO EVENT SHALL STMICROELECTRONICS INTERNATIONAL N.V. BE LIABLE FOR ANY
+ DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ******************************************************************************/
+
+
+#ifndef _VL53L1_PLATFORM_H_
+#define _VL53L1_PLATFORM_H_
 
 #include "vl53l1_ll_def.h"
+#include "vl53l1_platform_log.h"
+
+#define VL53L1_IPP_API
+#include "vl53l1_platform_ipp_imports.h"
 #include "vl53l1_platform_user_data.h"
-#include "vl53l1_api.h"
-#include "i2cdev.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-
-#define    VL53L1_BYTES_PER_WORD              2
-#define    VL53L1_BYTES_PER_DWORD             4
-
-/* Define polling delays */
-#define VL53L1_BOOT_COMPLETION_POLLING_TIMEOUT_MS     500
-#define VL53L1_RANGE_COMPLETION_POLLING_TIMEOUT_MS   2000
-#define VL53L1_TEST_COMPLETION_POLLING_TIMEOUT_MS   60000
-
-#define VL53L1_POLLING_DELAY_MS                         1
-
-/* Define LLD TuningParms Page Base Address
- * - Part of Patch_AddedTuningParms_11761
- */
-#define VL53L1_TUNINGPARM_PUBLIC_PAGE_BASE_ADDRESS  0x8000
-#define VL53L1_TUNINGPARM_PRIVATE_PAGE_BASE_ADDRESS 0xC000
-
-#define VL53L1_GAIN_FACTOR__STANDARD_DEFAULT       0x0800
-	/*!<  Default standard ranging gain correction factor
-	      1.11 format. 1.0 = 0x0800, 0.980 = 0x07D7 */
-
-#define VL53L1_OFFSET_CAL_MIN_EFFECTIVE_SPADS  0x0500
-	/*!< Lower Limit for the  MM1 effective SPAD count during offset
-	     calibration Format 8.8 0x0500 -> 5.0 effective SPADs */
-
-#define VL53L1_OFFSET_CAL_MAX_PRE_PEAK_RATE_MCPS   0x1900
-	/*!< Max Limit for the pre range peak rate during offset
-	     calibration Format 9.7 0x1900 -> 50.0 Mcps.
-	     If larger then in pile up */
-
-#define VL53L1_OFFSET_CAL_MAX_SIGMA_MM             0x0040
-	/*!< Max sigma estimate limit during offset calibration
-	     Check applies to pre-range, mm1 and mm2 ranges
-	     Format 14.2 0x0040 -> 16.0mm. */
-
-#define VL53L1_MAX_USER_ZONES                 169
-	/*!< Max number of user Zones - maximal limitation from
-		 FW stream divide - value of 254 */
-
-#define VL53L1_MAX_RANGE_RESULTS              2
-	/*!< Allocates storage for return and reference restults */
-
-
-#define VL53L1_MAX_STRING_LENGTH 512
-
-
-#define VL53L1X_DEFAULT_ADDRESS 0b0101001
-#define VL53L1X_ID			0xEACC
-
-typedef struct {
-
-	VL53L1_DevData_t   Data;
-
-	uint8_t   I2cDevAddr;
-	uint8_t   comms_type;
-	uint16_t  comms_speed_khz;
-	uint32_t  new_data_ready_poll_duration_ms;
-	I2C_Dev *I2Cx;
-
-	// I2C_HandleTypeDef *I2cHandle;
-
-} VL53L1_Dev_t;
-
-typedef VL53L1_Dev_t *VL53L1_DEV;
 
 /**
  * @file   vl53l1_platform.h
@@ -98,11 +48,37 @@ typedef VL53L1_Dev_t *VL53L1_DEV;
  * @brief  All end user OS/platform/application porting
  */
 
-bool vl53l1xInit(VL53L1_Dev_t *pdev, I2C_Dev *I2cHandle);
 
-bool vl53l1xTestConnection(VL53L1_Dev_t* pdev);
 
-VL53L1_Error vl53l1xSetI2CAddress(VL53L1_Dev_t* pdev, uint8_t address);
+/**
+ * @brief  Initialise platform comms.
+ *
+ * @param[in]   pdev            : pointer to device structure (device handle)
+ * @param[in]   comms_type      : selects between I2C and SPI
+ * @param[in]   comms_speed_khz : unsigned short containing the I2C speed in kHz
+ *
+ * @return   VL53L1_ERROR_NONE    Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error VL53L1_CommsInitialise(
+	VL53L1_Dev_t *pdev,
+	uint8_t       comms_type,
+	uint16_t      comms_speed_khz);
+
+
+/**
+ * @brief  Close platform comms.
+ *
+ * @param[in]   pdev      : pointer to device structure (device handle)
+ *
+ * @return   VL53L1_ERROR_NONE    Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error VL53L1_CommsClose(
+	VL53L1_Dev_t *pdev);
+
 
 /**
  * @brief Writes the supplied byte buffer to the device
@@ -286,6 +262,130 @@ VL53L1_Error VL53L1_WaitMs(
 		VL53L1_Dev_t *pdev,
 		int32_t       wait_ms);
 
+
+/**
+* @brief Get the frequency of the timer used for ranging results time stamps
+*
+* @param[out] ptimer_freq_hz : pointer for timer frequency
+*
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+*/
+
+VL53L1_Error VL53L1_GetTimerFrequency(int32_t *ptimer_freq_hz);
+
+/**
+* @brief Get the timer value in units of timer_freq_hz (see VL53L1_get_timestamp_frequency())
+*
+* @param[out] ptimer_count : pointer for timer count value
+*
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+*/
+
+VL53L1_Error VL53L1_GetTimerValue(int32_t *ptimer_count);
+
+
+/**
+ * @brief Set the mode of a specified GPIO pin
+ *
+ * @param  pin - an identifier specifying the pin being modified - defined per platform
+ *
+ * @param  mode - an identifier specifying the requested mode - defined per platform
+ *
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error VL53L1_GpioSetMode(uint8_t pin, uint8_t mode);
+
+
+/**
+ * @brief Set the value of a specified GPIO pin
+ *
+ * @param  pin - an identifier specifying the pin being modified - defined per platform
+ *
+ * @param  value - a value to set on the GPIO pin - typically 0 or 1
+ *
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error VL53L1_GpioSetValue(uint8_t pin, uint8_t value);
+
+
+/**
+ * @brief Get the value of a specified GPIO pin
+ *
+ * @param  pin - an identifier specifying the pin being modified - defined per platform
+ *
+ * @param  pvalue - a value retrieved from the GPIO pin - typically 0 or 1
+ *
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error VL53L1_GpioGetValue(uint8_t pin, uint8_t *pvalue);
+
+
+/**
+ * @brief Sets and clears the XShutdown pin on the Ewok
+ *
+ * @param  value - the value for xshutdown - 0 = in reset, 1 = operational
+ *
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error VL53L1_GpioXshutdown(uint8_t value);
+
+
+/**
+ * @brief Sets and clears the Comms Mode pin (NCS) on the Ewok
+ *
+ * @param  value - the value for comms select - 0 = I2C, 1 = SPI
+ *
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error VL53L1_GpioCommsSelect(uint8_t value);
+
+
+/**
+ * @brief Enables and disables the power to the Ewok module
+ *
+ * @param  value - the state of the power supply - 0 = power off, 1 = power on
+ *
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error VL53L1_GpioPowerEnable(uint8_t value);
+
+/**
+ * @brief Enables callbacks to the supplied funtion pointer when Ewok interrupts ocurr
+ *
+ * @param  function - a function callback supplies by the caller, for interrupt notification
+ * @param  edge_type - falling edge or rising edge interrupt detection
+ *
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error  VL53L1_GpioInterruptEnable(void (*function)(void), uint8_t edge_type);
+
+
+/**
+ * @brief Disables the callback on Ewok interrupts
+ *
+ * @return  VL53L1_ERROR_NONE     Success
+ * @return  "Other error code"    See ::VL53L1_Error
+ */
+
+VL53L1_Error  VL53L1_GpioInterruptDisable(void);
+
+
 /*
  * @brief Gets current system tick count in [ms]
  *
@@ -327,4 +427,5 @@ VL53L1_Error VL53L1_WaitValueMaskEx(
 }
 #endif
 
-#endif  //__VL53L1X_DRIVER_H__
+#endif
+

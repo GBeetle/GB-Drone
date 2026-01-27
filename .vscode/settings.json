@@ -27,6 +27,8 @@
         "source/master/components/gps_driver": true,
         "source/master/components/minmea": true,
         "source/master/components/uart_bus": true,
+        "source/master/components/laser": true,
+        "source/master/components/optical_flow": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,
@@ -69,6 +71,8 @@
         "source/master/components/gps_driver": true,
         "source/master/components/minmea": true,
         "source/master/components/uart_bus": true,
+        "source/master/components/laser": true,
+        "source/master/components/optical_flow": true,
 
         "source/remote/build": true,
         "source/remote/components/i2c_bus": true,

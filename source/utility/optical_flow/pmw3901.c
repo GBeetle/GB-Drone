@@ -15,201 +15,271 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-static bool isInit = false;
+#include <string.h>
+#include "pmw3901.h"
+#include "log_sys.h"
+#include "gb_timer.h"
+#include "gpio_setting.h"
+#include "results.h"
+#include "error_handle.h"
 
-static void registerWrite(uint32_t csPin, uint8_t reg, uint8_t value)
+#define PMW3901_REG_PRODUCT_ID      0x00
+#define PMW3901_REG_INV_PRODUCT_ID  0x5F
+#define PMW3901_REG_MOTION_BURST    0x16
+#define PMW3901_REG_POWER_RESET     0x3A
+
+static GB_RESULT pmw3901_write_register(GB_PMW3901_DEV_T *dev, uint8_t reg, uint8_t value)
 {
-    // Set MSB to 1 for write
-    reg |= 0x80u;
+    GB_RESULT res = GB_OK;
+    uint8_t tx_data[2] = {0};
 
-    spiBeginTransaction(SPI_BAUDRATE_2MHZ);
-    digitalWrite(csPin, LOW);
+    tx_data[0] = reg | 0x80;
+    tx_data[1] = value;
 
-    sleepus(50);
+    GB_GPIO_Set(dev->cs_pin, 0);
+    CHK_RES(dev->bus->writeBytes(dev->bus, dev->dev_id, 0, 2, tx_data));
+    GB_GPIO_Set(dev->cs_pin, 1);
 
-    spiExchange(1, 1, &reg, &reg);
-    sleepus(50);
-    spiExchange(1, 1, &value, &value);
-
-    sleepus(50);
-
-    digitalWrite(csPin, HIGH);
-    spiEndTransaction();
-    sleepus(200);
+error_exit:
+    return res;
 }
 
-static uint8_t registerRead(uint32_t csPin, uint8_t reg)
+static GB_RESULT pmw3901_read_register(GB_PMW3901_DEV_T *dev, uint8_t reg, uint8_t *value)
 {
-    uint8_t data = 0;
+    GB_RESULT res = GB_OK;
+    uint8_t tx_data[2] = {0};
+    uint8_t rx_data[2] = {0};
+
+    tx_data[0] = reg & ~0x80;
+
+    GB_GPIO_Set(dev->cs_pin, 1);
+    CHK_RES(dev->bus->readWriteBytes(dev->bus, dev->dev_id, 0, 2, rx_data, tx_data));
+    GB_GPIO_Set(dev->cs_pin, 1);
+
+    *value = rx_data[1];
+    GB_SleepUs(200);
+
+error_exit:
+    return res;
+}
+
+static GB_RESULT pmw3901_init_registers(GB_PMW3901_DEV_T *dev)
+{
+    GB_RESULT res = GB_OK;
+
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x00));
+    CHK_RES(pmw3901_write_register(dev, 0x61, 0xAD));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x03));
+    CHK_RES(pmw3901_write_register(dev, 0x40, 0x00));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x05));
+    CHK_RES(pmw3901_write_register(dev, 0x41, 0xB3));
+    CHK_RES(pmw3901_write_register(dev, 0x43, 0xF1));
+    CHK_RES(pmw3901_write_register(dev, 0x45, 0x14));
+    CHK_RES(pmw3901_write_register(dev, 0x5B, 0x32));
+    CHK_RES(pmw3901_write_register(dev, 0x5F, 0x34));
+    CHK_RES(pmw3901_write_register(dev, 0x7B, 0x08));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x06));
+    CHK_RES(pmw3901_write_register(dev, 0x44, 0x1B));
+    CHK_RES(pmw3901_write_register(dev, 0x40, 0xBF));
+    CHK_RES(pmw3901_write_register(dev, 0x4E, 0x3F));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x08));
+    CHK_RES(pmw3901_write_register(dev, 0x65, 0x20));
+    CHK_RES(pmw3901_write_register(dev, 0x6A, 0x18));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x09));
+    CHK_RES(pmw3901_write_register(dev, 0x4F, 0xAF));
+    CHK_RES(pmw3901_write_register(dev, 0x5F, 0x40));
+    CHK_RES(pmw3901_write_register(dev, 0x48, 0x80));
+    CHK_RES(pmw3901_write_register(dev, 0x49, 0x80));
+    CHK_RES(pmw3901_write_register(dev, 0x57, 0x77));
+    CHK_RES(pmw3901_write_register(dev, 0x60, 0x78));
+    CHK_RES(pmw3901_write_register(dev, 0x61, 0x78));
+    CHK_RES(pmw3901_write_register(dev, 0x62, 0x08));
+    CHK_RES(pmw3901_write_register(dev, 0x63, 0x50));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x0A));
+    CHK_RES(pmw3901_write_register(dev, 0x45, 0x60));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x00));
+    CHK_RES(pmw3901_write_register(dev, 0x4D, 0x11));
+    CHK_RES(pmw3901_write_register(dev, 0x55, 0x80));
+    CHK_RES(pmw3901_write_register(dev, 0x74, 0x1F));
+    CHK_RES(pmw3901_write_register(dev, 0x75, 0x1F));
+    CHK_RES(pmw3901_write_register(dev, 0x4A, 0x78));
+    CHK_RES(pmw3901_write_register(dev, 0x4B, 0x78));
+    CHK_RES(pmw3901_write_register(dev, 0x44, 0x08));
+    CHK_RES(pmw3901_write_register(dev, 0x45, 0x50));
+    CHK_RES(pmw3901_write_register(dev, 0x64, 0xFF));
+    CHK_RES(pmw3901_write_register(dev, 0x65, 0x1F));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x14));
+    CHK_RES(pmw3901_write_register(dev, 0x65, 0x67));
+    CHK_RES(pmw3901_write_register(dev, 0x66, 0x08));
+    CHK_RES(pmw3901_write_register(dev, 0x63, 0x70));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x15));
+    CHK_RES(pmw3901_write_register(dev, 0x48, 0x48));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x07));
+    CHK_RES(pmw3901_write_register(dev, 0x41, 0x0D));
+    CHK_RES(pmw3901_write_register(dev, 0x43, 0x14));
+    CHK_RES(pmw3901_write_register(dev, 0x4B, 0x0E));
+    CHK_RES(pmw3901_write_register(dev, 0x45, 0x0F));
+    CHK_RES(pmw3901_write_register(dev, 0x44, 0x42));
+    CHK_RES(pmw3901_write_register(dev, 0x4C, 0x80));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x10));
+    CHK_RES(pmw3901_write_register(dev, 0x5B, 0x02));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x07));
+    CHK_RES(pmw3901_write_register(dev, 0x40, 0x41));
+    CHK_RES(pmw3901_write_register(dev, 0x70, 0x00));
+
+    GB_SleepMs(10);
+
+    CHK_RES(pmw3901_write_register(dev, 0x32, 0x44));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x07));
+    CHK_RES(pmw3901_write_register(dev, 0x40, 0x40));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x06));
+    CHK_RES(pmw3901_write_register(dev, 0x62, 0xF0));
+    CHK_RES(pmw3901_write_register(dev, 0x63, 0x00));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x0D));
+    CHK_RES(pmw3901_write_register(dev, 0x48, 0xC0));
+    CHK_RES(pmw3901_write_register(dev, 0x6F, 0xD5));
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x00));
+    CHK_RES(pmw3901_write_register(dev, 0x5B, 0xA0));
+    CHK_RES(pmw3901_write_register(dev, 0x4E, 0xA8));
+    CHK_RES(pmw3901_write_register(dev, 0x5A, 0x50));
+    CHK_RES(pmw3901_write_register(dev, 0x40, 0x80));
+
+    CHK_RES(pmw3901_write_register(dev, 0x7F, 0x00));
+    CHK_RES(pmw3901_write_register(dev, 0x5A, 0x10));
+    CHK_RES(pmw3901_write_register(dev, 0x54, 0x00));
+
+error_exit:
+    return res;
+}
+
+GB_RESULT GB_PMW3901_InitDesc(GB_PMW3901_DEV_T *dev, struct spi *bus, GB_SPI_DEV_T dev_id, uint8_t cs_pin)
+{
+    GB_RESULT res = GB_OK;
+
+    CHK_NULL(dev, GB_OFLOW_DEVINE_NULL);
+    CHK_NULL(bus, GB_OFLOW_BUS_NULL);
+
+    memset(dev, 0, sizeof(GB_PMW3901_DEV_T));
+    dev->bus = bus;
+    dev->dev_id = dev_id;
+    dev->cs_pin = cs_pin;
+    dev->initialized = false;
+
+error_exit:
+    return res;
+}
+
+GB_RESULT GB_PMW3901_Init(GB_PMW3901_DEV_T *dev)
+{
+    GB_RESULT res = GB_OK;
+    uint8_t chip_id = 0;
+    uint8_t inv_chip_id = 0;
     uint8_t dummy = 0;
 
-    // Set MSB to 0 for read
-    reg &= ~0x80u;
+    CHK_NULL(dev, GB_OFLOW_DEVINE_NULL);
+    CHK_NULL(dev->bus, GB_OFLOW_BUS_NULL);
 
-    spiBeginTransaction(SPI_BAUDRATE_2MHZ);
-    digitalWrite(csPin, LOW);
+    GB_DEBUGI(OPF_TAG, "Initializing PMW3901 optical flow sensor");
 
-    sleepus(50);
+    GB_GPIO_SetDirection(dev->cs_pin, GB_GPIO_OUTPUT);
+    GB_GPIO_Set(dev->cs_pin, 1);
 
-    spiExchange(1, 1, &reg, &reg);
-    sleepus(500);
-    spiExchange(1, 0, &dummy, &data);
+    GB_SleepMs(40);
 
-    sleepus(50);
+    GB_GPIO_Set(dev->cs_pin, 1);
+    GB_SleepMs(2);
+    GB_GPIO_Set(dev->cs_pin, 0);
+    GB_SleepMs(2);
+    GB_GPIO_Set(dev->cs_pin, 1);
+    GB_SleepMs(2);
 
-    digitalWrite(csPin, HIGH);
-    spiEndTransaction();
-    sleepus(200);
+    CHK_RES(pmw3901_read_register(dev, PMW3901_REG_PRODUCT_ID, &chip_id));
+    CHK_RES(pmw3901_read_register(dev, PMW3901_REG_INV_PRODUCT_ID, &inv_chip_id));
 
-    return data;
-}
+    GB_DEBUGI(OPF_TAG, "Motion chip ID: 0x%02X : 0x%02X", chip_id, inv_chip_id);
 
-static void InitRegisters(uint32_t csPin)
-{
-    registerWrite(csPin, 0x7F, 0x00);
-    registerWrite(csPin, 0x61, 0xAD);
-    registerWrite(csPin, 0x7F, 0x03);
-    registerWrite(csPin, 0x40, 0x00);
-    registerWrite(csPin, 0x7F, 0x05);
-    registerWrite(csPin, 0x41, 0xB3);
-    registerWrite(csPin, 0x43, 0xF1);
-    registerWrite(csPin, 0x45, 0x14);
-    registerWrite(csPin, 0x5B, 0x32);
-    registerWrite(csPin, 0x5F, 0x34);
-    registerWrite(csPin, 0x7B, 0x08);
-    registerWrite(csPin, 0x7F, 0x06);
-    registerWrite(csPin, 0x44, 0x1B);
-    registerWrite(csPin, 0x40, 0xBF);
-    registerWrite(csPin, 0x4E, 0x3F);
-    registerWrite(csPin, 0x7F, 0x08);
-    registerWrite(csPin, 0x65, 0x20);
-    registerWrite(csPin, 0x6A, 0x18);
-    registerWrite(csPin, 0x7F, 0x09);
-    registerWrite(csPin, 0x4F, 0xAF);
-    registerWrite(csPin, 0x5F, 0x40);
-    registerWrite(csPin, 0x48, 0x80);
-    registerWrite(csPin, 0x49, 0x80);
-    registerWrite(csPin, 0x57, 0x77);
-    registerWrite(csPin, 0x60, 0x78);
-    registerWrite(csPin, 0x61, 0x78);
-    registerWrite(csPin, 0x62, 0x08);
-    registerWrite(csPin, 0x63, 0x50);
-    registerWrite(csPin, 0x7F, 0x0A);
-    registerWrite(csPin, 0x45, 0x60);
-    registerWrite(csPin, 0x7F, 0x00);
-    registerWrite(csPin, 0x4D, 0x11);
-    registerWrite(csPin, 0x55, 0x80);
-    registerWrite(csPin, 0x74, 0x1F);
-    registerWrite(csPin, 0x75, 0x1F);
-    registerWrite(csPin, 0x4A, 0x78);
-    registerWrite(csPin, 0x4B, 0x78);
-    registerWrite(csPin, 0x44, 0x08);
-    registerWrite(csPin, 0x45, 0x50);
-    registerWrite(csPin, 0x64, 0xFF);
-    registerWrite(csPin, 0x65, 0x1F);
-    registerWrite(csPin, 0x7F, 0x14);
-    registerWrite(csPin, 0x65, 0x67);
-    registerWrite(csPin, 0x66, 0x08);
-    registerWrite(csPin, 0x63, 0x70);
-    registerWrite(csPin, 0x7F, 0x15);
-    registerWrite(csPin, 0x48, 0x48);
-    registerWrite(csPin, 0x7F, 0x07);
-    registerWrite(csPin, 0x41, 0x0D);
-    registerWrite(csPin, 0x43, 0x14);
-    registerWrite(csPin, 0x4B, 0x0E);
-    registerWrite(csPin, 0x45, 0x0F);
-    registerWrite(csPin, 0x44, 0x42);
-    registerWrite(csPin, 0x4C, 0x80);
-    registerWrite(csPin, 0x7F, 0x10);
-    registerWrite(csPin, 0x5B, 0x02);
-    registerWrite(csPin, 0x7F, 0x07);
-    registerWrite(csPin, 0x40, 0x41);
-    registerWrite(csPin, 0x70, 0x00);
-
-    vTaskDelay(M2T(10)); // delay 10ms
-
-    registerWrite(csPin, 0x32, 0x44);
-    registerWrite(csPin, 0x7F, 0x07);
-    registerWrite(csPin, 0x40, 0x40);
-    registerWrite(csPin, 0x7F, 0x06);
-    registerWrite(csPin, 0x62, 0xF0);
-    registerWrite(csPin, 0x63, 0x00);
-    registerWrite(csPin, 0x7F, 0x0D);
-    registerWrite(csPin, 0x48, 0xC0);
-    registerWrite(csPin, 0x6F, 0xD5);
-    registerWrite(csPin, 0x7F, 0x00);
-    registerWrite(csPin, 0x5B, 0xA0);
-    registerWrite(csPin, 0x4E, 0xA8);
-    registerWrite(csPin, 0x5A, 0x50);
-    registerWrite(csPin, 0x40, 0x80);
-
-    registerWrite(csPin, 0x7F, 0x00);
-    registerWrite(csPin, 0x5A, 0x10);
-    registerWrite(csPin, 0x54, 0x00);
-}
-
-bool pmw3901Init(uint32_t csPin)
-{
-    if (isInit) {
-        return true;
+    if (chip_id != PMW3901_CHIP_ID || inv_chip_id != PMW3901_INV_CHIP_ID) {
+        GB_DEBUGE(OPF_TAG, "Invalid chip ID, chip ID: 0x%02X : 0x%02X", chip_id, inv_chip_id);
+        CHK_RES(GB_OFLOW_CHIP_ID_FAIL);
     }
 
-    // Initialize CS Pin
-    pinMode(csPin, OUTPUT);
-    digitalWrite(csPin, HIGH);
+    CHK_RES(pmw3901_write_register(dev, PMW3901_REG_POWER_RESET, 0x5A));
+    GB_SleepMs(5);
 
-    spiBegin();
-    vTaskDelay(M2T(40));
+    pmw3901_read_register(dev, 0x02, &dummy);
+    pmw3901_read_register(dev, 0x03, &dummy);
+    pmw3901_read_register(dev, 0x04, &dummy);
+    pmw3901_read_register(dev, 0x05, &dummy);
+    pmw3901_read_register(dev, 0x06, &dummy);
+    GB_SleepMs(1);
 
-    digitalWrite(csPin, HIGH);
-    vTaskDelay(M2T(2));
-    digitalWrite(csPin, LOW);
-    vTaskDelay(M2T(2));
-    digitalWrite(csPin, HIGH);
-    vTaskDelay(M2T(2));
+    CHK_RES(pmw3901_init_registers(dev));
 
-    uint8_t chipId    = registerRead(csPin, 0x00);
-    uint8_t invChipId = registerRead(csPin, 0x5f);
+    dev->initialized = true;
+    GB_DEBUGI(OPF_TAG, "PMW3901 initialized successfully");
 
-    DEBUG_PRINTD("Motion chip id: 0x%x:0x%x\n", chipId, invChipId);
-
-    if (chipId == 0x49 || invChipId == 0xB6) {
-        // Power on reset
-        registerWrite(csPin, 0x3a, 0x5a);
-        vTaskDelay(M2T(5));
-
-        // Reading the motion registers one time
-        registerRead(csPin, 0x02);
-        registerRead(csPin, 0x03);
-        registerRead(csPin, 0x04);
-        registerRead(csPin, 0x05);
-        registerRead(csPin, 0x06);
-        vTaskDelay(M2T(1));
-
-        InitRegisters(csPin);
-
-        isInit = true;
-    }
-
-    return isInit;
+error_exit:
+    return res;
 }
 
-void pmw3901ReadMotion(uint32_t csPin, motionBurst_t *motion)
+GB_RESULT GB_PMW3901_ReadMotion(GB_PMW3901_DEV_T *dev, GB_PMW3901_MOTION_T *motion)
 {
-    uint8_t address = 0x16;
+    GB_RESULT res = GB_OK;
+    uint8_t address = PMW3901_REG_MOTION_BURST;
+    uint8_t tx_data[sizeof(GB_PMW3901_MOTION_T) + 1];
+    uint8_t rx_data[sizeof(GB_PMW3901_MOTION_T) + 1];
 
-    spiBeginTransaction(SPI_BAUDRATE_2MHZ);
-    digitalWrite(csPin, LOW);
-    sleepus(50);
-    spiExchange(1, 1, &address, &address);
-    sleepus(50);
-    spiExchange(sizeof(motionBurst_t), 0, (uint8_t *)motion, (uint8_t *)motion);
-    sleepus(50);
-    digitalWrite(csPin, HIGH);
-    spiEndTransaction();
-    sleepus(50);
+    CHK_NULL(dev, GB_OFLOW_DEVINE_NULL);
+    CHK_NULL(motion, GB_OFLOW_BUS_NULL);
+    CHK_BOOL(dev->initialized);
 
-    uint16_t realShutter = (motion->shutter >> 8) & 0x0FF;
-    realShutter |= (motion->shutter & 0x0ff) << 8;
+    memset(tx_data, 0, sizeof(tx_data));
+    tx_data[0] = address & ~0x80;
+
+    GB_GPIO_Set(dev->cs_pin, 0);
+    CHK_RES(dev->bus->readWriteBytes(dev->bus, dev->dev_id, 0, sizeof(GB_PMW3901_MOTION_T) + 1, rx_data, tx_data));
+    GB_GPIO_Set(dev->cs_pin, 1);
+
+    memcpy(motion, &rx_data[1], sizeof(GB_PMW3901_MOTION_T));
+
+    uint16_t realShutter = (motion->shutter >> 8) & 0x00FF;
+    realShutter |= (motion->shutter & 0x00FF) << 8;
     motion->shutter = realShutter;
+
+error_exit:
+    return res;
+}
+
+GB_RESULT GB_PMW3901_GetMotion(GB_PMW3901_DEV_T *dev, uint16_t *deltaX, uint16_t *deltaY)
+{
+    GB_RESULT res = GB_OK;
+    GB_PMW3901_MOTION_T motion;
+
+    CHK_NULL(dev, GB_OFLOW_DEVINE_NULL);
+    CHK_NULL(deltaX, GB_OFLOW_BUS_NULL);
+    CHK_NULL(deltaY, GB_OFLOW_BUS_NULL);
+
+    CHK_RES(GB_PMW3901_ReadMotion(dev, &motion));
+
+    *deltaX = motion.deltaX;
+    *deltaY = motion.deltaY;
+
+error_exit:
+    return res;
+}
+
+GB_RESULT GB_PMW3901_CheckMotion(GB_PMW3901_DEV_T *dev, bool *motion_occurred)
+{
+    GB_RESULT res = GB_OK;
+    GB_PMW3901_MOTION_T motion;
+
+    CHK_NULL(dev, GB_OFLOW_DEVINE_NULL);
+    CHK_NULL(motion_occurred, GB_OFLOW_BUS_NULL);
+
+    CHK_RES(GB_PMW3901_ReadMotion(dev, &motion));
+
+    *motion_occurred = motion.motionOccured;
+
+error_exit:
+    return res;
 }

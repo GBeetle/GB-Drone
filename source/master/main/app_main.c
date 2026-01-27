@@ -30,6 +30,8 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "i2c_bus.h"
+#include "laser_ranging.h"
 
 void app_main(void)
 {
@@ -43,17 +45,24 @@ void app_main(void)
         GB_Log2fileEnable();
     }
 
-    // TEST IO
-    //GB_GPIO_Reset( TEST_IMU_IO );
-    //GB_GPIO_SetDirection( TEST_IMU_IO, GB_GPIO_OUTPUT );
+    GB_LASER_DEV_T laser;
 
-    GB_DEBUGI(GB_INFO, "Taks Create Start");
-    xTaskCreatePinnedToCore( gb_sensor_fusion, "gb_sensor_fusion", 5120, NULL, configMAX_PRIORITIES - 1, NULL, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( gb_read_sensor_data, "gb_read_sensor_data", 4096, NULL, configMAX_PRIORITIES - 2, &mpu_isr_handle, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( nrf24_interrupt_func, "nrf24 interrupt", 4096, NULL, configMAX_PRIORITIES - 1, &nrf24_isr_handle, tskNO_AFFINITY);
-    xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
+    CHK_EXIT(i2c0.begin(&i2c0, COMPASS_I2C_SDA, COMPASS_I2C_SCL, COMPASS_I2C_CLOCK_SPEED));
+    CHK_EXIT(i2c0.addDevice(&i2c0, VL53L1X_I2C_ADDRESS, COMPASS_I2C_CLOCK_SPEED));
 
-    GB_DEBUGI(GB_INFO, "Taks Create DONE");
+    CHK_EXIT(GB_LASER_InitDesc(&laser, &i2c0, VL53L1X_I2C_ADDRESS));
+    CHK_EXIT(GB_LASER_Init(&laser, GB_LASER_MODE_LONG, GB_LASER_TIMING_50MS));
+    CHK_EXIT(GB_LASER_StartContinuous(&laser, 1000));   // 1s
+
+    while (1) {
+        uint16_t ground_distance_mm;
+
+        if (GB_LASER_GetLastDistance(&laser, &ground_distance_mm) == GB_OK) {
+            GB_DEBUGI(LASER_TAG, "Altitude :%.2f cm", ground_distance_mm / 100.0f);
+        }
+
+        GB_SleepMs(1000);
+    }
 
     return;
 }

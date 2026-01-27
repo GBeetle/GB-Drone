@@ -61,14 +61,16 @@
     } while (0)
 
 #define CHK_VAL(val) do {           \
-        if (val != GB_OK) {         \
-            GB_DEBUGE(CHK_TAG, "[CHK_VAL] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, val); \
+        GB_RESULT __res = val;      \
+        if (__res != GB_OK) {       \
+            GB_DEBUGE(CHK_TAG, "[CHK_VAL] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, __res); \
         }                           \
     } while(0)
 
 #define CHK_EXIT(val) do {          \
-        if (val != GB_OK) {         \
-            GB_DEBUGE(CHK_TAG, "[CHK_EXIT] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, val); \
+        GB_RESULT __res = val;      \
+        if (__res != GB_OK) {       \
+            GB_DEBUGE(CHK_TAG, "[CHK_EXIT] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, __res); \
             return;                 \
         }                           \
     } while(0)
@@ -82,9 +84,10 @@
     } while(0)
 
 #define CHK_GB_ERROR(val) do {                \
-        if (val != GB_OK) {                   \
-            GB_DEBUGE(CHK_TAG, "[CHK_GB_ERROR] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, val); \
-            return val;                       \
+        GB_RESULT __res = val;                \
+        if (__res != GB_OK) {                 \
+            GB_DEBUGE(CHK_TAG, "[CHK_GB_ERROR] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, __res); \
+            return __res;                     \
         }                                     \
     } while(0)
 
@@ -94,6 +97,15 @@
             GB_DEBUGE(CHK_TAG, "[CHK_FUNC_EXIT_ERROR] failed at file: %s, func: %s, line: %d, res = %08x", __FILE__, __FUNCTION__, __LINE__, __res); \
             goto error_exit;                  \
         }                                     \
+    } while(0)
+
+#define CHK_NEG_ERROR(val, gb_error) do {          \
+        int _val = (val);                          \
+        if (_val < 0) {                            \
+            res = gb_error;                        \
+            GB_DEBUGE(CHK_TAG, "[CHK_NEG_ERROR] failed at file: %s, func: %s, line: %d, err = %08x", __FILE__, __FUNCTION__, __LINE__, _val); \
+            goto error_exit;                       \
+        }                                          \
     } while(0)
 
 #endif /* end of include guard: _ERROR_HANDLE__ */
