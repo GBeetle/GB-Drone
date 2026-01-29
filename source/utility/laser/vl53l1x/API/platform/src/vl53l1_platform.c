@@ -44,6 +44,7 @@
 #include "gb_timer.h"
 #include "i2c_bus.h"
 #include "results.h"
+#include "log_sys.h"
 
 static struct i2c *g_laser_i2c_bus = NULL;
 
@@ -109,11 +110,6 @@ VL53L1_Error VL53L1_ReadMulti(
 	uint32_t      count)
 {
 	if (pdev == NULL || pdata == NULL || g_laser_i2c_bus == NULL) {
-		return VL53L1_ERROR_CONTROL_INTERFACE;
-	}
-
-	uint8_t *write_buffer = (uint8_t *)malloc(count + 2);
-	if (write_buffer == NULL) {
 		return VL53L1_ERROR_CONTROL_INTERFACE;
 	}
 

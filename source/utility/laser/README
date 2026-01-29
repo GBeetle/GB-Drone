@@ -30,29 +30,34 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "i2c_bus.h"
+#include "laser_ranging.h"
 
 void app_main(void)
 {
     GB_LogSystemInit();
-    GB_MutexInitialize();
-
     GB_SleepMs(5000);     // Waiting USB Log Ready
-    if (GB_OK == GB_SDCardFileSystem_Init())
-    {
-        GB_DEBUGI(GB_INFO, "Setting Log to SD Card");
-        GB_Log2fileEnable();
+
+    GB_LASER_DEV_T laser;
+
+    CHK_EXIT(i2c0.begin(&i2c0, COMPASS_I2C_SDA, COMPASS_I2C_SCL, COMPASS_I2C_CLOCK_SPEED));
+    CHK_EXIT(i2c0.addDevice(&i2c0, VL53L1X_I2C_ADDRESS, COMPASS_I2C_CLOCK_SPEED));
+
+    CHK_EXIT(GB_LASER_InitDesc(&laser, &i2c0, VL53L1X_I2C_ADDRESS));
+    CHK_EXIT(GB_LASER_Init(&laser, GB_LASER_MODE_LONG, GB_LASER_TIMING_50MS));
+    GB_DEBUGI(LASER_TAG, "GB_LASER_Init Done");
+    CHK_EXIT(GB_LASER_StartContinuous(&laser, 1000));   // 1s
+    GB_DEBUGI(LASER_TAG, "GB_LASER_StartContinuous Done");
+
+    while (1) {
+        uint16_t ground_distance_mm;
+
+        if (GB_LASER_GetLastDistance(&laser, &ground_distance_mm) == GB_OK) {
+            GB_DEBUGI(LASER_TAG, "Altitude :%.2f cm", ground_distance_mm / 100.0f);
+        }
+
+        GB_SleepMs(1000);
     }
-
-    // TEST IO
-    //GB_GPIO_Reset( TEST_IMU_IO );
-    //GB_GPIO_SetDirection( TEST_IMU_IO, GB_GPIO_OUTPUT );
-
-    GB_DEBUGI(GB_INFO, "Taks Create Start");
-    xTaskCreatePinnedToCore( gb_sensor_fusion, "gb_sensor_fusion", 5120, NULL, configMAX_PRIORITIES - 1, NULL, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( gb_read_sensor_data, "gb_read_sensor_data", 4096, NULL, configMAX_PRIORITIES - 2, &mpu_isr_handle, tskNO_AFFINITY );
-    xTaskCreatePinnedToCore( nrf24_interrupt_func, "nrf24 interrupt", 4096, NULL, configMAX_PRIORITIES - 1, &nrf24_isr_handle, tskNO_AFFINITY);
-    xTaskCreatePinnedToCore( uart_rx_task, "uart_rx_task", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL, 1 );
-    GB_DEBUGI(GB_INFO, "Taks Create DONE");
 
     return;
 }

@@ -76,9 +76,10 @@
     } while(0)
 
 #define CHK_ESP_ERROR(val, gb_error) do {          \
-        if (val != ESP_OK) {                       \
+        esp_err_t _val = val;                      \
+        if (_val != ESP_OK) {                      \
             res = gb_error;                        \
-            GB_DEBUGE(CHK_TAG, "[CHK_ESP_ERROR] failed at file: %s, func: %s, line: %d, err = %08x", __FILE__, __FUNCTION__, __LINE__, val); \
+            GB_DEBUGE(CHK_TAG, "[CHK_ESP_ERROR] failed at file: %s, func: %s, line: %d, err = %08x", __FILE__, __FUNCTION__, __LINE__, _val); \
             goto error_exit;                       \
         }                                          \
     } while(0)

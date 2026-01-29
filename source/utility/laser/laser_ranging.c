@@ -48,9 +48,13 @@ GB_RESULT GB_LASER_Init(GB_LASER_DEV_T *dev, GB_LASER_MODE_T mode, GB_LASER_TIMI
     GB_DEBUGI(LASER_TAG, "Initializing VL53L1X sensor at address 0x%02x", dev->i2c_address);
 
     CHK_NEG_ERROR(VL53L1_CommsInitialise(&dev->vl53l1_dev, VL53L1_I2C, 400), GB_LASER_INIT_FAIL);
+    GB_DEBUGI(LASER_TAG, "VL53L1_CommsInitialise Done");
     CHK_NEG_ERROR(VL53L1_WaitDeviceBooted(&dev->vl53l1_dev), GB_LASER_INIT_FAIL);
+    GB_DEBUGI(LASER_TAG, "VL53L1_WaitDeviceBooted Done");
     CHK_NEG_ERROR(VL53L1_DataInit(&dev->vl53l1_dev), GB_LASER_INIT_FAIL);
+    GB_DEBUGI(LASER_TAG, "VL53L1_DataInit Done");
     CHK_NEG_ERROR(VL53L1_StaticInit(&dev->vl53l1_dev), GB_LASER_INIT_FAIL);
+    GB_DEBUGI(LASER_TAG, "VL53L1_StaticInit Done");
 
     VL53L1_DistanceModes distance_mode;
     switch (mode)
@@ -68,8 +72,10 @@ GB_RESULT GB_LASER_Init(GB_LASER_DEV_T *dev, GB_LASER_MODE_T mode, GB_LASER_TIMI
     }
 
     CHK_NEG_ERROR(VL53L1_SetDistanceMode(&dev->vl53l1_dev, distance_mode), GB_LASER_CFG_FAIL);
+    GB_DEBUGI(LASER_TAG, "VL53L1_SetDistanceMode Done");
     CHK_NEG_ERROR(VL53L1_SetMeasurementTimingBudgetMicroSeconds(&dev->vl53l1_dev, (uint32_t)timing_budget * 1000),
                   GB_LASER_CFG_FAIL);
+    GB_DEBUGI(LASER_TAG, "VL53L1_SetMeasurementTimingBudgetMicroSeconds Done");
 
     dev->mode = mode;
     dev->timing_budget = timing_budget;
