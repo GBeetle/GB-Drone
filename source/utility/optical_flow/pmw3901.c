@@ -37,7 +37,11 @@ static GB_RESULT pmw3901_write_register(GB_PMW3901_DEV_T *dev, uint8_t reg, uint
     tx_data[1] = value;
 
     GB_GPIO_Set(dev->cs_pin, 0);
-    CHK_RES(dev->bus->writeBytes(dev->bus, dev->dev_id, 0, 2, tx_data));
+    GB_SleepUs(50);
+    CHK_RES(dev->bus->writeBytes(dev->bus, dev->dev_id, 0, 1, &tx_data[0]));
+    GB_SleepUs(50);
+    CHK_RES(dev->bus->writeBytes(dev->bus, dev->dev_id, 0, 1, &tx_data[1]));
+    GB_SleepUs(50);
     GB_GPIO_Set(dev->cs_pin, 1);
 
 error_exit:
@@ -52,8 +56,12 @@ static GB_RESULT pmw3901_read_register(GB_PMW3901_DEV_T *dev, uint8_t reg, uint8
 
     tx_data[0] = reg & ~0x80;
 
-    GB_GPIO_Set(dev->cs_pin, 1);
-    CHK_RES(dev->bus->readWriteBytes(dev->bus, dev->dev_id, 0, 2, rx_data, tx_data));
+    GB_GPIO_Set(dev->cs_pin, 0);
+    GB_SleepUs(50);
+    CHK_RES(dev->bus->writeBytes(dev->bus, dev->dev_id, 0, 1, &tx_data[0]));
+    GB_SleepUs(500);
+    CHK_RES(dev->bus->readWriteBytes(dev->bus, dev->dev_id, 0, 1, &rx_data[1], &tx_data[1]));
+    GB_SleepUs(50);
     GB_GPIO_Set(dev->cs_pin, 1);
 
     *value = rx_data[1];
@@ -250,7 +258,7 @@ error_exit:
     return res;
 }
 
-GB_RESULT GB_PMW3901_GetMotion(GB_PMW3901_DEV_T *dev, uint16_t *deltaX, uint16_t *deltaY)
+GB_RESULT GB_PMW3901_GetMotion(GB_PMW3901_DEV_T *dev, int16_t *deltaX, int16_t *deltaY)
 {
     GB_RESULT res = GB_OK;
     GB_PMW3901_MOTION_T motion;

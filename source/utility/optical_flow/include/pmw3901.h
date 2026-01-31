@@ -71,7 +71,7 @@ GB_RESULT GB_PMW3901_Init(GB_PMW3901_DEV_T *dev);
 
 GB_RESULT GB_PMW3901_ReadMotion(GB_PMW3901_DEV_T *dev, GB_PMW3901_MOTION_T *motion);
 
-GB_RESULT GB_PMW3901_GetMotion(GB_PMW3901_DEV_T *dev, uint16_t *deltaX, uint16_t *deltaY);
+GB_RESULT GB_PMW3901_GetMotion(GB_PMW3901_DEV_T *dev, int16_t *deltaX, int16_t *deltaY);
 
 GB_RESULT GB_PMW3901_CheckMotion(GB_PMW3901_DEV_T *dev, bool *motion_occurred);
 
