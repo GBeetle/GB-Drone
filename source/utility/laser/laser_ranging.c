@@ -48,13 +48,17 @@ GB_RESULT GB_LASER_Init(GB_LASER_DEV_T *dev, GB_LASER_MODE_T mode, GB_LASER_TIMI
     GB_DEBUGI(LASER_TAG, "Initializing VL53L1X sensor at address 0x%02x", dev->i2c_address);
 
     CHK_NEG_ERROR(VL53L1_CommsInitialise(&dev->vl53l1_dev, VL53L1_I2C, 400), GB_LASER_INIT_FAIL);
-    GB_DEBUGI(LASER_TAG, "VL53L1_CommsInitialise Done");
     CHK_NEG_ERROR(VL53L1_WaitDeviceBooted(&dev->vl53l1_dev), GB_LASER_INIT_FAIL);
-    GB_DEBUGI(LASER_TAG, "VL53L1_WaitDeviceBooted Done");
     CHK_NEG_ERROR(VL53L1_DataInit(&dev->vl53l1_dev), GB_LASER_INIT_FAIL);
-    GB_DEBUGI(LASER_TAG, "VL53L1_DataInit Done");
+
+    if (dev->cal_data_buffer != NULL && dev->cal_data_size > sizeof(VL53L1_CalibrationData_t)) {
+        VL53L1_CalibrationData_t cal_data;
+
+        memcpy(&cal_data, dev->cal_data_buffer, sizeof(VL53L1_CalibrationData_t));
+        CHK_NEG_ERROR(VL53L1_SetCalibrationData(&dev->vl53l1_dev, &cal_data), GB_LASER_CAL_FAIL);
+    }
+
     CHK_NEG_ERROR(VL53L1_StaticInit(&dev->vl53l1_dev), GB_LASER_INIT_FAIL);
-    GB_DEBUGI(LASER_TAG, "VL53L1_StaticInit Done");
 
     VL53L1_DistanceModes distance_mode;
     switch (mode)
@@ -75,7 +79,6 @@ GB_RESULT GB_LASER_Init(GB_LASER_DEV_T *dev, GB_LASER_MODE_T mode, GB_LASER_TIMI
     GB_DEBUGI(LASER_TAG, "VL53L1_SetDistanceMode Done");
     CHK_NEG_ERROR(VL53L1_SetMeasurementTimingBudgetMicroSeconds(&dev->vl53l1_dev, (uint32_t)timing_budget * 1000),
                   GB_LASER_CFG_FAIL);
-    GB_DEBUGI(LASER_TAG, "VL53L1_SetMeasurementTimingBudgetMicroSeconds Done");
 
     dev->mode = mode;
     dev->timing_budget = timing_budget;
@@ -232,6 +235,83 @@ GB_RESULT GB_LASER_CheckDataReady(GB_LASER_DEV_T *dev, uint8_t *data_ready)
     CHK_BOOL(dev->initialized);
 
     CHK_NEG_ERROR(VL53L1_GetMeasurementDataReady(&dev->vl53l1_dev, data_ready), GB_LASER_MEASURE_FAIL);
+
+error_exit:
+    return res;
+}
+
+GB_RESULT GB_LASER_PerformFullCalibration(GB_LASER_DEV_T *dev,
+                                          int32_t offset_cal_distance_mm,
+                                          bool perform_xtalk,
+                                          int32_t xtalk_call_distance_mm)
+{
+    GB_RESULT res = GB_OK;
+
+    CHK_NULL(dev, GB_LASER_DEVICE_NULL);
+    CHK_BOOL(dev->initialized);
+
+    GB_DEBUGI(LASER_TAG, "Starting VL53L1X calibration");
+    CHK_NEG_ERROR(VL53L1_PerformRefSpadManagement(&dev->vl53l1_dev), GB_LASER_CAL_FAIL);
+
+    GB_SleepMs(100);
+    GB_DEBUGI(LASER_TAG, "Offset calibration, target at %dmm", offset_cal_distance_mm);
+    GB_DEBUGI(LASER_TAG, " --- Start calibration in 5 seconds --- ");
+
+    GB_SleepMs(5000);
+    CHK_NEG_ERROR(VL53L1_SetPresetMode(&dev->vl53l1_dev, VL53L1_PRESETMODE_AUTONOMOUS), GB_LASER_CAL_FAIL);
+
+    VL53L1_DistanceModes distance_mode;
+    if (offset_cal_distance_mm < 1300) {
+        distance_mode = VL53L1_DISTANCEMODE_MEDIUM;
+    } else {
+        distance_mode = VL53L1_DISTANCEMODE_LONG;
+    }
+
+    CHK_NEG_ERROR(VL53L1_SetDistanceMode(&dev->vl53l1_dev, distance_mode), GB_LASER_CAL_FAIL);
+    GB_DEBUGI(LASER_TAG, " --- Performing offset calibration --- ");
+    CHK_NEG_ERROR(VL53L1_PerformOffsetSimpleCalibration(&dev->vl53l1_dev, offset_cal_distance_mm), GB_LASER_CAL_FAIL);
+
+    GB_SleepMs(100);
+
+    // Cross-Talk Calibration (Optional)
+    if (perform_xtalk) {
+        GB_DEBUGI(LASER_TAG, "Cross-Talk calibration, target at %dmm", offset_cal_distance_mm);
+        GB_DEBUGI(LASER_TAG, " --- Start calibration in 5 seconds --- ");
+
+        GB_SleepMs(5000);
+
+        CHK_NEG_ERROR(VL53L1_SetPresetMode(&dev->vl53l1_dev, VL53L1_PRESETMODE_AUTONOMOUS), GB_LASER_CAL_FAIL);
+
+        if (xtalk_call_distance_mm < 1300) {
+            distance_mode = VL53L1_DISTANCEMODE_MEDIUM;
+        } else {
+            distance_mode = VL53L1_DISTANCEMODE_LONG;
+        }
+
+        CHK_NEG_ERROR(VL53L1_SetDistanceMode(&dev->vl53l1_dev, distance_mode), GB_LASER_CAL_FAIL);
+        GB_DEBUGI(LASER_TAG, " --- Performing XTalk calibration --- ");
+        CHK_NEG_ERROR(VL53L1_PerformSingleTargetXTalkCalibration(&dev->vl53l1_dev, xtalk_call_distance_mm), GB_LASER_CAL_FAIL);
+    }
+
+    GB_DEBUGI(LASER_TAG, "Calibration completed successfully!");
+
+error_exit:
+    return res;
+}
+
+GB_RESULT GB_LASER_SaveCalibrationData(GB_LASER_DEV_T *dev, uint8_t *buffer, size_t buffer_size)
+{
+    GB_RESULT res = GB_OK;
+    VL53L1_CalibrationData_t cal_data;
+
+    CHK_NULL(dev, GB_LASER_DEVICE_NULL);
+    CHK_NULL(buffer, GB_LASER_DEVICE_NULL);
+    CHK_BOOL(dev->initialized);
+    CHK_BOOL(buffer_size > sizeof(VL53L1_CalibrationData_t));
+
+    CHK_NEG_ERROR(VL53L1_GetCalibrationData(&dev->vl53l1_dev, &cal_data), GB_LASER_CAL_FAIL);
+
+    memcpy(buffer, &cal_data, sizeof(VL53L1_CalibrationData_t));
 
 error_exit:
     return res;

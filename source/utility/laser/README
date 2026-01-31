@@ -32,6 +32,7 @@
 #include "freertos/task.h"
 #include "i2c_bus.h"
 #include "laser_ranging.h"
+#include "file_system.h"
 
 void app_main(void)
 {
@@ -44,16 +45,37 @@ void app_main(void)
     CHK_EXIT(i2c0.addDevice(&i2c0, VL53L1X_I2C_ADDRESS, COMPASS_I2C_CLOCK_SPEED));
 
     CHK_EXIT(GB_LASER_InitDesc(&laser, &i2c0, VL53L1X_I2C_ADDRESS));
+
+    CHK_EXIT(GB_FileSystem_Init());
+    const char *laser_cal = "laser.txt";
+    uint8_t cal_buf[512] = {0};
+    size_t length = sizeof(cal_buf);
+
+#if 0
     CHK_EXIT(GB_LASER_Init(&laser, GB_LASER_MODE_LONG, GB_LASER_TIMING_50MS));
     GB_DEBUGI(LASER_TAG, "GB_LASER_Init Done");
-    CHK_EXIT(GB_LASER_StartContinuous(&laser, 1000));   // 1s
-    GB_DEBUGI(LASER_TAG, "GB_LASER_StartContinuous Done");
+    CHK_EXIT(GB_LASER_PerformFullCalibration(&laser, 140, false, 0));
+    CHK_EXIT(GB_LASER_SaveCalibrationData(&laser, cal_buf, length));
 
+    //GB_DUMPI(LASER_TAG, cal_buf, length);
+    CHK_EXIT(GB_FileSystem_Write(GB_FILE_SPI_FLASH, laser_cal, cal_buf, length));
+#else
+    CHK_EXIT(GB_FileSystem_Read(GB_FILE_SPI_FLASH, laser_cal, cal_buf, length));
+    //GB_DUMPI(LASER_TAG, cal_buf, length);
+
+    laser.cal_data_buffer = cal_buf;
+    laser.cal_data_size = length;
+    CHK_EXIT(GB_LASER_Init(&laser, GB_LASER_MODE_LONG, GB_LASER_TIMING_50MS));
+    GB_DEBUGI(LASER_TAG, "GB_LASER_Init Done");
+#endif
+
+    CHK_EXIT(GB_LASER_StartContinuous(&laser, 100));
+    GB_DEBUGI(LASER_TAG, "GB_LASER_StartContinuous Done");
     while (1) {
         uint16_t ground_distance_mm;
 
         if (GB_LASER_GetLastDistance(&laser, &ground_distance_mm) == GB_OK) {
-            GB_DEBUGI(LASER_TAG, "Altitude :%.2f cm", ground_distance_mm / 100.0f);
+            GB_DEBUGI(LASER_TAG, "Altitude :%.2f cm", ground_distance_mm / 10.0f);
         }
 
         GB_SleepMs(1000);

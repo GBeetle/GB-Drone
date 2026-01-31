@@ -57,6 +57,8 @@ typedef struct
     VL53L1_Dev_t vl53l1_dev;
     GB_LASER_MODE_T mode;
     GB_LASER_TIMING_T timing_budget;
+    uint8_t *cal_data_buffer;
+    size_t cal_data_size;
 } GB_LASER_DEV_T;
 
 GB_RESULT GB_LASER_InitDesc(GB_LASER_DEV_T *dev, struct i2c *bus, uint8_t addr);
@@ -76,6 +78,13 @@ GB_RESULT GB_LASER_GetLastDistance(GB_LASER_DEV_T *dev, uint16_t *distance_mm);
 GB_RESULT GB_LASER_GetMeasurement(GB_LASER_DEV_T *dev, VL53L1_RangingMeasurementData_t *ranging_data);
 
 GB_RESULT GB_LASER_CheckDataReady(GB_LASER_DEV_T *dev, uint8_t *data_ready);
+
+GB_RESULT GB_LASER_PerformFullCalibration(GB_LASER_DEV_T *dev,
+                                          int32_t offset_cal_distance_mm,
+                                          bool perform_xtalk,
+                                          int32_t xtalk_call_distance_mm);
+
+GB_RESULT GB_LASER_SaveCalibrationData(GB_LASER_DEV_T *dev, uint8_t *buffer, size_t buffer_size);
 
 void VL53L1_SetI2CBus(struct i2c *bus);
 

@@ -104,7 +104,7 @@
         int _val = (val);                          \
         if (_val < 0) {                            \
             res = gb_error;                        \
-            GB_DEBUGE(CHK_TAG, "[CHK_NEG_ERROR] failed at file: %s, func: %s, line: %d, err = %08x", __FILE__, __FUNCTION__, __LINE__, _val); \
+            GB_DEBUGE(CHK_TAG, "[CHK_NEG_ERROR] failed at file: %s, func: %s, line: %d, err = %d", __FILE__, __FUNCTION__, __LINE__, _val); \
             goto error_exit;                       \
         }                                          \
     } while(0)

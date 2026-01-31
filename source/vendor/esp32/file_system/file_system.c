@@ -143,7 +143,7 @@ GB_RESULT GB_FileSystem_Write(GB_FILE_PARTITION partition, const char *file, con
 
     f = fopen(full_path, "wb");
     if (f == NULL) {
-        GB_DEBUGE(FS_TAG, "Failed to open file for writing");
+        GB_DEBUGE(FS_TAG, "Failed to open file for writing, errno: %d, path: %s", errno, full_path);
         CHK_RES(GB_FS_RE_FOPEN_FAIL);
     }
 

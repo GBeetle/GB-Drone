@@ -124,6 +124,7 @@ typedef uint32_t GB_RESULT;
 #define GB_LASER_TIMEOUT        0x80000c08
 #define GB_LASER_NOT_INIT       0x80000c09
 #define GB_LASER_PARAM_NULL     0x80000c0a
+#define GB_LASER_CAL_FAIL       0x80000c0b
 
 #define GB_OFLOW_DEVINE_NULL    0x80000d00
 #define GB_OFLOW_BUS_NULL       0x80000d01
