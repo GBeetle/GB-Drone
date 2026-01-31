@@ -34,7 +34,7 @@ Pins in use. The SPI Master can use the GPIO mux, so feel free to change these i
 #define BARO_SPI_CLOCK_SPEED 20000000
 
 #define PMW3901_SPI_CS       14
-#define PMW3901_SPI_SPEED    200000   // 2M Hz
+#define PMW3901_SPI_SPEED    2000000   // 2M Hz
 
 #define COMPASS_I2C_SCL  17
 #define COMPASS_I2C_SDA  18

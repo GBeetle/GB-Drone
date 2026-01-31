@@ -42,7 +42,7 @@ void app_main(void)
     GB_GPIO_Reset( TEST_IMU_IO );
     GB_GPIO_SetDirection( TEST_IMU_IO, GB_GPIO_OUTPUT );
 
-    // xTaskCreate(draw_loop, "draw_loop", 5120, NULL, 4 | portPRIVILEGE_BIT, NULL);
+    xTaskCreate(draw_loop, "draw_loop", 5120, NULL, 4 | portPRIVILEGE_BIT, NULL);
     xTaskCreate(controller_task, "controller", 1024 * 5, NULL, 2 | portPRIVILEGE_BIT, NULL);
     xTaskCreatePinnedToCore(gui_task, "gui", 1024 * 10,
 #if defined CONFIG_LV_USE_DEMO_WIDGETS
