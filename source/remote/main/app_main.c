@@ -34,6 +34,8 @@
 void app_main(void)
 {
     GB_LogSystemInit();
+
+#if 0
     GB_FileSystem_Init();
 
     disp_driver_init();
@@ -58,4 +60,5 @@ void app_main(void)
 #endif
                             1 | portPRIVILEGE_BIT, NULL, tskNO_AFFINITY);
     xTaskCreate(rf_loop, "nrf24_loop", 4096, NULL, 3 | portPRIVILEGE_BIT, NULL);
+#endif
 }

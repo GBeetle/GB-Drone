@@ -17,35 +17,54 @@
 
 #include "controller.h"
 #include "driver/adc.h"
-#include "esp_adc_cal.h"
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
 #include "lora_state.h"
 
 #define DEFAULT_VREF 0
 #define ADC_12BITS_SAMPLE_MAX 0xfff
 
-static esp_adc_cal_characteristics_t *adc_chars;
-static const adc_bits_width_t adc_width = ADC_WIDTH_BIT_12;
-static const adc_unit_t adc1_unit = ADC_UNIT_1;
-static const adc_atten_t atten = ADC_ATTEN_DB_11;
-static const adc_channel_t throttle_ch = ADC_CHANNEL_0; // GPIO0 => ADC1_CHANNEL0
-static const adc_channel_t yaw_ch = ADC_CHANNEL_1;      // GPIO1 => ADC1_CHANNEL1
-static const adc_channel_t pitch_ch = ADC_CHANNEL_4;    // GPIO15 => ADC2_CHANNEL4
-static const adc_channel_t roll_ch = ADC_CHANNEL_5;     // GPIO16 => ADC2_CHANNEL5
-
 static uint16_t sample_middle;
+
+static adc_oneshot_unit_handle_t adc_handle;
+static adc_cali_handle_t adc_cali_handle = NULL;
+
+static const adc_unit_t adc_unit = ADC_UNIT_1;
+static const adc_atten_t atten = ADC_ATTEN_DB_11;
+
+static const adc_channel_t throttle_ch = ADC_CHANNEL_0;
+static const adc_channel_t yaw_ch = ADC_CHANNEL_1;
+static const adc_channel_t pitch_ch = ADC_CHANNEL_3;
+static const adc_channel_t roll_ch = ADC_CHANNEL_4;
 
 void adc_wrapper_init(void)
 {
-    adc1_config_width(adc_width);
-    adc1_config_channel_atten(yaw_ch, atten);
-    adc1_config_channel_atten(throttle_ch, atten);
-    adc2_config_channel_atten((adc2_channel_t)roll_ch, atten);
-    adc2_config_channel_atten((adc2_channel_t)pitch_ch, atten);
+    adc_oneshot_unit_init_cfg_t init_config = {
+        .unit_id = adc_unit,
+    };
+    adc_oneshot_new_unit(&init_config, &adc_handle);
 
-    adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_characterize(adc1_unit, atten, adc_width, DEFAULT_VREF, adc_chars);
+    adc_oneshot_chan_cfg_t config = {
+        .bitwidth = ADC_BITWIDTH_12,
+        .atten = atten,
+    };
 
-    // yaw pitch roll 通道分别采样10次，作为中间基准值
+    adc_oneshot_config_channel(adc_handle, throttle_ch, &config);
+    adc_oneshot_config_channel(adc_handle, yaw_ch, &config);
+    adc_oneshot_config_channel(adc_handle, pitch_ch, &config);
+    adc_oneshot_config_channel(adc_handle, roll_ch, &config);
+
+
+#if 0
+    adc_cali_curve_fitting_config_t cali_config = {
+        .unit_id = adc_unit,
+        .atten = atten,
+        .bitwidth = ADC_BITWIDTH_12,
+    };
+    adc_cali_create_scheme_curve_fitting(&cali_config, &adc_cali_handle);
+#endif
+
     uint16_t sample_sum = 0;
     for (int i = 0; i < 10; i++)
     {
@@ -88,36 +107,42 @@ static uint16_t _constrain_adc_by_section(int origin)
  */
 void adc_read_by_item(uint8_t item, uint16_t *adc_val, uint8_t is_constrained)
 {
-    int adc_val_origin = 0;
+    int raw = 0;
+    adc_channel_t ch;
 
     *adc_val = 0;
     if (item >= ADC_TYPE_MAX)
         return;
+
     switch (item)
     {
     case ADC_THROTTLE:
-        adc_val_origin = adc1_get_raw((adc1_channel_t)throttle_ch);
+        ch = throttle_ch;
         break;
     case ADC_YAW:
-        adc_val_origin = adc1_get_raw((adc1_channel_t)yaw_ch);
+        ch = yaw_ch;
         break;
     case ADC_PITCH:
-        adc2_get_raw((adc2_channel_t)pitch_ch, adc_width, (int *)&adc_val_origin);
+        ch = pitch_ch;
         break;
     case ADC_ROLL:
-        adc2_get_raw((adc2_channel_t)roll_ch, adc_width, (int *)&adc_val_origin);
+        ch = roll_ch;
         break;
     default:
-        adc_val_origin = -1;
+        return;
     }
 
-    if (adc_val_origin >= 0 && is_constrained)
+    adc_oneshot_read(adc_handle, ch, &raw);
+
+    if (raw >= 0 && is_constrained)
     {
         if (ADC_THROTTLE == item)
-            *adc_val = _constrain_adc_output(adc_val_origin);
+            *adc_val = _constrain_adc_output(raw);
         else
-            *adc_val = _constrain_adc_by_section(adc_val_origin);
+            *adc_val = _constrain_adc_by_section(raw);
     }
-    else if (!is_constrained)
-        *adc_val = adc_val_origin;
+    else
+    {
+        *adc_val = raw;
+    }
 }

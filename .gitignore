@@ -71,6 +71,7 @@ hardware/GB-Drone_master_v2_power/Project Outputs for GB-Drone_master_power/*
 hardware/GB-Drone_master_v2_main/Project Outputs for GB-Drone_master_power/*
 hardware/GB-Drone_master_v2_main/Project Outputs for GB-Drone_master_main/*
 *.zip
+hardware/GB-Drone_remote/Project Outputs for GB-Drone_remote/*
 
 # components
 source/master/managed_components

@@ -16,7 +16,7 @@ call env_setting.bat
 cd ../source/remote
 
 if "%~1"=="init" (
-    idf.py set-target esp32s3
+    idf.py set-target esp32p4
     idf.py add-dependency esp_tinyusb
     :: create soft link
     call pre_processing.bat
