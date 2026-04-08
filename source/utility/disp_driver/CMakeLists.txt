@@ -8,6 +8,10 @@ if(CONFIG_TFT_DISPLAY_PROTOCOL_SPI)
     list(APPEND SOURCES "disp_spi.c")
 endif()
 
+if(CONFIG_TFT_DISPLAY_PROTOCOL_DSI)
+    list(APPEND SOURCES "disp_dsi.c")
+endif()
+
 #@todo add SimleInclude macro here
 
 # Include only the source file of the selected
@@ -45,6 +49,8 @@ elseif(CONFIG_TFT_DISPLAY_CONTROLLER_RA8875)
     list(APPEND SOURCES "disp_tft/ra8875.c")
 elseif(CONFIG_TFT_DISPLAY_CONTROLLER_GC9A01)
     list(APPEND SOURCES "disp_tft/GC9A01.c")
+elseif(CONFIG_TFT_DISPLAY_CONTROLLER_ST7701)
+    list(APPEND SOURCES "disp_tft/st7701.c")
 else()
     message(WARNING "Disp drivers: Display controller not defined.")
 endif()
@@ -77,9 +83,15 @@ if(CONFIG_DISP_TOUCH_CONTROLLER)
     endif()
 endif()
 
+set(COMPONENT_REQUIRES log_sys error_handle io_define spi_bus i2c_bus gpio_setting gb_timer)
+
+if(CONFIG_TFT_DISPLAY_PROTOCOL_DSI)
+    list(APPEND COMPONENT_REQUIRES esp_lcd driver)
+endif()
+
 idf_component_register(SRCS ${SOURCES}
                        INCLUDE_DIRS ${DISP_INCLUDE_DIRS}
-                       REQUIRES log_sys error_handle io_define spi_bus i2c_bus gpio_setting gb_timer)
+                       REQUIRES ${COMPONENT_REQUIRES})
 
 else()
     message(FATAL_ERROR "Disp drivers: ESP_PLATFORM is not defined. Try reinstalling ESP-IDF.")

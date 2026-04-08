@@ -63,6 +63,8 @@ extern "C" {
 #include "jd79653a.h"
 #elif defined CONFIG_TFT_DISPLAY_CONTROLLER_UC8151D
 #include "uc8151d.h"
+#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_ST7701
+#include "st7701.h"
 #endif
 
 /*********************
@@ -138,7 +140,8 @@ extern "C" {
 #define DISP_BUF_SIZE ((LV_VER_RES_MAX * LV_VER_RES_MAX) / 8) // 5KB
 #elif defined (CONFIG_TFT_DISPLAY_CONTROLLER_UC8151D)
 #define DISP_BUF_SIZE ((LV_VER_RES_MAX * LV_VER_RES_MAX) / 8) // 2888 bytes
-
+#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_ST7701
+#define DISP_BUF_SIZE  (LV_HOR_RES_MAX * 64)
 #else
 #error "No display controller selected"
 #endif

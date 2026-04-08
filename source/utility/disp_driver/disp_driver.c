@@ -20,6 +20,10 @@
 #include "spi_bus.h"
 #include "gb_timer.h"
 
+#if defined CONFIG_TFT_DISPLAY_PROTOCOL_DSI
+#include "disp_dsi.h"
+#endif
+
 void tft_driver_init(void)
 {
 #if defined CONFIG_TFT_DISPLAY_CONTROLLER_ILI9341
@@ -54,6 +58,8 @@ void tft_driver_init(void)
    jd79653a_init();
 #elif defined CONFIG_TFT_DISPLAY_CONTROLLER_UC8151D
    uc8151d_init();
+#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_ST7701
+   st7701_init();
 #endif
 }
 
@@ -91,6 +97,8 @@ void disp_driver_flush(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void 
     jd79653a_lv_fb_flush(x1, y1, x2, y2, color_map);
 #elif defined CONFIG_TFT_DISPLAY_CONTROLLER_UC8151D
     uc8151d_lv_fb_flush(x1, y1, x2, y2, color_map);
+#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_ST7701
+    st7701_flush(x1, y1, x2, y2, color_map);
 #endif
 }
 
@@ -143,6 +151,8 @@ void disp_driver_init(void)
     CHK_EXIT(fspi.addDevice(&fspi, GB_SPI_DEV_0, 0, mode, SPI_DEVICE_NO_DUMMY, SPI_TFT_CLOCK_SPEED_HZ, -1));
 #elif defined CONFIG_TFT_DISPLAY_PROTOCOL_I2C
     // TODO
+#elif defined CONFIG_TFT_DISPLAY_PROTOCOL_DSI
+    disp_dsi_init();
 #else
     #error "No protocol defined for display controller"
 #endif

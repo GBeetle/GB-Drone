@@ -305,6 +305,10 @@ menu "Disp-Driver TFT Display controller"
             bool "RA8875"
             select TFT_DISPLAY_CONTROLLER_RA8875
             select TFT_DISPLAY_PROTOCOL_SPI
+        config TFT_DISPLAY_USER_CONTROLLER_ST7701
+            bool "ST7701"
+            select TFT_DISPLAY_CONTROLLER_ST7701
+            select TFT_DISPLAY_PROTOCOL_DSI
     endchoice
 
     config CUSTOM_DISPLAY_BUFFER_SIZE
@@ -595,6 +599,46 @@ menu "Disp-Driver TFT Display controller"
 
     endmenu
 
+    menu "Display ST7701 Configuration"
+    visible if TFT_DISPLAY_CONTROLLER_ST7701
+
+        config ST7701_HOR_RES
+            int "Horizontal Resolution"
+            default 480
+            help
+                Display width in pixels for ST7701 pannel
+
+        config ST7701_VER_RES
+            int "Vertical Resolution"
+            default 640
+            help
+                Display height in pixels for ST7701 pannel
+
+        config ST7701_DSI_LANES
+            int "Number of DSI data lanes"
+            default 1
+            range 1 2
+            help
+                WLK2802MIPI-15PIN panel use single-lane MIPI DSI.
+                Set to 2 for dual-lane panels.
+
+        config ST7701_LANE_BITRATE_MBPS
+            int "DSI lane bitrate (Mbps)"
+            default 700
+            range 500 1000
+            help
+                700 Mbps for single-lane configuration
+                500 Mbps for dual-lane configuration
+
+        config ST7701_PIXEL_CLOCK_MHZ
+            int "Pixel clock frequency (MHz)"
+            default 25
+            range 10 50
+            help
+                25MHz achieves 60MHz refresh rate @ 480x640 resolution
+
+    endmenu
+
     # menu will be visible only when PREDEFINED_DISPLAY_NONE is y
     menu "Display Pin Assignments"
     visible if PREDEFINED_DISPLAY_NONE || PREDEFINED_DISPLAY_RPI_MPI3501 || PREDEFINED_PINS_TKOALA
@@ -628,10 +672,12 @@ menu "Disp-Driver TFT Display controller"
 
     config LV_HOR_RES_MAX
         int "Maximal horizontal resolution to support by the library."
-        default 480
+        default 480 if !TFT_DISPLAY_CONTROLLER_ST7701
+        default 480 if TFT_DISPLAY_CONTROLLER_ST7701
 
     config LV_VER_RES_MAX
         int "Maximal vertical resolution to support by the library."
-        default 320
+        default 320 if !TFT_DISPLAY_CONTROLLER_ST7701
+        default 640 if TFT_DISPLAY_CONTROLLER_ST7701
 
 endmenu
