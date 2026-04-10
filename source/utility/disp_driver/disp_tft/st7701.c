@@ -17,29 +17,29 @@
 
 #include "st7701.h"
 
-#if defined(CONFIG_IDF_TARGET_ESP32P4) && defined(CONFIG_TFT_DISPLAY_CONTROLLER_ST7701)
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_commands.h"
 #include "esp_lcd_mipi_dsi.h"
-#include "esp_log.h"
-#include "esp_check.h"
-#include "../dispi_dsi.h"
-#include "driver/i2c.h"
+#include "log_sys.h"
+#include "error_handle.h"
+#include "../disp_dsi.h"
+#include "i2c_bus.h"
 
-#define I2C_MASTER_NUM    I2C_NUM_0
+
+#define PCA9536_ADDR         0x41
+#define PCA9536_INPUT_REG    0x00
+#define PCA9536_OUTPUT_REG   0x01
+#define PCA9536_POLARITY_REG 0x02
+#define PCA9536_CONFIG_REG   0x03
+
 #define I2C_MASTER_SDA_IO    22    // SDA pin (from screen project)
 #define I2C_MASTER_SCL_IO    21    // SCL pin (from screen project)
-#define I2C_MASTER_FREQ_HZ  100000    // 100 kHz
-#define I2C_MASTER_TIMEOUT_MS 1000
-
-static const char *TAG = "st7701";
+#define I2C_MASTER_FREQ_HZ   100000    // 100 kHz
 
 // Static handles
 static esp_lcd_panel_handle_t s_panel_handle = NULL;
-static lv_disp_drv_t *s_disp_drv = NULL;
 
 /**
  * @brief ST7701 initialization command structure
@@ -51,7 +51,7 @@ typedef struct {
     uint8_t delay_ms;
 } st7701_init_cmd_t;
 
-static const ST7701_lcd_init_cmd_t vendor_init_cmds[] = {
+static const st7701_init_cmd_t vendor_init_cmds[] = {
     // 2.8 inch
     { 0xFF, (uint8_t[]){0x77, 0x01, 0x00, 0x00, 0x13}, 5, 0},
     // Unknown
@@ -119,100 +119,51 @@ static const ST7701_lcd_init_cmd_t vendor_init_cmds[] = {
 
 static esp_err_t pca9536_i2c_init(void)
 {
-    if (s_i2c_initialized) {
-        return ESP_OK;
+    // Initialize I2C bus using project's i2c_bus wrapper
+    GB_RESULT ret = i2c0.begin(&i2c0, I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO, I2C_MASTER_FREQ_HZ);
+    if (ret != GB_OK) {
+        GB_DEBUGE(DISP_TAG, "I2C bus initialization failed");
+        return ESP_FAIL;
     }
 
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = I2C_MASTER_SDA_IO,
-        .sda_pullup_en = GPIO_PULLUP_DISABLE, // External pullups on board
-        .scl_io_num = I2C_MASTER_SCL_IO,
-        .scl_pullup_en = GPIO_PULLUP_DISABLE, // External pullups on board
-        .master.clk_speed = I2C_MASTER_FREQ_HZ,
-    };
-
-    esp_err_t ret = i2c_param_config(I2C_MASTER_NUM, &conf);
-    if (ret != ESP_OK) {
-        ESP_LOG(TAG, "I2C param config failed: %s", esp_err_to_name(ret));
-        return ret;
+    // Add PCA9536 device to I2C bus
+    ret = i2c0.addDevice(&i2c0, PCA9536_ADDR, I2C_MASTER_FREQ_HZ);
+    if (ret != GB_OK) {
+        GB_DEBUGE(DISP_TAG, "Failed to add PCA9536 device to I2C bus");
+        return ESP_FAIL;
     }
 
-    ret = i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0);
-    if (ret != ESP_OK) {
-        ESP_LOG(TAG, "I2C driver install failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
-
-    s_i2c_initialized = true;
-    ESP_LOG(TAG, "I2C master initialized (SDA: GPIO%d, SCL: GPIO%d, Freq: %d Hz)",
-    I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO, I2C_MASTER_FREQ_HZ);
+    GB_DEBUGE(DISP_TAG, "I2C master initialized (SDA: GPIO%d, SCL: GPIO%d, Freq: %d Hz)",
+        I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO, I2C_MASTER_FREQ_HZ);
 
     return ESP_OK;
 }
 
 static esp_err_t pca9536_write_reg(uint8_t reg_addr, uint8_t data)
 {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (PCA9536_ADDR << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, reg_addr, true);
-    i2c_master_write_byte(cmd, data, true);
-    i2c_master_stop(cmd);
-
-    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd,
-        pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS));
-    i2c_cmd_link_delete(cmd);
-
-    if (ret != ESP_OK) {
-        ESP_LOG(TAG, "Write register 0x%02X failed: %s", reg_addr, esp_err_to_name(ret));
+    GB_RESULT ret = i2c0.writeByte(&i2c0, PCA9536_ADDR, reg_addr, data);
+    if (ret != GB_OK) {
+        GB_DEBUGE(DISP_TAG, "Write PCA9536 register 0x%02X failed", reg_addr);
+        return ESP_FAIL;
     }
-
-    return ret;
+    return ESP_OK;
 }
 
 static esp_err_t pca9536_read_reg(uint8_t reg_addr, uint8_t *data)
 {
-    // Write register address
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (PCA9536_ADDR << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte(cmd, reg_addr, true);
-    i2c_master_stop(cmd);
-
-    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd,
-        pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS));
-    i2c_cmd_link_delete(cmd);
-
-    if (ret != ESP_OK) {
-        ESP_LOG(TAG, "Write register address 0x%02X failed: %s",
-            reg_addr, esp_err_to_name(ret));
-        return ret;
+    GB_RESULT ret = i2c0.readByte(&i2c0, PCA9536_ADDR, reg_addr, data);
+    if (ret != GB_OK) {
+        GB_DEBUGE(DISP_TAG, "Read PCA9536 register 0x%02X failed", reg_addr);
+        return ESP_FAIL;
     }
-
-    // Read register data
-    cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (PCA9536_ADDR << 1) | I2C_MASTER_READ, true);
-    i2c_master_read_byte(cmd, data, I2C_MASTER_LAST_NACK);
-    i2c_master_stop(cmd);
-
-    ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd,
-        pdMS_TO_TICKS(I2C_MASTER_TIMEOUT_MS));
-    i2c_cmd_link_delete(cmd);
-
-    if (ret != ESP_OK) {
-        ESP_LOG(TAG, "Read register 0x%02X failed: %s", reg_addr, esp_err_to_name(ret));
-    }
-
-    return ret;
+    return ESP_OK;
 }
 
 esp_err_t pca9536_init(void)
 {
     esp_err_t ret;
 
-    ESP_LOG(TAG, "Initializing PCA9536 GPIO expander (addr: 0x%02X)", PCA9536_ADDR);
+    GB_DEBUGE(DISP_TAG, "Initializing PCA9536 GPIO expander (addr: 0x%02X)", PCA9536_ADDR);
 
     // Initialize I2C bus if not already done
     ret = pca9536_i2c_init();
@@ -223,18 +174,18 @@ esp_err_t pca9536_init(void)
     // Configure all pins as outputs (0 = output, 1 = input)
     ret = pca9536_write_reg(PCA9536_CONFIG_REG, 0x00);
     if (ret != ESP_OK) {
-        ESP_LOG(TAG, "Failed to configure pins as outputs");
+        GB_DEBUGE(DISP_TAG, "Failed to configure pins as outputs");
         return ret;
     }
 
     // Set initial state to all low
     ret = pca9536_write_reg(PCA9536_OUTPUT_REG, 0x00);
     if (ret != ESP_OK) {
-        ESP_LOG(TAG, "Failed to set initial output state");
+        GB_DEBUGE(DISP_TAG, "Failed to set initial output state");
         return ret;
     }
 
-    ESP_LOG(TAG, "PCA9536 initialized successfully (all pins output, low)");
+    GB_DEBUGE(DISP_TAG, "PCA9536 initialized successfully (all pins output, low)");
 
     return ESP_OK;
 }
@@ -255,7 +206,7 @@ esp_err_t pca9536_set_pin_high(uint8_t pin_mask)
     ret = pca9536_write_reg(PCA9536_OUTPUT_REG, new_state);
 
     if (ret == ESP_OK) {
-    ESP_LOG(TAG, "Set pins 0x%02X high (state: 0x%02X -> 0x%02X)",
+    GB_DEBUGE(DISP_TAG, "Set pins 0x%02X high (state: 0x%02X -> 0x%02X)",
         pin_mask, current_state, new_state);
     }
 
@@ -278,8 +229,8 @@ esp_err_t pca9536_set_pin_low(uint8_t pin_mask)
     ret = pca9536_write_reg(PCA9536_OUTPUT_REG, new_state);
 
     if (ret == ESP_OK) {
-    ESP_LOG(TAG, "Set pins 0x%02X low (state: 0x%02X -> 0x%02X)",
-        pin_mask, current_state, new_state);
+        GB_DEBUGE(DISP_TAG, "Set pins 0x%02X low (state: 0x%02X -> 0x%02X)",
+            pin_mask, current_state, new_state);
     }
 
     return ret;
@@ -294,13 +245,13 @@ static esp_err_t st7701_send_init_commands(void)
 {
     esp_lcd_panel_io_handle_t io = disp_dsi_get_dbi_io();
     if (!io) {
-        ESP_LOG(TAG, "DBI I/O not initialized");
+        GB_DEBUGE(DISP_TAG, "DBI I/O not initialized");
         return ESP_FAIL;
     }
 
     const int cmd_count = sizeof(vendor_init_cmds) / sizeof(st7701_init_cmd_t);
 
-    ESP_LOG(TAG, "Sending %d initialization commands...", cmd_count);
+    GB_DEBUGE(DISP_TAG, "Sending %d initialization commands...", cmd_count);
 
     for (int i = 0; i < cmd_count; i++) {
         const st7701_init_cmd_t *cmd = &vendor_init_cmds[i];
@@ -310,7 +261,7 @@ static esp_err_t st7701_send_init_commands(void)
                                                     cmd->data, cmd->data_len);
 
         if (ret != ESP_OK) {
-            ESP_LOG(TAG, "Failed to send command @%02X (index %d)", cmd->cmd, i);
+            GB_DEBUGE(DISP_TAG, "Failed to send command @%02X (index %d)", cmd->cmd, i);
             return ret;
         }
 
@@ -320,7 +271,7 @@ static esp_err_t st7701_send_init_commands(void)
         }
     }
 
-    ESP_LOG(TAG, "Initialization commands sent successfully");
+    GB_DEBUGE(DISP_TAG, "Initialization commands sent successfully");
     return ESP_OK;
 }
 
@@ -328,10 +279,10 @@ void st7701_enable_backlight(bool enable)
 {
     if (enable) {
         pca9536_set_pin_high(1 << ST7701_PCA9536_BACKLIGHT_PIN);
-        ESP_LOG(TAG, "Backlight ON");
+        GB_DEBUGE(DISP_TAG, "Backlight ON");
     } else {
         pca9536_set_pin_low(1 << ST7701_PCA9536_BACKLIGHT_PIN);
-        ESP_LOG(TAG, "Backlight OFF");
+        GB_DEBUGE(DISP_TAG, "Backlight OFF");
     }
 }
 
@@ -341,7 +292,7 @@ void st7701_sleep_in(void)
     if (io) {
         esp_lcd_panel_io_tx_param(io, LCD_CMD_SLPIN, NULL, 0);
         vTaskDelay(pdMS_TO_TICKS(120));
-        ESP_LOG(TAG, "Entered sleep mode");
+        GB_DEBUGE(DISP_TAG, "Entered sleep mode");
     }
 }
 
@@ -351,13 +302,13 @@ void st7701_sleep_out(void)
     if (io) {
         esp_lcd_panel_io_tx_param(io, LCD_CMD_SLPOUT, NULL, 0);
         vTaskDelay(pdMS_TO_TICKS(120));
-        ESP_LOG(TAG, "Exited sleep mode");
+        GB_DEBUGE(DISP_TAG, "Exited sleep mode");
     }
 }
 
 static void st7701_hardware_reset(void)
 {
-    ESP_LOG(TAG, "Performing hardware reset via PCA9536 PIN%d",
+    GB_DEBUGE(DISP_TAG, "Performing hardware reset via PCA9536 PIN%d",
             ST7701_PCA9536_RESET_PIN);
 
     // Reset sequence: high -> low (10ms) -> high (50ms)
@@ -370,136 +321,149 @@ static void st7701_hardware_reset(void)
     pca9536_set_pin_high(1 << ST7701_PCA9536_RESET_PIN);
     vTaskDelay(pdMS_TO_TICKS(50));
 
-    ESP_LOG(TAG, "Hardware reset completed");
+    GB_DEBUGE(DISP_TAG, "Hardware reset completed");
 }
 
+esp_err_t st7701_register_flush_callback(void)
+{
+    if (!s_panel_handle) {
+        GB_DEBUGE(DISP_TAG, "Cannot register callback - panel not initialized");
+        return ESP_FAIL;
+    }
+
+    // Get the LVGL driver handle from lvgl_driver layer
+    // This is set when lvgl_driver_flush() is called
+    extern lv_disp_drv_t* lvgl_driver_get_disp_drv(void);
+    lv_disp_drv_t *drv = lvgl_driver_get_disp_drv();
+    if (!drv) {
+        GB_DEBUGW(DISP_TAG, "LVGL driver not available yet for callback registration");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Register the DPI callback with LVGL driver as user context
+    esp_err_t ret = disp_dsi_register_flush_callback(s_panel_handle, drv);
+    if (ret == ESP_OK) {
+        GB_DEBUGE(DISP_TAG, "DPI flush callback registered for async operation");
+    } else {
+        GB_DEBUGE(DISP_TAG, "Failed to register DPI flush callback");
+    }
+
+    return ret;
+}
 
 void st7701_init(void)
 {
     esp_err_t ret;
 
-    ESP_LOG(TAG, "Initializing ST7701 display controller");
-    ESP_LOG(TAG, "Resolution: %dx%d, DSI lanes: %d, Bitrate: %d Mbps",
-            ST7701_HOR_RES, ST7701_VER_RES, ST7701_DSI_LANES,
-            ST7701_LANE_BITRATE_MBPS);
+    GB_DEBUGE(DISP_TAG, "Initializing ST7701 display controller");
+    GB_DEBUGE(DISP_TAG, "Resolution: %dx%d, DSI lanes: %d, Bitrate: %d Mbps",
+        ST7701_HOR_RES, ST7701_VER_RES, ST7701_DSI_LANES,
+        ST7701_LANE_BITRATE_MBPS);
 
     pca9536_init();
 
-    // Step 1: Create DSI bus
+    // Step 1: Create DSI bus + DBI I/O (for sending commands)
     esp_lcd_dsi_bus_config_t bus_config = {
         .bus_id = 0,
         .num_data_lanes = ST7701_DSI_LANES,
         .phy_clk_src = MIPI_DSI_PHY_CLK_SRC_DEFAULT,
-        .lane_bit_rate_mbps = ST7701_LANE_BITRATE_MBPS,
+        .lane_bit_rate_mbps = ST7701_LANE_BITRATE_MBPS
     };
 
     ret = disp_dsi_create_bus(&bus_config);
     if (ret != ESP_OK) {
-        ESP_LOG(TAG, "Failed to create DSI bus");
+        GB_DEBUGE(DISP_TAG, "Failed to create DSI bus");
         return;
     }
 
-    // Step 2: Create DPI panel configuration
+    // Step 2: Hardware reset via PCA9536 (use raw ticks like demo)
+    st7701_hardware_reset();
+
+    // Step 3: Software reset + sleep out via DBI (matches demo's check_display_connect)
+    {
+        esp_lcd_panel_io_handle_t io = disp_dsi_get_dbi_io();
+        if (io) {
+            esp_lcd_panel_io_tx_param(io, LCD_CMD_SWRESET, NULL, 0);
+            vTaskDelay(pdMS_TO_TICKS(150));
+            esp_lcd_panel_io_tx_param(io, LCD_CMD_SLPOUT, NULL, 0);
+            vTaskDelay(pdMS_TO_TICKS(120));
+        }
+    }
+
+    // Step 4: Send vendor init commands via DBI (BEFORE creating DPI panel)
+    ret = st7701_send_init_commands();
+    if (ret != ESP_OK) {
+        GB_DEBUGE(DISP_TAG, "Failed to send initialization commands");
+        return;
+    }
+
+    // Step 5: Create DPI panel (AFTER init commands, so DSI bus is free for DBI)
     esp_lcd_dpi_panel_config_t dpi_config = {
         .dpi_clk_src = MIPI_DSI_DPI_CLK_SRC_DEFAULT,
         .dpi_clock_freq_mhz = ST7701_PIXEL_CLOCK_MHZ,
         .virtual_channel = 0,
-        .pixel_format = LCD_COLOR_PIXEL_FORMAT_RGB888,
+        .in_color_format = LCD_COLOR_FMT_RGB888,
         .num_fbs = 1,
         .video_timing = {
             .h_size = ST7701_HOR_RES,
             .v_size = ST7701_VER_RES,
-            .hsync_backporch = ST7701_HSYNC_BACK_PORCH,
+            .hsync_back_porch = ST7701_HSYNC_BACK_PORCH,
             .hsync_pulse_width = ST7701_HSYNC_PULSE_WIDTH,
-            .hsync_frontporch = ST7701_HSYNC_FRONT_PORCH,
-            .vsync_backporch = ST7701_VSYNC_BACK_PORCH,
+            .hsync_front_porch = ST7701_HSYNC_FRONT_PORCH,
+            .vsync_back_porch = ST7701_VSYNC_BACK_PORCH,
             .vsync_pulse_width = ST7701_VSYNC_PULSE_WIDTH,
             .vsync_front_porch = ST7701_VSYNC_FRONT_PORCH,
         },
-        .flags = {
-            .use_dma2d = true, // Enable DMA2D acceleration
-        }
+        .flags.use_dma2d = true,
     };
 
-    // Step 3: Create DPI panel
     esp_lcd_dsi_bus_handle_t dsi_bus = disp_dsi_get_bus();
     ret = esp_lcd_new_panel_dpi(dsi_bus, &dpi_config, &s_panel_handle);
     if (ret != ESP_OK) {
-        ESP_LOG(TAG, "Failed to create DPI panel");
+        GB_DEBUGE(DISP_TAG, "Failed to create DPI panel");
         return;
     }
 
-    // Register panel handle with DSI abstraction layer
     disp_dsi_set_dpi_panel(s_panel_handle);
+    GB_DEBUGE(DISP_TAG, "DPI panel created successfully");
 
-    ESP_LOG(TAG, "DPI panel created successfully");
-
-    // Step 4: Hardware reset via PCA9536
-    st7701_hardware_reset();
-
-    // Step 5: Initialize panel (sends init commands)
-    ret = st7701_send_init_commands();
-    if (ret != ESP_OK) {
-        ESP_LOG(TAG, "Failed to send initialization commands");
-        return;
-    }
-
-    // Step 6: Initialize DPI panel
+    // Step 6: Initialize DPI panel (starts video stream)
     ret = esp_lcd_panel_init(s_panel_handle);
     if (ret != ESP_OK) {
-        ESP_LOG(TAG, "Failed to initialize DPI panel");
+        GB_DEBUGE(DISP_TAG, "Failed to initialize DPI panel");
         return;
     }
 
-    // Step 7: Register flush callback (will be set later by LVGL)
-    // The callback is registered in st7701_flush() when first called
+    GB_DEBUGE(DISP_TAG, "DPI panel initialized");
 
-
+    // Step 7: Enable backlight
     st7701_enable_backlight(true);
 
-    ESP_LOGI(TAG, "ST7701 initialized successfully");
+    GB_DEBUGE(DISP_TAG, "ST7701 initialized successfully");
 }
 
-void st7701_flush(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_map)
+void st7701_flush(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *color_map)
 {
     if (!s_panel_handle) {
-        ESP_LOG(TAG, "Panel not initialized");
-        lv_disp_flush_ready(drv);
+        GB_DEBUGE(DISP_TAG, "ST7701 panel not initialized");
         return;
     }
 
-    // Register callback on first flush (drv available now)
+    // Register DPI callback on first flush (lazy initialization)
+    // At this point, LVGL has called lvgl_driver_flush() so the driver handle is available
     static bool callback_registered = false;
-    if (!callback_registered && drv) {
-        esp_err_t ret = disp_dsi_register_flush_callback(s_panel_handle, drv);
-        if (ret == ESP_OK) {
+    if (!callback_registered) {
+        if (st7701_register_flush_callback() == ESP_OK) {
             callback_registered = true;
-            ESP_LOGI(TAG, "Flush callback registered with LVGL driver");
-        } else {
-            ESP_LOGW(TAG, "Failed to register flush callback");
         }
+        // Continue even if registration fails - will fallback to sync mode
     }
 
-    // Convert LVGL v7 area to coordinates
-    // LVGL v7 uses inclusive coordinates (x2, y2 are part of area)
-    // esp_lcd expects exclusive end coordinates
-    int x1 = area->x1;
-    int y1 = area->y1;
-    int x2 = area->x2 + 1;
-    int y2 = area->y2 + 1;
-
-    // Send pixel data to DPI panel
-    // Note: lv_disp_flush_ready() will be called by DPI callback, not here
+    // Send pixel data to DPI panel via esp_lcd (async DMA transfer)
+    // Note: For DSI, lv_disp_flush_ready() is called by DPI callback, not here
     esp_err_t ret = esp_lcd_panel_draw_bitmap(s_panel_handle, x1, y1, x2, y2, color_map);
 
     if (ret != ESP_OK) {
-        ESP_LOG(TAG, "Failed to draw bitmap: %s", esp_err_to_name(ret));
-        // Call flush ready to prevent LVGL from hanging
-        lv_disp_flush_ready(drv);
+        GB_DEBUGE(DISP_TAG, "Failed to draw bitmap");
     }
-
-    // Store display driver for callback
-    s_disp_drv = drv;
 }
-
-#endif // CONFIG_IDF_TARGET_ESP32P4 && CONFIG_TFT_DISPLAY_CONTROLLER_ST7701

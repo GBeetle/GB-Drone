@@ -18,6 +18,38 @@
 #include "tft_espi.h"
 #include "disp_driver.h"
 
+#ifndef TFT_INIT_DELAY
+#define TFT_INIT_DELAY 0
+#endif
+
+#ifndef TFT_CASET
+#define TFT_CASET 0
+#endif
+
+#ifndef TFT_PASET
+#define TFT_PASET 0
+#endif
+
+#ifndef TFT_RAMWR
+#define TFT_RAMWR 0
+#endif
+
+#ifndef TFT_RAMRD
+#define TFT_RAMRD 0
+#endif
+
+#ifndef TFT_INVON
+#define TFT_INVON 0
+#endif
+
+#ifndef TFT_INVOFF
+#define TFT_INVOFF 0
+#endif
+
+#ifndef TFT_DRIVER
+#define TFT_DRIVER 0
+#endif
+
 static void    drawPixel(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, uint32_t color);
 static void    drawChar(struct TFT_eSPI * tft_dev, int32_t x, int32_t y, uint16_t c, uint32_t color, uint32_t bg, uint8_t size);
 static void    drawLine(struct TFT_eSPI * tft_dev, int32_t xs, int32_t ys, int32_t xe, int32_t ye, uint32_t color);

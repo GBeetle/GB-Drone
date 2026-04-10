@@ -42,6 +42,8 @@ void lvgl_driver_set_px(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_
 
 void lvgl_driver_flash_setting(bool state);
 
+lv_disp_drv_t * lvgl_driver_get_disp_drv(void);
+
 /**********************
  *      MACROS
  **********************/

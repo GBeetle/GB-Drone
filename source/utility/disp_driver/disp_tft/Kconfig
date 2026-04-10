@@ -161,6 +161,11 @@ menu "Disp-Driver TFT Display controller"
         help
             ST7796S display controller.
 
+    config TFT_DISPLAY_CONTROLLER_ST7701
+        bool
+        help
+            st7701 display controller.
+
     # Display controller communication protocol
     #
     # This symbols define the communication protocol used
@@ -178,6 +183,11 @@ menu "Disp-Driver TFT Display controller"
         bool
         help
             Display controller protocol I2C
+
+    config TFT_DISPLAY_PROTOCOL_DSI
+        bool
+        help
+            Display controller protocol DSI
 
     # Used in display init function to send display orientation commands
     choice DISPLAY_ORIENTATION

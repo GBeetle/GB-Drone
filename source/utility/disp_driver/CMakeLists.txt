@@ -85,13 +85,13 @@ endif()
 
 set(COMPONENT_REQUIRES log_sys error_handle io_define spi_bus i2c_bus gpio_setting gb_timer)
 
-if(CONFIG_TFT_DISPLAY_PROTOCOL_DSI)
-    list(APPEND COMPONENT_REQUIRES esp_lcd driver)
-endif()
-
 idf_component_register(SRCS ${SOURCES}
                        INCLUDE_DIRS ${DISP_INCLUDE_DIRS}
                        REQUIRES ${COMPONENT_REQUIRES})
+
+if(CONFIG_TFT_DISPLAY_PROTOCOL_DSI)
+    idf_component_optional_requires(PUBLIC esp_lcd lvgl)
+endif()
 
 else()
     message(FATAL_ERROR "Disp drivers: ESP_PLATFORM is not defined. Try reinstalling ESP-IDF.")

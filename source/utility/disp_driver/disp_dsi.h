@@ -24,8 +24,6 @@ extern "C" {
 
 #include "esp_err.h"
 
-#if defined(CONFIG_IDF_TARGET_ESP32P4) && defined(CONFIG_TFT_DISPLAY_PROTOCOL_DSI)
-
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_mipi_dsi.h"
 #include "esp_lcd_panel_io.h"
@@ -52,4 +50,4 @@ esp_err_t disp_dsi_register_flush_callback(esp_lcd_panel_handle_t panel, void *u
 }
 #endif
 
-#endif // CONFIG_IDF_TARGET_ESP32P4 && CONFIG_TFT_DISPLAY_PROTOCOL_DSI
+#endif // DISP_DSI_H

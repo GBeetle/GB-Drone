@@ -22,8 +22,6 @@
 extern "C" {
 #endif
 
-#if defined(CONFIG_IDF_TARGET_ESP32P4) && defined(CONFIG_TFT_DISPLAY_CONTROLLER_ST7701)
-
 #include <stdint.h>
 #include <stdbool.h>
 #include "lvgl.h"
@@ -51,8 +49,12 @@ extern "C" {
 #define ST7701_PCA9536_RESET_PIN 0    // PIN0 controls LCD reset
 #define ST7701_PCA9536_BACKLIGHT_PIN 1    // PIN1 controls backlight
 
+void st7701_init(void);
+
+void st7701_flush(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *color_map);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif // CONFIG_IDF_TARGET_ESP32P4 && CONFIG_TFT_DISPLAY_PROTOCOL_DSI
+#endif // ST7701_H
