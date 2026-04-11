@@ -59,7 +59,7 @@ static esp_err_t disp_dsi_enable_phy_power(void)
         return ret;
     }
 
-    GB_DEBUGE(DISP_TAG, "MIPI DSI PHY powered on (LDO channel %d, %d mV)",
+    GB_DEBUGI(DISP_TAG, "MIPI DSI PHY powered on (LDO channel %d, %d mV)",
         DISP_DSI_PHY_LDO_CHAN, DISP_DSI_PHY_LDO_VOLTAGE_MV);
 
     return ESP_OK;
@@ -80,7 +80,7 @@ esp_err_t disp_dsi_init(void)
     // Note: The actual bus creation is deferred until controller init
     // because we need controller-specific parameters (lane count, bitrate)
 
-    GB_DEBUGE(DISP_TAG, "DSI bus abstraction layer initialized");
+    GB_DEBUGI(DISP_TAG, "DSI bus abstraction layer initialized");
     return ESP_OK;
 }
 
@@ -136,7 +136,7 @@ esp_lcd_dsi_bus_handle_t disp_dsi_get_bus(void)
 void disp_dsi_set_dpi_panel(esp_lcd_panel_handle_t panel)
 {
     s_mipi_dpi_panel = panel;
-    GB_DEBUGE(DISP_TAG, "DPI panel handle registered");
+    GB_DEBUGI(DISP_TAG, "DPI panel handle registered");
 }
 
 esp_err_t disp_dsi_register_flush_callback(esp_lcd_panel_handle_t panel,
@@ -152,7 +152,7 @@ esp_err_t disp_dsi_register_flush_callback(esp_lcd_panel_handle_t panel,
         return ret;
     }
 
-    GB_DEBUGE(DISP_TAG, "DPI panel flush callback registered");
+    GB_DEBUGI(DISP_TAG, "DPI panel flush callback registered");
 
     return ESP_OK;
 }
