@@ -27,10 +27,6 @@ extern "C" {
 #include "lvgl.h"
 #include "../disp_driver.h"
 
-// Panel specifications (from screen project verification)
-#define ST7701_HOR_RES 480
-#define ST7701_VER_RES 640
-
 // DSI configuration
 #define ST7701_DSI_LANES    1    // Single-lane MIPI DSI
 #define ST7701_LANE_BITRATE_MBPS 700   // 700 Mbps bitrate

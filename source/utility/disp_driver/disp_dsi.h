@@ -27,6 +27,7 @@ extern "C" {
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_mipi_dsi.h"
 #include "esp_lcd_panel_io.h"
+#include "lcd_ppa.h"
 
 // DSI PHY power configuration for ESP32-P4
 #define DISP_DSI_PHY_LDO_CHAN 3    // LDO_V03 channel
@@ -45,6 +46,9 @@ esp_lcd_dsi_bus_handle_t disp_dsi_get_bus(void);
 void disp_dsi_set_dpi_panel(esp_lcd_panel_handle_t panel);
 
 esp_err_t disp_dsi_register_flush_callback(esp_lcd_panel_handle_t panel, void *user_ctx);
+
+esp_err_t disp_dsi_ppa_create(uint32_t buffer_size);
+lvgl_port_ppa_handle_t disp_dsi_get_ppa_handle();
 
 #ifdef __cplusplus
 }

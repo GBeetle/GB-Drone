@@ -25,12 +25,15 @@
 #include "lvgl.h"
 #include "log_sys.h"
 #include "error_handle.h"
+#include "lcd_ppa.h"
+#include "sdkconfig.h"
 
 // Static handles for DSI bus and panels
 static esp_lcd_dsi_bus_handle_t s_mipi_dsi_bus = NULL;
 static esp_lcd_panel_io_handle_t s_mipi_dbi_io = NULL;
 static esp_lcd_panel_handle_t s_mipi_dpi_panel = NULL;
 static esp_ldo_channel_handle_t s_ldo_mipi_phy = NULL;
+static lvgl_port_ppa_handle_t s_ppa_handle = NULL;
 
 /**
  * @brief DPI panel event callback - notifies LVGL when flush is ready
@@ -155,4 +158,33 @@ esp_err_t disp_dsi_register_flush_callback(esp_lcd_panel_handle_t panel,
     GB_DEBUGI(DISP_TAG, "DPI panel flush callback registered");
 
     return ESP_OK;
+}
+
+esp_err_t disp_dsi_ppa_create(uint32_t buffer_size)
+{
+    ppa_srm_color_mode_t color_mode = PPA_SRM_COLOR_MODE_RGB565;
+#if defined(CONFIG_LV_COLOR_DEPTH_24)
+    color_mode = PPA_SRM_COLOR_MODE_RGB888;
+#endif
+
+    /* Create LCD PPA for rotation */
+    lvgl_port_ppa_cfg_t ppa_cfg = {
+        .buffer_size = buffer_size,
+        .color_mode = color_mode,
+        .flags = {
+            .buff_dma = true,
+            .buff_spiram = true,
+        }
+    };
+    s_ppa_handle = lvgl_port_ppa_create(&ppa_cfg);
+    assert(s_ppa_handle != NULL);
+
+    GB_DEBUGI(DISP_TAG, "DISP ppa created");
+
+    return ESP_OK;
+}
+
+lvgl_port_ppa_handle_t disp_dsi_get_ppa_handle()
+{
+    return s_ppa_handle;
 }

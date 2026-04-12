@@ -612,18 +612,6 @@ menu "Disp-Driver TFT Display controller"
     menu "Display ST7701 Configuration"
     visible if TFT_DISPLAY_CONTROLLER_ST7701
 
-        config ST7701_HOR_RES
-            int "Horizontal Resolution"
-            default 480
-            help
-                Display width in pixels for ST7701 pannel
-
-        config ST7701_VER_RES
-            int "Vertical Resolution"
-            default 640
-            help
-                Display height in pixels for ST7701 pannel
-
         config ST7701_DSI_LANES
             int "Number of DSI data lanes"
             default 1

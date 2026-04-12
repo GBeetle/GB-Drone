@@ -29,6 +29,7 @@
 #include "quad_3d.h"
 #include "lora_state.h"
 #include "sdkconfig.h"
+#include "disp_dsi.h"
 
 #define LV_TICK_PERIOD_MS 10
 
@@ -77,6 +78,10 @@ void gui_task(void *pvParameter)
     assert(buf2 != NULL);
 
     lv_display_set_buffers(disp, buf1, buf2, buffer_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
+
+#if (CONFIG_DISPLAY_ORIENTATION_PORTRAIT)
+    disp_dsi_ppa_create(buffer_size);
+#endif
 
     /* Register an input device when enabled on the menuconfig */
 #if CONFIG_LV_TOUCH_CONTROLLER != TOUCH_CONTROLLER_NONE

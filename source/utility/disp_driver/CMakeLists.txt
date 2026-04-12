@@ -11,6 +11,7 @@ endif()
 
 if(CONFIG_TFT_DISPLAY_PROTOCOL_DSI)
     list(APPEND SOURCES "disp_dsi.c")
+    list(APPEND SOURCES "lcd_ppa.c")
 endif()
 
 #@todo add SimleInclude macro here
@@ -91,7 +92,7 @@ idf_component_register(SRCS ${SOURCES}
                        REQUIRES ${COMPONENT_REQUIRES})
 
 if(CONFIG_TFT_DISPLAY_PROTOCOL_DSI)
-    idf_component_optional_requires(PUBLIC esp_lcd)
+    idf_component_optional_requires(PUBLIC esp_lcd esp_driver_ppa)
 endif()
 
 else()

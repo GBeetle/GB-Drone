@@ -352,7 +352,7 @@ void st7701_init(void)
 
     GB_DEBUGI(DISP_TAG, "Initializing ST7701 display controller");
     GB_DEBUGI(DISP_TAG, "Resolution: %dx%d, DSI lanes: %d, Bitrate: %d Mbps",
-        ST7701_HOR_RES, ST7701_VER_RES, ST7701_DSI_LANES,
+        LV_HOR_RES_MAX, LV_VER_RES_MAX, ST7701_DSI_LANES,
         ST7701_LANE_BITRATE_MBPS);
 
     if (ESP_OK != pca9536_init())
@@ -380,8 +380,8 @@ void st7701_init(void)
         .in_color_format = LCD_COLOR_FMT_RGB888,
         .num_fbs = 1,
         .video_timing = {
-            .h_size = ST7701_HOR_RES,
-            .v_size = ST7701_VER_RES,
+            .h_size = LV_HOR_RES_MAX,
+            .v_size = LV_VER_RES_MAX,
             .hsync_back_porch = ST7701_HSYNC_BACK_PORCH,
             .hsync_pulse_width = ST7701_HSYNC_PULSE_WIDTH,
             .hsync_front_porch = ST7701_HSYNC_FRONT_PORCH,
