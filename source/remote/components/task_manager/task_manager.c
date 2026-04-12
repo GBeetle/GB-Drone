@@ -28,6 +28,7 @@
 #include "esp_timer.h"
 #include "quad_3d.h"
 #include "lora_state.h"
+#include "sdkconfig.h"
 
 #define LV_TICK_PERIOD_MS 10
 
@@ -58,42 +59,30 @@ void gui_task(void *pvParameter)
 
     lv_init();
 
-    // MALLOC_CAP_DMA for SPI
-    lv_color_t *buf1 = heap_caps_malloc(DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
-    assert(buf1 != NULL);
+    lv_display_t *disp = lv_display_create(LV_HOR_RES_MAX, LV_VER_RES_MAX);
+    assert(disp != NULL);
+    GB_DEBUGI(DISP_TAG, "lv_display_create hor_res: %d, ver_res: %d", LV_HOR_RES_MAX, LV_VER_RES_MAX);
 
-    /* Use double buffered when not working with monochrome displays */
-    lv_color_t *buf2 = heap_caps_malloc(DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
-    assert(buf2 != NULL);
+    lv_display_set_flush_cb(disp, lvgl_driver_flush);
 
-    static lv_disp_buf_t disp_buf;
-
-    uint32_t size_in_px = DISP_BUF_SIZE;
-
-    /* Initialize the working buffer depending on the selected display.
-     * NOTE: buf2 == NULL when using monochrome displays. */
-    lv_disp_buf_init(&disp_buf, buf1, buf2, size_in_px);
-
-    lv_disp_drv_t disp_drv;
-    lv_disp_drv_init(&disp_drv);
-    disp_drv.flush_cb = lvgl_driver_flush;
-
-    GB_DEBUGI(DISP_TAG, "lv_disp_drv_init hor_res: %d, ver_res: %d", disp_drv.hor_res, disp_drv.ver_res);
-
-#if defined CONFIG_DISPLAY_ORIENTATION_PORTRAIT || defined CONFIG_DISPLAY_ORIENTATION_PORTRAIT_INVERTED
-    disp_drv.rotated = 1;
+#if defined CONFIG_TFT_DISPLAY_PROTOCOL_DSI
+    lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB888);
 #endif
 
-    disp_drv.buffer = &disp_buf;
-    lv_disp_drv_register(&disp_drv);
+    // MALLOC_CAP_DMA for SPI
+    uint32_t buffer_size = DISP_BUF_SIZE * sizeof(lv_color_t);
+    lv_color_t *buf1 = heap_caps_aligned_alloc(64, buffer_size, MALLOC_CAP_SPIRAM);
+    assert(buf1 != NULL);
+    lv_color_t *buf2 = heap_caps_aligned_alloc(64, buffer_size, MALLOC_CAP_SPIRAM);
+    assert(buf2 != NULL);
+
+    lv_display_set_buffers(disp, buf1, buf2, buffer_size, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
     /* Register an input device when enabled on the menuconfig */
 #if CONFIG_LV_TOUCH_CONTROLLER != TOUCH_CONTROLLER_NONE
-    lv_indev_drv_t indev_drv;
-    lv_indev_drv_init(&indev_drv);
-    indev_drv.read_cb = touch_driver_read;
-    indev_drv.type = LV_INDEV_TYPE_POINTER;
-    lv_indev_drv_register(&indev_drv);
+    lv_indev_t *indev = lv_indev_create();
+    lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(indev, touch_driver_read);
 #endif
 
     /* Create and start a periodic timer interrupt to call lv_tick_inc */
@@ -115,7 +104,7 @@ void gui_task(void *pvParameter)
         /* Try to take the semaphore, call lvgl related function on success */
         if (pdTRUE == xSemaphoreTake(xGuiSemaphore, portMAX_DELAY))
         {
-            lv_task_handler();
+            lv_timer_handler();
             xSemaphoreGive(xGuiSemaphore);
         }
     }

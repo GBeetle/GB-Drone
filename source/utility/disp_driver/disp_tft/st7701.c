@@ -328,8 +328,8 @@ esp_err_t st7701_register_flush_callback(void)
 
     // Get the LVGL driver handle from lvgl_driver layer
     // This is set when lvgl_driver_flush() is called
-    extern lv_disp_drv_t* lvgl_driver_get_disp_drv(void);
-    lv_disp_drv_t *drv = lvgl_driver_get_disp_drv();
+    extern lv_display_t* lvgl_driver_get_disp_drv(void);
+    lv_display_t *drv = lvgl_driver_get_disp_drv();
     if (!drv) {
         GB_DEBUGW(DISP_TAG, "LVGL driver not available yet for callback registration");
         return ESP_ERR_INVALID_STATE;
@@ -476,7 +476,7 @@ void st7701_flush(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void *colo
 
     // Send pixel data to DPI panel via esp_lcd (async DMA transfer)
     // Note: For DSI, lv_disp_flush_ready() is called by DPI callback, not here
-    esp_err_t ret = esp_lcd_panel_draw_bitmap(s_panel_handle, x1, y1, x2, y2, color_map);
+    esp_err_t ret = esp_lcd_panel_draw_bitmap(s_panel_handle, x1, y1, x2 + 1, y2 + 1, color_map);
 
     if (ret != ESP_OK) {
         GB_DEBUGE(DISP_TAG, "Failed to draw bitmap");

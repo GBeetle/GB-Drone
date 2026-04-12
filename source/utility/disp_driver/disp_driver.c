@@ -102,39 +102,6 @@ void disp_driver_flush(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, void 
 #endif
 }
 
-#if 0
-void disp_driver_rounder(lv_disp_drv_t * disp_drv, lv_area_t * area)
-{
-#if defined CONFIG_TFT_DISPLAY_CONTROLLER_SSD1306
-    ssd1306_rounder(disp_drv, area);
-#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_SH1107
-    sh1107_rounder(disp_drv, area);
-#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_IL3820
-    il3820_rounder(disp_drv, area);
-#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_JD79653A
-    jd79653a_lv_rounder_cb(disp_drv, area);
-#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_UC8151D
-    uc8151d_lv_rounder_cb(disp_drv, area);
-#endif
-}
-
-void disp_driver_set_px(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
-    lv_color_t color, lv_opa_t opa)
-{
-#if defined CONFIG_TFT_DISPLAY_CONTROLLER_SSD1306
-    ssd1306_set_px_cb(disp_drv, buf, buf_w, x, y, color, opa);
-#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_SH1107
-    sh1107_set_px_cb(disp_drv, buf, buf_w, x, y, color, opa);
-#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_IL3820
-    il3820_set_px_cb(disp_drv, buf, buf_w, x, y, color, opa);
-#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_JD79653A
-    jd79653a_lv_set_fb_cb(disp_drv, buf, buf_w, x, y, color, opa);
-#elif defined CONFIG_TFT_DISPLAY_CONTROLLER_UC8151D
-    uc8151d_lv_set_fb_cb(disp_drv, buf, buf_w, x, y, color, opa);
-#endif
-}
-#endif
-
 void disp_driver_init(void)
 {
     uint8_t mode = 0;

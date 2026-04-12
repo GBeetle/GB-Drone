@@ -39,9 +39,9 @@ static bool disp_dsi_notify_lvgl_flush_ready(esp_lcd_panel_handle_t panel,
     esp_lcd_dpi_panel_event_data_t *edata,
     void *user_ctx)
 {
-    lv_disp_drv_t *disp_drv = (lv_disp_drv_t *)user_ctx;
-    if (disp_drv) {
-        lv_disp_flush_ready(disp_drv);
+    lv_display_t *disp = (lv_display_t *)user_ctx;
+    if (disp) {
+        lv_disp_flush_ready(disp);
     }
     return false;
 }

@@ -1,8 +1,9 @@
 if(ESP_PLATFORM)
 
 file(GLOB SOURCES *.c)
-set(DISP_INCLUDE_DIRS . disp_tft)
+set(DISP_INCLUDE_DIRS . disp_tft lvgl_ext)
 list(APPEND SOURCES "disp_driver.c")
+list(APPEND SOURCES "lvgl_ext/lvgl_driver.c")
 
 if(CONFIG_TFT_DISPLAY_PROTOCOL_SPI)
     list(APPEND SOURCES "disp_spi.c")
@@ -83,14 +84,14 @@ if(CONFIG_DISP_TOUCH_CONTROLLER)
     endif()
 endif()
 
-set(COMPONENT_REQUIRES log_sys error_handle io_define spi_bus i2c_bus gpio_setting gb_timer)
+set(COMPONENT_REQUIRES log_sys error_handle io_define spi_bus i2c_bus gpio_setting gb_timer lvgl)
 
 idf_component_register(SRCS ${SOURCES}
                        INCLUDE_DIRS ${DISP_INCLUDE_DIRS}
                        REQUIRES ${COMPONENT_REQUIRES})
 
 if(CONFIG_TFT_DISPLAY_PROTOCOL_DSI)
-    idf_component_optional_requires(PUBLIC esp_lcd lvgl)
+    idf_component_optional_requires(PUBLIC esp_lcd)
 endif()
 
 else()

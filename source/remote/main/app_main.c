@@ -25,11 +25,14 @@
 #include "log_sys.h"
 #include "disp_driver.h"
 #include "task_manager.h"
-#include "lvgl_example.h"
 #include "file_system.h"
 #include "lora_state.h"
 #include "io_define.h"
 #include "gpio_setting.h"
+
+#if defined CONFIG_LV_USE_DEMO_WIDGETS
+#include "widgets/lv_demo_widgets.h"
+#endif
 
 void app_main(void)
 {

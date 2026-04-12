@@ -2,14 +2,17 @@
  * @file disp_driver.c
  */
 
+#include "esp_lcd_mipi_dsi.h"
+#include "esp_lcd_panel_ops.h"
 #include "lvgl_driver.h"
 #include "disp_driver.h"
+#include "disp_dsi.h"
 #include "sdkconfig.h"
 
 static bool lvgl_flash_enable = true;
-static lv_disp_drv_t *g_current_disp_drv = NULL;
+static lv_display_t *g_current_disp_drv = NULL;
 
-void lvgl_driver_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t * color_map)
+void lvgl_driver_flush(lv_display_t * drv, const lv_area_t * area, uint8_t * color_map)
 {
     g_current_disp_drv = drv;
 
@@ -25,23 +28,7 @@ void lvgl_driver_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t *
 #endif
 }
 
-void lvgl_driver_rounder(lv_disp_drv_t * disp_drv, lv_area_t * area)
-{
-    // disp_driver_rounder();
-}
-
-void lvgl_driver_set_px(lv_disp_drv_t * disp_drv, uint8_t * buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y,
-    lv_color_t color, lv_opa_t opa)
-{
-    // disp_driver_set_px();
-}
-
-void lvgl_driver_flash_setting(bool state)
-{
-    lvgl_flash_enable = state;
-}
-
-lv_disp_drv_t * lvgl_driver_get_disp_drv(void)
+lv_display_t* lvgl_driver_get_disp_drv(void)
 {
     return g_current_disp_drv;
 }
