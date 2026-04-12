@@ -58,11 +58,12 @@ void gui_task(void *pvParameter)
 
     lv_init();
 
-    lv_color_t *buf1 = heap_caps_malloc(DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    // MALLOC_CAP_DMA for SPI
+    lv_color_t *buf1 = heap_caps_malloc(DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
     assert(buf1 != NULL);
 
     /* Use double buffered when not working with monochrome displays */
-    lv_color_t *buf2 = heap_caps_malloc(DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_DMA);
+    lv_color_t *buf2 = heap_caps_malloc(DISP_BUF_SIZE * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
     assert(buf2 != NULL);
 
     static lv_disp_buf_t disp_buf;
@@ -328,7 +329,7 @@ void rf_loop(void *arg)
             // This device is a TX node
             GB_RESULT report = radio.write(&radio, &send_package, sizeof(GB_LORA_PACKAGE_T)); // transmit & save the report
 
-            if (report >= 0)
+            if (report == GB_OK)
             {
                 // GB_DEBUGI(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));
                 if (LORA_SEND_SKY_WAL_CONFIG == lora_send_config || LORA_SEND_CONTROL_COMMAND == lora_send_config) // don't need ack for esc setting

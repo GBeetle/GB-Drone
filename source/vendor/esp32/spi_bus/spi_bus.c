@@ -115,7 +115,7 @@ static GB_RESULT close(struct spi *spi) {
 }
 
 static GB_RESULT addDevice(struct spi *spi, uint64_t devAddr, uint8_t address_len, uint8_t mode, uint8_t flag, uint32_t clock_speed_hz, int cs_io_num) {
-    spi_device_interface_config_t dev_config;
+    spi_device_interface_config_t dev_config = {0};
     dev_config.command_bits     = 0;
     dev_config.address_bits     = address_len;
     dev_config.dummy_bits       = 0;

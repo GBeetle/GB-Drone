@@ -19,13 +19,13 @@
 #define _IO_DEFINE__
 
 // NRF24
-#define NRF24_SPI_MOSI 5
-#define NRF24_SPI_MISO 8
-#define NRF24_SPI_SCLK 6
-#define NRF24_SPI_CS 3
+#define NRF24_SPI_MOSI 9
+#define NRF24_SPI_MISO 6
+#define NRF24_SPI_SCLK 8
+#define NRF24_SPI_CS 5
 #define NRF24_SPI_CLOCK_SPEED SPI_MASTER_FREQ_10M
-#define NRF24_CE 4
-#define NRF24_IRQ 7
+#define NRF24_CE 7
+#define NRF24_IRQ 10
 
 // TFT
 #define TFT_SPI_MOSI 11

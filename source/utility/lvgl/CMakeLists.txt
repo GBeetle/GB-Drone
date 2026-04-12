@@ -1,67 +1,44 @@
+cmake_minimum_required(VERSION 3.12.4)
+
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
+if(NOT ESP_PLATFORM)
+  if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_LIST_DIR)
+    project(
+      lvgl
+      LANGUAGES C
+      HOMEPAGE_URL https://github.com/lvgl/lvgl)
+  endif()
+  if(NOT (CMAKE_C_COMPILER_ID STREQUAL "MSVC"))
+    enable_language(CXX ASM)
+  else()
+    enable_language(CXX)
+  endif()
+endif()
+
+set(LVGL_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
+
 if(ESP_PLATFORM)
-
-file(GLOB_RECURSE SOURCES src/*.c porting/*.c)
-
-idf_component_register(SRCS ${SOURCES}
-                       INCLUDE_DIRS . src porting
-                       REQUIRES main)
-
-target_compile_definitions(${COMPONENT_LIB} PUBLIC "-DLV_CONF_INCLUDE_SIMPLE")
-
-if (CONFIG_LV_MEM_CUSTOM)
-    if (CONFIG_LV_MEM_CUSTOM_ALLOC)
-        target_compile_definitions(${COMPONENT_LIB} PUBLIC "-DLV_MEM_CUSTOM_ALLOC=${CONFIG_LV_MEM_CUSTOM_ALLOC}")
-    endif()
-
-    if (CONFIG_LV_MEM_CUSTOM_FREE)
-        target_compile_definitions(${COMPONENT_LIB} PUBLIC "-DLV_MEM_CUSTOM_FREE=${CONFIG_LV_MEM_CUSTOM_FREE}")
-    endif()
-endif()
-
-if (CONFIG_LV_TICK_CUSTOM)
-    if (CONFIG_LV_TICK_CUSTOM_SYS_TIME_EXPR)
-        target_compile_definitions(${COMPONENT_LIB} PUBLIC "-DLV_TICK_CUSTOM_SYS_TIME_EXPR=${CONFIG_LV_TICK_CUSTOM_SYS_TIME_EXPR}")
-    endif()
-endif()
-
-if (CONFIG_LV_USER_DATA_FREE)
-    target_compile_definitions(${COMPONENT_LIB} PUBLIC "-DLV_USER_DATA_FREE=${CONFIG_LV_USER_DATA_FREE}")
-endif()
-
-if (CONFIG_LV_ATTRIBUTE_FAST_MEM_USE_IRAM)
-    target_compile_definitions(${COMPONENT_LIB} PUBLIC "-DLV_ATTRIBUTE_FAST_MEM=IRAM_ATTR")
-endif()
-
-elseif(ZEPHYR_BASE)
-
-if(CONFIG_LVGL)
-
-zephyr_include_directories(${ZEPHYR_BASE}/lib/gui/lvgl)
-
-target_include_directories(lvgl INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
-
-zephyr_compile_definitions(LV_CONF_KCONFIG_EXTERNAL_INCLUDE=<autoconf.h>)
-
-zephyr_compile_definitions_ifdef(CONFIG_LV_MEM_CUSTOM
-    LV_MEM_CUSTOM_ALLOC=${CONFIG_LV_MEM_CUSTOM_ALLOC}
-    )
-zephyr_compile_definitions_ifdef(CONFIG_LV_MEM_CUSTOM
-    LV_MEM_CUSTOM_FREE=${CONFIG_LV_MEM_CUSTOM_FREE}
-    )
-zephyr_compile_definitions_ifdef(CONFIG_LV_TICK_CUSTOM
-    LV_TICK_CUSTOM_SYS_TIME_EXPR=${CONFIG_LV_TICK_CUSTOM_SYS_TIME_EXPR}
-    )
-
-zephyr_library()
-
-file(GLOB_RECURSE SOURCES src/*.c)
-zephyr_library_sources(${SOURCES})
-
-endif() # CONFIG_LVGL
-
+  include(${CMAKE_CURRENT_LIST_DIR}/env_support/cmake/esp.cmake)
+elseif(MICROPY_DIR)
+  include(${CMAKE_CURRENT_LIST_DIR}/env_support/cmake/micropython.cmake)
 else()
+  include(${CMAKE_CURRENT_LIST_DIR}/env_support/cmake/os_desktop.cmake)
+endif()
 
-file(GLOB_RECURSE SOURCES src/*.c)
-add_library(lvgl STATIC ${SOURCES})
+#[[
+    unfortunately CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS does not work for global data.
+    for global data we still need decl specs.
+    Check out the docs to learn more about the limitations of CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS
+    https://cmake.org/cmake/help/latest/prop_tgt/WINDOWS_EXPORT_ALL_SYMBOLS.html#prop_tgt:WINDOWS_EXPORT_ALL_SYMBOLS
 
+    For all compiled sources within the library (i.e. basically all lvgl files) we need to use dllexport.
+    For all compiled sources from outside the library (i.e. files which include lvgl headers) we need to use dllimport.
+    We can do this by using CMakes INTERFACE and PRIVATE keyword.
+  ]]
+if(MSVC AND BUILD_SHARED_LIBS)
+  target_compile_definitions(
+    lvgl
+    INTERFACE "LV_ATTRIBUTE_EXTERN_DATA=__declspec(dllimport)"
+    PRIVATE "LV_ATTRIBUTE_EXTERN_DATA=__declspec(dllexport)")
 endif()

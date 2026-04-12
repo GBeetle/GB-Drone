@@ -338,7 +338,7 @@ esp_err_t st7701_register_flush_callback(void)
     // Register the DPI callback with LVGL driver as user context
     esp_err_t ret = disp_dsi_register_flush_callback(s_panel_handle, drv);
     if (ret == ESP_OK) {
-        GB_DEBUGE(DISP_TAG, "DPI flush callback registered for async operation");
+        GB_DEBUGI(DISP_TAG, "DPI flush callback registered for async operation");
     } else {
         GB_DEBUGE(DISP_TAG, "Failed to register DPI flush callback");
     }
@@ -355,7 +355,8 @@ void st7701_init(void)
         ST7701_HOR_RES, ST7701_VER_RES, ST7701_DSI_LANES,
         ST7701_LANE_BITRATE_MBPS);
 
-    pca9536_init();
+    if (ESP_OK != pca9536_init())
+        return;
 
     // Step 1: Create DSI bus + DBI I/O
     esp_lcd_dsi_bus_config_t bus_config = {

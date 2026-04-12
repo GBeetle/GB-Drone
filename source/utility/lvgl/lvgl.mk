@@ -1,9 +1,13 @@
-include $(LVGL_DIR)/$(LVGL_DIR_NAME)/porting/lv_porting.mk
-include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_core/lv_core.mk
-include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_hal/lv_hal.mk
-include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_widgets/lv_widgets.mk
-include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_font/lv_font.mk
-include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_misc/lv_misc.mk
-include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_themes/lv_themes.mk
-include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_draw/lv_draw.mk
-include $(LVGL_DIR)/$(LVGL_DIR_NAME)/src/lv_gpu/lv_gpu.mk
+LVGL_PATH ?= ${shell pwd}/lvgl
+
+ASRCS += $(shell find $(LVGL_PATH)/src -type f -name '*.S')
+CSRCS += $(shell find $(LVGL_PATH)/src -type f -name '*.c')
+CSRCS += $(shell find $(LVGL_PATH)/demos -type f -name '*.c')
+CSRCS += $(shell find $(LVGL_PATH)/examples -type f -name '*.c')
+CSRCS += $(shell find $(LVGL_PATH)/porting -type f -name '*.c')
+CXXEXT := .cpp
+CXXSRCS += $(shell find $(LVGL_PATH)/src -type f -name '*${CXXEXT}')
+
+AFLAGS += "-I$(LVGL_PATH)"
+CFLAGS += "-I$(LVGL_PATH)"
+CXXFLAGS += "-I$(LVGL_PATH)"
