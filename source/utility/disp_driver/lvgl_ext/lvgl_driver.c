@@ -39,9 +39,9 @@ void lvgl_driver_flush(lv_display_t * drv, const lv_area_t * area, uint8_t * col
             .hres = hres,
             .vres = vres,
         },
-        .rotation = 90,
+        .rotation = PPA_SRM_ROTATION_ANGLE_90,
         .ppa_mode = PPA_TRANS_MODE_BLOCKING,
-        .swap_bytes = true,
+        .swap_bytes = false,
         .user_data = NULL
     };
     /* Do operation */

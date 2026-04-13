@@ -60,9 +60,15 @@ void gui_task(void *pvParameter)
 
     lv_init();
 
+#if (CONFIG_DISPLAY_ORIENTATION_PORTRAIT)
+    lv_display_t *disp = lv_display_create(LV_VER_RES_MAX, LV_HOR_RES_MAX);
+    assert(disp != NULL);
+    GB_DEBUGI(DISP_TAG, "lv_display_create hor_res: %d, ver_res: %d (rotated by ppa)", LV_VER_RES_MAX, LV_HOR_RES_MAX);
+#else
     lv_display_t *disp = lv_display_create(LV_HOR_RES_MAX, LV_VER_RES_MAX);
     assert(disp != NULL);
     GB_DEBUGI(DISP_TAG, "lv_display_create hor_res: %d, ver_res: %d", LV_HOR_RES_MAX, LV_VER_RES_MAX);
+#endif
 
     lv_display_set_flush_cb(disp, lvgl_driver_flush);
 
