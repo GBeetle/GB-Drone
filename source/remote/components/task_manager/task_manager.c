@@ -15,6 +15,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdatomic.h>
 #include "sdkconfig.h"
 #include "gb_timer.h"
 #include "task_manager.h"
@@ -38,7 +39,7 @@ extern int battery_level;
 typedef void (*create_demo)(void);
 
 SemaphoreHandle_t xGuiSemaphore;
-GB_SEND_CONFIG lora_send_config = LORA_SEND_NA;
+atomic_uint_fast32_t lora_send_config = ATOMIC_VAR_INIT(LORA_SEND_NA);
 
 static void lv_tick_task(void *arg)
 {
@@ -128,49 +129,66 @@ void gui_task(void *pvParameter)
 
 void controller_task(void *pvParameter)
 {
-    uint64_t control_waittime = 0;
-    uint64_t time_now = 0;
-    uint16_t throttle_adc, pitch_adc, roll_adc, yaw_adc;
-    GB_REMOTE_CONTROL_ID btn_id;
+    GB_CONTROL_EVENT event;
+    GB_TOGGLE_SWITCH_STATE prev_toggle_state = {0};
+    GB_TOGGLE_SWITCH_STATE current_toggle_state = {0};
+    //uint16_t throttle_adc, pitch_adc, roll_adc, yaw_adc;
+
     adc_wrapper_init();
-    button_init();
-    QueueHandle_t btn_queue = button_get_queue();
+    controller_input_init(); // Initialize unified button and toggle switch system
+    QueueHandle_t event_queue = controller_get_event_queue();
+
+    // Read initial toggle switch state
+    controller_get_toggle_state(&current_toggle_state);
+    prev_toggle_state = current_toggle_state;
+
+    GB_DEBUGI(GB_INFO, "Controller task started - unified event-driven mode, sleep 5s");
 
     while (1)
     {
-        while (xQueueReceive(btn_queue, &btn_id, 0))
-        {
-            gb_remote_single_control(btn_id);
-        }
-
-        adc_read_by_item(ADC_THROTTLE, &throttle_adc, true);
-        adc_read_by_item(ADC_PITCH, &pitch_adc, true);
-        adc_read_by_item(ADC_ROLL, &roll_adc, true);
-        adc_read_by_item(ADC_YAW, &yaw_adc, true);
+        //adc_read_by_item(ADC_THROTTLE, &throttle_adc, true);
+        //adc_read_by_item(ADC_PITCH, &pitch_adc, true);
+        //adc_read_by_item(ADC_ROLL, &roll_adc, true);
+        //adc_read_by_item(ADC_YAW, &yaw_adc, true);
 
         // GB_DEBUGI(GB_INFO, "T: %d, P: %d, R: %d, Y: %d", throttle_adc, pitch_adc, roll_adc, yaw_adc);
 
-        // 飞控设置，双摇杆推到最低点3s，将方向摇杆回中
-        if (GB_FLY_MODE == gb_get_user_mode() && throttle_adc == 0 && pitch_adc == 0)
+        // Block waiting for control events (button or toggle switch)
+        // Use 5 second timeout - task will sleep if no events
+        if (xQueueReceive(event_queue, &event, pdMS_TO_TICKS(5000)) == pdTRUE)
         {
-            if (control_waittime == 0)
-                GB_GetTimerUs(&control_waittime);
-            GB_GetTimerUs(&time_now);
-            if (time_now - control_waittime > NRF24_CONTROL_WAITTING_TIME && throttle_adc == 0 && pitch_adc == 0)
+            if (event.type == GB_EVENT_BUTTON)
             {
-                GB_DEBUGI(GB_INFO, "Ready to send control command, should reset right controller");
-                while (pitch_adc < ADC_CONSTRAIN_MIDDLE - 50 || pitch_adc > ADC_CONSTRAIN_MIDDLE + 50)
-                    adc_read_by_item(ADC_PITCH, &pitch_adc, true);
-                lora_send_config = LORA_SEND_CONTROL_COMMAND;
-                control_waittime = 0;
+                // Button pressed
+                GB_DEBUGI(GB_INFO, "Button event: %d", event.data.button_id);
+                gb_remote_single_control(event.data.button_id);
+
+            }
+            else if (event.type == GB_EVENT_TOGGLE_SWITCH)
+            {
+                // Toggle switch changed
+                current_toggle_state = event.data.switch_state;
             }
         }
-        else if (throttle_adc != 0 || pitch_adc != 0)
-        {
-            control_waittime = 0;
-        }
 
-        vTaskDelay(pdMS_TO_TICKS(50));
+        // Check if state actually changed (debounce)
+        if (current_toggle_state.sw1_state != prev_toggle_state.sw1_state ||
+            current_toggle_state.sw2_state != prev_toggle_state.sw2_state ||
+            current_toggle_state.sw3_state != prev_toggle_state.sw3_state ||
+            current_toggle_state.sw4_state != prev_toggle_state.sw4_state)
+        {
+            GB_DEBUGI(GB_INFO, "Toggle switch changed: SW1=%d, SW2=%d, SW3=%d, SW4=%d",
+                current_toggle_state.sw1_state, current_toggle_state.sw2_state,
+                current_toggle_state.sw3_state, current_toggle_state.sw4_state);
+
+            prev_toggle_state = current_toggle_state;
+
+            // Add small delay for hardware debouncing
+            vTaskDelay(pdMS_TO_TICKS(50));
+
+            // Send notification to GUI task that toggle state changed
+            gb_remote_single_control(TOGGLE_SWITHCH_CHANGED);
+        }
     }
 }
 
@@ -189,8 +207,9 @@ void rf_loop(void *arg)
     {
         if (LORA_SEND == lora_state)
         {
-            // GB_DEBUGI(RF24_TAG, "Transmission begin, %d", lora_send_config);  // payload was delivered
-            switch (lora_send_config)
+            GB_SEND_CONFIG current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
+            // GB_DEBUGI(RF24_TAG, "Transmission begin, %d", current_config);  // payload was delivered
+            switch (current_config)
             {
             case LORA_SEND_NA:
                 send_package.type = GB_INIT_DATA;
@@ -236,10 +255,11 @@ void rf_loop(void *arg)
 
             if (report == GB_OK)
             {
+                GB_SEND_CONFIG current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
                 // GB_DEBUGI(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));
-                if (LORA_SEND_SKY_WAL_CONFIG == lora_send_config || LORA_SEND_CONTROL_COMMAND == lora_send_config) // don't need ack for esc setting
+                if (LORA_SEND_SKY_WAL_CONFIG == current_config || LORA_SEND_CONTROL_COMMAND == current_config) // don't need ack for esc setting
                     continue;
-                if (LORA_SEND_PID_SET_INFO == lora_send_config && GB_GET_PID_INFO_0_7 == send_package.config.set_type)
+                if (LORA_SEND_PID_SET_INFO == current_config && GB_GET_PID_INFO_0_7 == send_package.config.set_type)
                 {
                     //uint16_t fake_tbl[1][1];
                     //sendPIDTblInfo(1, 1, fake_tbl);
@@ -280,33 +300,30 @@ void rf_loop(void *arg)
                         GB_DEBUGE(ERROR_TAG, "Receive error!");
                     }
                     GB_DEBUGD(RF24_TAG, "type = %d, sync = %d", receive_package.type, receive_package.sync);
-                    if (LORA_SEND_NA == lora_send_config)
+                    GB_SEND_CONFIG current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
+                    if (LORA_SEND_NA == current_config)
                     {
                         battery_level = receive_package.init.battery_capacity;
                     }
-                    else if (LORA_SEND_PID_SET_INFO == lora_send_config)
+                    else if (LORA_SEND_PID_SET_INFO == current_config)
                     {
                         //wk_remote_single_control(SEND_PID_DONE);
-                        lora_send_config = LORA_SEND_NA;
+                        atomic_store(&lora_send_config, LORA_SEND_NA);
                     }
-                    else if (LORA_SEND_PID_GET_INFO == lora_send_config && GB_SET_PID_0_7 == send_package.request.get_type)
+                    else if (LORA_SEND_PID_GET_INFO == current_config)
                     {
                         //uint16_t fake_tbl[1][1];
                         //getPIDInfoTable(1, 1, fake_tbl, &(out_package.config.pid));
                         //sendReceivePIDTblInfoWithType(GB_GET_PID_INFO_8_15);
+                        atomic_store(&lora_send_config, LORA_SEND_NA);
                     }
-                    else if (LORA_SEND_PID_GET_INFO == lora_send_config && GB_SET_PID_8_15 == send_package.request.get_type)
-                    {
-                        //wk_remote_single_control(FLASH_PID_TBL);
-                        lora_send_config = LORA_SEND_NA;
-                    }
-                    else if (LORA_GET_MOTION_STATE == lora_send_config)
+                    else if (LORA_GET_MOTION_STATE == current_config)
                     {
                         GB_DEBUGD(RF24_TAG, "Received Quad status roll: %d, pitch: %d, yaw: %d",
                                   receive_package.request.quad_status.roll,
                                   receive_package.request.quad_status.pitch,
                                   receive_package.request.quad_status.yaw);
-                        lora_send_config = LORA_GET_MOTION_STATE;
+                        atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
                         quad3d_set_angle((float)receive_package.request.quad_status.roll / GB_ERLER_SCALE_RATE,
                                          (float)receive_package.request.quad_status.pitch / GB_ERLER_SCALE_RATE,
                                          (float)receive_package.request.quad_status.yaw / GB_ERLER_SCALE_RATE);
@@ -314,7 +331,7 @@ void rf_loop(void *arg)
                     }
                     else
                     {
-                        lora_send_config = LORA_SEND_NA;
+                        atomic_store(&lora_send_config, LORA_SEND_NA);
                     }
                     lora_state = LORA_SEND;
                     radio.stopListening(&radio);

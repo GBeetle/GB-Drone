@@ -212,7 +212,7 @@ bool quad3d_get_image(uint16_t *image_buffer)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
-    if (xSemaphoreTake(angleProtected, portMAX_DELAY) == pdTRUE)
+    if (xSemaphoreTake(angleProtected, pdMS_TO_TICKS(10)) == pdTRUE)
     {
         glPushMatrix();
         mat4 total_translation = translate((vec3){{0.0, 0.0, 0.0}});
@@ -263,13 +263,14 @@ bool quad3d_set_angle(float s_roll, float s_pitch, float s_yaw)
             return false;
     }
 
-    if (xSemaphoreTake(angleProtected, portMAX_DELAY) == pdTRUE)
+    if (xSemaphoreTake(angleProtected, pdMS_TO_TICKS(5)) == pdTRUE)
     {
         roll = s_roll;
         pitch = s_pitch;
         yaw = s_yaw;
 
         xSemaphoreGive(angleProtected);
+        return true;
     }
-    return true;
+    return false;
 }

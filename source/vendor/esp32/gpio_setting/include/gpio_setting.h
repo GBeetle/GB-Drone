@@ -36,5 +36,6 @@ GB_RESULT GB_GPIO_Reset(uint32_t pin);
 GB_RESULT GB_GPIO_Set(uint32_t pin, uint32_t level);
 GB_RESULT GB_GPIO_SetDirection(uint32_t pin, GB_GPIO_MODE mode);
 GB_RESULT GB_GPIO_Get(uint32_t pin, uint32_t *level);
+GB_RESULT GB_ISR_Init();
 
 #endif /* end of include guard: _GB_GPIO_SETTING__ */

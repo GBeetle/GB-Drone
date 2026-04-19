@@ -19,8 +19,8 @@
 #include "rom/ets_sys.h"
 #include "driver/gpio.h"   // TODO: USE gpio_setting component
 
-TaskHandle_t mpu_isr_handle = NULL;
-TaskHandle_t nrf24_isr_handle = NULL;
+volatile TaskHandle_t mpu_isr_handle = NULL;
+volatile TaskHandle_t nrf24_isr_handle = NULL;
 
 extern SemaphoreHandle_t mpuSensorReady;
 
@@ -59,7 +59,6 @@ GB_RESULT mpu_isr_register()
     mpu_io_conf.pull_down_en = 1;
     gpio_config(&mpu_io_conf);
 
-    gpio_install_isr_service(0);
     gpio_isr_handler_add(MPU_INT, mpu_dmp_isr_handler, (void*) MPU_INT);
 
     return GB_OK;
@@ -76,7 +75,6 @@ GB_RESULT nrf24_isr_register()
     io_conf.pull_down_en = 1;
     gpio_config(&io_conf);
 
-    gpio_install_isr_service(0);
     gpio_isr_handler_add(NRF24_INT, nrf24_interrupt_handler, (void *)NRF24_INT);
 
     return GB_OK;

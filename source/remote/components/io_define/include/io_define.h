@@ -71,4 +71,9 @@
 #define BTN_GPIO_OP_SELECT     32
 #define BTN_GPIO_OP_START      34
 
+#define TOGGLE_SW_1_GPIO       4
+#define TOGGLE_SW_2_GPIO       3
+#define TOGGLE_SW_3_GPIO       2
+#define TOGGLE_SW_4_GPIO       1
+
 #endif /* end of include guard: _IO_DEFINE__ */

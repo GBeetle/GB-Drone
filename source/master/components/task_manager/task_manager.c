@@ -36,13 +36,12 @@ typedef struct
 } GB_Motion_State;
 
 struct imu imu;  // create a default MPU object
-GB_Motion_State motionState;
+volatile GB_Motion_State motionState;
 
-static uint8_t anotic_debug_id = 0x00;
+static volatile uint8_t anotic_debug_id = 0x00;
 QueueHandle_t gyroQueue, accelQueue, magQueue, baroQueue;
 SemaphoreHandle_t mpuDataQueueReady;
 SemaphoreHandle_t mpuSensorReady;
-SemaphoreHandle_t motionStateMutex;
 
 static inline GB_RESULT get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRaw, raw_axes_t *magRaw,
     float_axes_t *accelG, float_axes_t *gyroDPS, float_axes_t *magDPS, baro_t *baro_data)
@@ -167,12 +166,40 @@ error_exit:
 void GB_MutexInitialize()
 {
     mpuDataQueueReady = xSemaphoreCreateBinary();
+    if (mpuDataQueueReady == NULL) {
+        GB_DEBUGE(ERROR_TAG, "Failed to create semaphore");
+        abort();
+    }
     mpuSensorReady = xSemaphoreCreateBinary();
+    if (mpuSensorReady == NULL) {
+        GB_DEBUGE(ERROR_TAG, "Failed to create semaphore");
+        abort();
+    }
     motionStateMutex = xSemaphoreCreateMutex();
+    if (motionStateMutex == NULL) {
+        GB_DEBUGE(ERROR_TAG, "Failed to create semaphore");
+        abort();
+    }
     gyroQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
+    if (gyroQueue == NULL) {
+        GB_DEBUGE(ERROR_TAG, "Failed to create queue");
+        abort();
+    }
     accelQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
+    if (accelQueue == NULL) {
+        GB_DEBUGE(ERROR_TAG, "Failed to create queue");
+        abort();
+    }
     magQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(raw_axes_t));
+    if (magQueue == NULL) {
+        GB_DEBUGE(ERROR_TAG, "Failed to create queue");
+        abort();
+    }
     baroQueue = xQueueCreate(MPU_DATA_QUEUE_SIZE, sizeof(baro_t));
+    if (baroQueue == NULL) {
+        GB_DEBUGE(ERROR_TAG, "Failed to create queue");
+        abort();
+    }
 }
 
 void gb_sensor_fusion(void* arg)
@@ -267,14 +294,9 @@ void gb_sensor_fusion(void* arg)
         const FusionEuler euler = FusionQuaternionToEuler(quat);
         const FusionVector earth = FusionAhrsGetEarthAcceleration(&ahrs);
 
-        if (xSemaphoreTake(motionStateMutex, portMAX_DELAY) == pdTRUE)
-        {
-            motionState.roll = euler.angle.roll;
-            motionState.pitch = euler.angle.pitch;
-            motionState.yaw = euler.angle.yaw;
-
-            xSemaphoreGive(motionStateMutex);
-        }
+        motionState.roll = euler.angle.roll;
+        motionState.pitch = euler.angle.pitch;
+        motionState.yaw = euler.angle.yaw;
 
         GB_DEBUGD(SENSOR_TAG, "Gyro.x %f, Gyro.y %f, Gyro.z %f\n", gyroscope.axis.x, gyroscope.axis.y, gyroscope.axis.z);
         GB_DEBUGD(SENSOR_TAG, "Accel.x %f, Accel.y %f, Accel.z %f\n", accelerometer.axis.x, accelerometer.axis.y, accelerometer.axis.z);
@@ -339,7 +361,6 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
 {
     GB_RESULT res = GB_OK;
     float voltage = 0;
-    //static LORA_GB_PID_INIT_T pid_first = {0}, pid_last = {0};
 
     switch (in->type)
     {
@@ -364,33 +385,6 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             // GB_DEBUGI(LORA_TAG, "Receive GB_SET_THROTTLE, throttle: %d", in->config.throttle);
             break;
 #if 0
-        case GB_SET_PID_0_7:
-        {
-            lora_pidInit_t *tmp_pid_tbl = NULL;
-            for (int i = 0; i < PID_TYPE_MAX; i++)
-            {
-                tmp_pid_tbl = &(in->config.pid.data[i]);
-                GB_DEBUGI(LORA_TAG, "PID[%d]: %02x, %02x, %02x", i, tmp_pid_tbl->half_kp, tmp_pid_tbl->half_ki, tmp_pid_tbl->half_kd);
-            }
-            memcpy(&pid_first, in->config.pid.data, sizeof(LORA_GB_PID_INIT_T));
-            break;
-        }
-        case GB_SET_PID_8_15:
-        {
-            memcpy(&pid_last, in->config.pid.data, sizeof(LORA_GB_PID_INIT_T));
-            lora_pidInit_t *tmp_pid_tbl = NULL;
-            for (int i = 0; i < PID_TYPE_MAX; i++)
-            {
-                tmp_pid_tbl = &(in->config.pid.data[i]);
-                GB_DEBUGI(LORA_TAG, "PID[%d]: %02x, %02x, %02x", i, tmp_pid_tbl->half_kp, tmp_pid_tbl->half_ki, tmp_pid_tbl->half_kd);
-                pidParam.data[i].kp = pid_first.data[i].half_kp << 8 | pid_last.data[i].half_kp;
-                pidParam.data[i].ki = pid_first.data[i].half_ki << 8 | pid_last.data[i].half_ki;
-                pidParam.data[i].kd = pid_first.data[i].half_kd << 8 | pid_last.data[i].half_kd;
-            }
-            setPidParam();
-            *state = LORA_SEND;
-            break;
-        }
         case GB_SET_CONTROL_ARG:
             // throttle from 0 ~ 1000 for [pid to motor control]
             rev_throttle = in->config.control_arg.throttle;
@@ -419,56 +413,18 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
         {
         case GB_GET_BATTERY_INFO:
             break;
-#if 0
-        case GB_GET_PID_INFO_0_7:
-        {
-            out->type = GB_GET_REQUEST;
-            pidInit_t *tmp_pid_tbl = NULL;
-            for (int i = 0; i < PID_TYPE_MAX; i++)
-            {
-                tmp_pid_tbl = &(pidParam.data[i]);
-                GB_DEBUGI(LORA_TAG, "PID[%d]: %04x, %04x, %04x", i, tmp_pid_tbl->kp, tmp_pid_tbl->ki, tmp_pid_tbl->kd);
-                pid_first.data[i].half_kp = pidParam.data[i].kp >> 8;
-                pid_first.data[i].half_ki = pidParam.data[i].ki >> 8;
-                pid_first.data[i].half_kd = pidParam.data[i].kd >> 8;
-            }
-            memcpy(out->config.pid.data, pid_first.data, sizeof(LORA_GB_PID_INIT_T));
-            break;
-        }
-        case GB_GET_PID_INFO_8_15:
-        {
-            out->type = GB_GET_REQUEST;
-            pidInit_t *tmp_pid_tbl = NULL;
-            for (int i = 0; i < PID_TYPE_MAX; i++)
-            {
-                tmp_pid_tbl = &(pidParam.data[i]);
-                GB_DEBUGI(LORA_TAG, "PID[%d]: %04x, %04x, %04x", i, tmp_pid_tbl->kp, tmp_pid_tbl->ki, tmp_pid_tbl->kd);
-                pid_last.data[i].half_kp = pidParam.data[i].kp & 0x00ff;
-                pid_last.data[i].half_ki = pidParam.data[i].ki & 0x00ff;
-                pid_last.data[i].half_kd = pidParam.data[i].kd & 0x00ff;
-            }
-            memcpy(out->config.pid.data, pid_last.data, sizeof(LORA_GB_PID_INIT_T));
-            break;
-        }
-#endif
         case GB_GET_MOTION_STATE:
-
-            if (xSemaphoreTake(motionStateMutex, portMAX_DELAY) == pdTRUE)
-            {
-                GB_DEBUGD(RF24_TAG, "motionState roll: %f, pitch: %f, yaw: %f", motionState.roll, motionState.pitch, motionState.yaw);
-                // roll -> pitch
-                // pitch -> roll
-                // yaw -> yaw
-                out->request.quad_status.roll = -motionState.pitch * GB_ERLER_SCALE_RATE;
-                out->request.quad_status.pitch = motionState.roll * GB_ERLER_SCALE_RATE;
-                out->request.quad_status.yaw = motionState.yaw * GB_ERLER_SCALE_RATE;
-                GB_DEBUGD(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d",
-                          out->request.quad_status.roll,
-                          out->request.quad_status.pitch,
-                          out->request.quad_status.yaw);
-
-                xSemaphoreGive(motionStateMutex);
-            }
+            GB_DEBUGD(RF24_TAG, "motionState roll: %f, pitch: %f, yaw: %f", motionState.roll, motionState.pitch, motionState.yaw);
+            // roll -> pitch
+            // pitch -> roll
+            // yaw -> yaw
+            out->request.quad_status.roll = -motionState.pitch * GB_ERLER_SCALE_RATE;
+            out->request.quad_status.pitch = motionState.roll * GB_ERLER_SCALE_RATE;
+            out->request.quad_status.yaw = motionState.yaw * GB_ERLER_SCALE_RATE;
+            GB_DEBUGD(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d",
+                        out->request.quad_status.roll,
+                        out->request.quad_status.pitch,
+                        out->request.quad_status.yaw);
 
             break;
         default:

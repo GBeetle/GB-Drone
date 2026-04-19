@@ -43,7 +43,7 @@ GB_RESULT mpu_isr_register();
 GB_RESULT nrf24_isr_register();
 
 extern uint32_t isr_counter;
-extern TaskHandle_t mpu_isr_handle;
-extern TaskHandle_t nrf24_isr_handle;
+extern volatile TaskHandle_t mpu_isr_handle;
+extern volatile TaskHandle_t nrf24_isr_handle;
 
 #endif /* end of include guard: _TASK_MANAGER__ */

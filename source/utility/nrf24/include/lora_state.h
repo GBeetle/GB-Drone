@@ -82,8 +82,6 @@ typedef uint8_t GB_SYSTEM_STATE;
 
 typedef uint8_t GB_SET_TYPE;
 #define GB_SET_THROTTLE 0x01
-#define GB_SET_PID_0_7 0x02
-#define GB_SET_PID_8_15 0x03
 #define GB_SET_CONTROL_ARG 0x04
 
 typedef uint8_t GB_GET_TYPE;

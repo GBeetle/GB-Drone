@@ -94,3 +94,9 @@ GB_RESULT GB_GPIO_Get(uint32_t pin, uint32_t *level)
     *level = gpio_get_level(pin);
     return GB_OK;
 }
+
+GB_RESULT GB_ISR_Init()
+{
+    gpio_install_isr_service(0);
+    return GB_OK;
+}

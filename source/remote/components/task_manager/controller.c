@@ -225,9 +225,15 @@ void adc_read_by_item(uint8_t item, uint16_t *adc_val, uint8_t is_constrained)
 }
 
 #define BTN_COUNT    13
-#define BTN_DEBUGANCE_MS   200 // 200ms debounce
+#define BTN_DEBUGMODE_MS   200 // 200ms debounce
+#define TOGGLE_DEBUGMODE_MS 100 // 100ms debounce for toggle switches
 
-static QueueHandle_t btn_event_queue = NULL;
+// Unified event queue for both buttons and toggle switches
+static QueueHandle_t control_event_queue = NULL;
+
+// Mutex to protect toggle switch state
+static SemaphoreHandle_t toggle_state_mutex = NULL;
+static GB_TOGGLE_SWITCH_STATE current_toggle_state = {0};
 
 typedef struct {
     int gpio_num;
@@ -251,51 +257,177 @@ static btn_entry_t btn_table[BTN_COUNT] = {
     { BTN_GPIO_OP_SELECT,  BTN_OP_SELECT,  0 }
 };
 
+static uint64_t toggle_last_isr_time = 0;
+
+// Button ISR handler - sends button event to unified queue
 static void IRAM_ATTR button_isr_handler(void *arg)
 {
     btn_entry_t *entry = (btn_entry_t *)arg;
     uint64_t now = 0;
 
     GB_GetTimerMs(&now);
-    if (now - entry->last_isr_time < BTN_DEBUGANCE_MS) {
+    if (now - entry->last_isr_time < BTN_DEBUGMODE_MS) {
         return;
     }
+
     entry->last_isr_time = now;
 
-    GB_REMOTE_CONTROL_ID id = entry->btn_id;
+    GB_CONTROL_EVENT event = {
+        .type = GB_EVENT_BUTTON,
+        .data.button_id = entry->btn_id
+    };
+
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xQueueSendFromISR(btn_event_queue, &id, &xHigherPriorityTaskWoken);
+    xQueueSendFromISR(control_event_queue, &event, &xHigherPriorityTaskWoken);
     if (xHigherPriorityTaskWoken)
         portYIELD_FROM_ISR();
 }
 
-void button_init(void)
+static void IRAM_ATTR toggle_switch_isr_handler(void *arg)
 {
-    btn_event_queue = xQueueCreate(8, sizeof(GB_REMOTE_CONTROL_ID));
+    uint64_t now = 0;
 
-    gpio_config_t io_conf = {
+    GB_GetTimerMs(&now);
+    if (now - toggle_last_isr_time < TOGGLE_DEBUGMODE_MS) {
+        return;
+    }
+    toggle_last_isr_time = now;
+
+    // Read all toggle switch states using gpio_setting wrapper
+    uint32_t level;
+    GB_TOGGLE_SWITCH_STATE new_state;
+
+    GB_GPIO_Get(TOGGLE_SW_1_GPIO, &level);
+    new_state.sw1_state = !level; // Active low
+
+    GB_GPIO_Get(TOGGLE_SW_2_GPIO, &level);
+    new_state.sw2_state = !level;
+
+    GB_GPIO_Get(TOGGLE_SW_3_GPIO, &level);
+    new_state.sw3_state = !level;
+
+    GB_GPIO_Get(TOGGLE_SW_4_GPIO, &level);
+    new_state.sw4_state = !level;
+
+    GB_CONTROL_EVENT event = {
+        .type = GB_EVENT_TOGGLE_SWITCH,
+        .data.switch_state = new_state
+    };
+
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xQueueSendFromISR(control_event_queue, &event, &xHigherPriorityTaskWoken);
+    if (xHigherPriorityTaskWoken)
+        portYIELD_FROM_ISR();
+}
+
+void controller_input_init(void)
+{
+    // Create unified event queue - larger to handle both buttons and switches
+    control_event_queue = xQueueCreate(16, sizeof(GB_CONTROL_EVENT));
+
+    // Create mutex for toggle state protection
+    toggle_state_mutex = xSemaphoreCreateMutex();
+
+    // Initialize button GPIOs using gpio_setting wrapper
+    for (int i = 0; i < BTN_COUNT; i++)
+    {
+        GB_GPIO_Init(btn_table[i].gpio_num, GB_GPIO_INPUT, GB_GPIO_PULLUP);
+    }
+
+    // Initialize toggle switch GPIOs using gpio_setting wrapper
+    GB_GPIO_Init(TOGGLE_SW_1_GPIO, GB_GPIO_INPUT, GB_GPIO_PULLUP);
+    GB_GPIO_Init(TOGGLE_SW_2_GPIO, GB_GPIO_INPUT, GB_GPIO_PULLUP);
+    GB_GPIO_Init(TOGGLE_SW_3_GPIO, GB_GPIO_INPUT, GB_GPIO_PULLUP);
+    GB_GPIO_Init(TOGGLE_SW_4_GPIO, GB_GPIO_INPUT, GB_GPIO_PULLUP);
+
+    // Configure interrupts using ESP-IDF GPIO driver (since gpio_setting doesn't support ISR yet)
+    gpio_config_t btn_conf = {
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_NEGEDGE, // active low: trigger on falling edge
+        .intr_type = GPIO_INTR_NEGEDGE, // Active low: trigger on falling edge
         .pin_bit_mask = 0,
     };
 
     for (int i = 0; i < BTN_COUNT; i++)
     {
-        io_conf.pin_bit_mask = 1ULL << btn_table[i].gpio_num;
-        gpio_config(&io_conf);
+        btn_conf.pin_bit_mask = 1ULL << btn_table[i].gpio_num;
+        gpio_config(&btn_conf);
     }
 
+    gpio_config_t toggle_conf = {
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_ANYEDGE, // Trigger on any edge (both rising and falling)
+        .pin_bit_mask = (1ULL << TOGGLE_SW_1_GPIO) |
+        (1ULL << TOGGLE_SW_2_GPIO) |
+        (1ULL << TOGGLE_SW_3_GPIO) |
+        (1ULL << TOGGLE_SW_4_GPIO),
+    };
+
+    gpio_config(&toggle_conf);
+
+    // Install ISR service
     gpio_install_isr_service(0);
 
+    // Register button ISR handlers
     for (int i = 0; i < BTN_COUNT; i++)
     {
         gpio_isr_handler_add(btn_table[i].gpio_num, button_isr_handler, &btn_table[i]);
     }
+
+    // Register toggle switch ISR handlers
+    gpio_isr_handler_add(TOGGLE_SW_1_GPIO, toggle_switch_isr_handler, NULL);
+    gpio_isr_handler_add(TOGGLE_SW_2_GPIO, toggle_switch_isr_handler, NULL);
+    gpio_isr_handler_add(TOGGLE_SW_3_GPIO, toggle_switch_isr_handler, NULL);
+    gpio_isr_handler_add(TOGGLE_SW_4_GPIO, toggle_switch_isr_handler, NULL);
+
+    // Read initial toggle switch state with mutex protection
+    if (toggle_state_mutex != NULL)
+    {
+        uint32_t level;
+        GB_TOGGLE_SWITCH_STATE initial_state;
+
+        GB_GPIO_Get(TOGGLE_SW_1_GPIO, &level);
+        initial_state.sw1_state = !level;
+
+        GB_GPIO_Get(TOGGLE_SW_2_GPIO, &level);
+        initial_state.sw2_state = !level;
+
+        GB_GPIO_Get(TOGGLE_SW_3_GPIO, &level);
+        initial_state.sw3_state = !level;
+
+        GB_GPIO_Get(TOGGLE_SW_4_GPIO, &level);
+        initial_state.sw4_state = !level;
+
+        // Protect write to global state with mutex
+        if (xSemaphoreTake(toggle_state_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
+        {
+            current_toggle_state = initial_state;
+            xSemaphoreGive(toggle_state_mutex);
+        }
+    }
+
+    GB_DEBUGI(GB_INFO, "Controller input initialized - buttons: %d, toggle switches: 4", BTN_COUNT);
 }
 
-QueueHandle_t button_get_queue(void)
+// Get the unified event queue
+QueueHandle_t controller_get_event_queue(void)
 {
-    return btn_event_queue;
+    return control_event_queue;
+}
+
+// Thread-safe getter for toggle switch state
+void controller_get_toggle_state(GB_TOGGLE_SWITCH_STATE *state)
+{
+    if (state == NULL) {
+        return;
+    }
+
+    if (xSemaphoreTake(toggle_state_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
+    {
+        *state = current_toggle_state;
+        xSemaphoreGive(toggle_state_mutex);
+    }
 }

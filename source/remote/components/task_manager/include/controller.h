@@ -22,6 +22,8 @@
 #include <stdbool.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "freertos/semphr.h"
+#include "gpio_setting.h"
 #include "results.h"
 
 typedef enum
@@ -63,6 +65,9 @@ typedef enum
     BTN_OP_OPTION,
     BTN_OP_SELECT,
     BTN_OP_START,
+
+    TOGGLE_SWITHCH_CHANGED,
+
     GB_CONTROL_ID_MAX,
 } GB_REMOTE_CONTROL_ID;
 
@@ -73,11 +78,46 @@ typedef enum
     GB_USER_MODE_MAX,
 } GB_REMOTE_USER_MODE;
 
+typedef enum
+{
+    TOGGLE_SW_1,
+    TOGGLE_SW_2,
+    TOGGLE_SW_3,
+    TOGGLE_SW_4,
+    TOGGLE_SW_MAX
+} GB_TOGGLE_SWITCH_ID;
+
+typedef struct
+{
+    bool sw1_state;
+    bool sw2_state;
+    bool sw3_state;
+    bool sw4_state;
+} GB_TOGGLE_SWITCH_STATE;
+
+typedef enum
+{
+    GB_EVENT_BUTTON,
+    GB_EVENT_TOGGLE_SWITCH,
+} GB_EVENT_TYPE;
+
+typedef struct
+{
+    GB_EVENT_TYPE type;
+    union
+    {
+        GB_REMOTE_CONTROL_ID button_id;
+        GB_TOGGLE_SWITCH_STATE switch_state;
+    } data;
+
+} GB_CONTROL_EVENT;
+
 GB_RESULT adc_wrapper_init(void);
 void adc_read_by_item(uint8_t item, uint16_t *adc_val, uint8_t is_constrained);
 
-void button_init(void);
-QueueHandle_t button_get_queue(void);
+void controller_input_init(void);
+QueueHandle_t controller_get_event_queue(void);
+void controller_get_toggle_state(GB_TOGGLE_SWITCH_STATE *state);
 
 GB_REMOTE_USER_MODE gb_get_user_mode();
 void gb_remote_single_control(GB_REMOTE_CONTROL_ID button_id);
