@@ -225,7 +225,7 @@ void adc_read_by_item(uint8_t item, uint16_t *adc_val, uint8_t is_constrained)
 }
 
 #define BTN_COUNT    13
-#define BTN_DEBUGANCE_US   100 // 100ms debounce
+#define BTN_DEBUGANCE_MS   200 // 200ms debounce
 
 static QueueHandle_t btn_event_queue = NULL;
 
@@ -257,7 +257,7 @@ static void IRAM_ATTR button_isr_handler(void *arg)
     uint64_t now = 0;
 
     GB_GetTimerMs(&now);
-    if (now - entry->last_isr_time < BTN_DEBUGANCE_US) {
+    if (now - entry->last_isr_time < BTN_DEBUGANCE_MS) {
         return;
     }
     entry->last_isr_time = now;
