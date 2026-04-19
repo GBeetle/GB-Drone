@@ -71,6 +71,7 @@ typedef uint8_t GB_LORA_PACKAGE_TYPE;
 #define GB_INIT_DATA 0x01
 #define GB_SET_CONFIG 0x02
 #define GB_GET_REQUEST 0x03
+#define GB_PID_FRAGMENT 0x04
 
 typedef uint8_t GB_SYSTEM_STATE;
 #define GB_SYSTEM_LOCK 0x01
@@ -82,6 +83,7 @@ typedef uint8_t GB_SYSTEM_STATE;
 
 typedef uint8_t GB_SET_TYPE;
 #define GB_SET_THROTTLE 0x01
+#define GB_SET_PID_TABLE 0x05
 #define GB_SET_CONTROL_ARG 0x04
 
 typedef uint8_t GB_GET_TYPE;
@@ -89,6 +91,7 @@ typedef uint8_t GB_GET_TYPE;
 #define GB_GET_PID_INFO_0_7 0x02
 #define GB_GET_PID_INFO_8_15 0x03
 #define GB_GET_MOTION_STATE 0x04
+#define GB_GET_PID_TABLE 0x05
 
 typedef struct
 {
@@ -150,6 +153,112 @@ typedef struct
         GB_GET_REQUEST_T request;
     };
 } GB_LORA_PACKAGE_T;
+
+// ===========================================================
+// PID Table Structure Definitions
+// ===========================================================
+
+typedef enum
+{
+    PID_ROLL_ANGLE = 0,
+    PID_PITCH_ANGLE,
+    PID_YAW_ANGLE,
+    PID_ROLL_RATE,
+    PID_PITCH_RATE,
+    PID_YAW_RATE,
+    PID_ALTITUDE,
+    PID_CLIMB_RATE,
+    PID_MAX = 8
+} GB_PID_TYPE;
+
+typedef struct
+{
+    uint16_t kp; // Proportional gain x 100 (e.g., 150 = 1.50)
+    uint16_t ki; // Integral gain x 100
+    uint16_t kd; // Derivative gain x 100
+} GB_PID_PARAM_T; // 6 bytes per PID
+
+typedef struct
+{
+    GB_PID_PARAM_T params[PID_MAX]; // 8 PIDs x 6 bytes = 48 bytes
+    uint16_t crc16; // 2 bytes checksum
+} GB_PID_TABLE_T; // Total: 50 bytes
+
+// ===========================================================
+// Fragment Protocol Definitions
+// ===========================================================
+
+#define GB_FRAGMENT_PAYLOAD_SIZE 27 // 32 - 2(type+sync) - 3(fragment control)
+#define GB_MAX_FRAGMENTS 4 // Support up to 108 bytes (4 x 27)
+#define GB_REASSEMBLY_TIMEOUT_MS 2000 // 2 second timeout
+
+typedef struct
+{
+    GB_LORA_PACKAGE_TYPE type; // 1 byte: GB_PID_FRAGMENT
+    uint8_t sync; // 1 byte: ack = sync + 1
+
+    // Fragment control
+    uint8_t msg_id; // 1 byte: unique message ID (0-255)
+    uint8_t frag_index; // 1 byte: 0-based fragment index
+    uint8_t frag_total; // 1 byte: total fragments in message
+
+    uint8_t payload[GB_FRAGMENT_PAYLOAD_SIZE]; // 27 bytes: actual data
+} GB_LORA_FRAGMENT_T; // Total: 32 bytes
+
+typedef struct
+{
+    bool active; // Reassembly in progress
+    uint8_t msg_id; // Current message ID
+    uint8_t frag_total; // Expected total fragments
+    uint8_t frag_received; // Fragments received count
+    uint32_t timestamp_ms; // Start time for timeout
+    uint8_t buffer[GB_MAX_FRAGMENTS * GB_FRAGMENT_PAYLOAD_SIZE]; // 108 bytes max
+    bool fragments_received[GB_MAX_FRAGMENTS]; // Track which fragments arrived
+} GB_REASSEMBLY_CTX_T;
+
+typedef enum
+{
+    GB_FRAG_OK = 0,      // Fragment processed successfully
+    GB_FRAG_DUPLICATE,   // Duplicate fragment received
+    GB_FRAG_COMPLETE,    // All fragments received, message complete
+    GB_FRAG_TIMEOUT,     // Reassembly timeout
+    GB_FRAG_ERROR        // Error in fragment processing
+} GB_FRAG_RESULT;
+
+// ===========================================================
+// Function Prototypes
+// ===========================================================
+
+// CRC16 checksum calculation
+uint16_t GB_CRC16(const uint8_t *data, size_t len);
+
+// Initialize reassembly context
+void GB_ReassemblyInit(GB_REASSEMBLY_CTX_T *ctx);
+
+// Check and handle reassembly timeout
+GB_RESULT GB_ReassemblyCheckTimeout(GB_REASSEMBLY_CTX_T *ctx);
+
+// Fragment sender: splits data into fragments and sends them
+GB_RESULT GB_LoraFragmentSend(
+    const uint8_t *data,
+    size_t len,
+    uint8_t msg_id,
+    GB_LORA_STATE *state
+);
+
+// Fragment receiver: processes incoming fragment and reassembles message
+GB_FRAG_RESULT GB_LoraFragmentReceive(
+    const GB_LORA_FRAGMENT_T *frag,
+    GB_REASSEMBLY_CTX_T *ctx,
+    uint8_t *complete_msg,   // Output buffer for complete message
+    size_t *msg_len          // Output: actual message length
+);
+
+// PID table validation
+GB_RESULT GB_PidTableValidate(const GB_PID_TABLE_T *table);
+
+// PID table CRC calculation
+uint16_t GB_PidTableCalculateCRC(const GB_PID_TABLE_T *table);
 
 GB_RESULT GB_LoraSystemInit(GB_LORA_STATE init_state, bool radioNumber, GB_LORA_STATE *state);
 

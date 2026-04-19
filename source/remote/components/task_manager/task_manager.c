@@ -41,6 +41,10 @@ typedef void (*create_demo)(void);
 SemaphoreHandle_t xGuiSemaphore;
 atomic_uint_fast32_t lora_send_config = ATOMIC_VAR_INIT(LORA_SEND_NA);
 
+static GB_PID_TABLE_T g_remote_pid_table = {0};
+static GB_REASSEMBLY_CTX_T g_remote_reassembly_ctx = {0};
+static uint8_t g_remote_msg_id_counter = 0;
+
 static void lv_tick_task(void *arg)
 {
     (void)arg;
@@ -181,6 +185,20 @@ void controller_task(void *pvParameter)
                 current_toggle_state.sw1_state, current_toggle_state.sw2_state,
                 current_toggle_state.sw3_state, current_toggle_state.sw4_state);
 
+            // Handle SW3: Pull PID table from master (rising edge)
+            if (current_toggle_state.sw3_state && !prev_toggle_state.sw3_state)
+            {
+                GB_DEBUGI(GB_INFO, "SW3 triggered: Requesting PID table from master");
+                atomic_store(&lora_send_config, LORA_SEND_PID_GET_INFO);
+            }
+
+            // Handle SW4: Push PID table to master (rising edge)
+            if (current_toggle_state.sw4_state && !prev_toggle_state.sw4_state)
+            {
+                GB_DEBUGI(GB_INFO, "SW4 triggered: Sending PID table to master");
+                atomic_store(&lora_send_config, LORA_SEND_PID_SET_INFO);
+            }
+
             prev_toggle_state = current_toggle_state;
 
             // Add small delay for hardware debouncing
@@ -203,6 +221,18 @@ void rf_loop(void *arg)
     GB_LORA_PACKAGE_T receive_package;
 
     GB_LoraSystemInit(LORA_SEND, 1, &lora_state);
+    GB_ReassemblyInit(&g_remote_reassembly_ctx);
+
+    // Initialize demo PID table with some default values
+    for (int i = 0; i < PID_MAX; i++)
+    {
+        g_remote_pid_table.params[i].kp = 100 + i * 10; // Example: 100, 110, 120...
+        g_remote_pid_table.params[i].ki = 50 + i * 5;
+        g_remote_pid_table.params[i].kd = 20 + i * 2;
+    }
+
+    g_remote_pid_table.crc16 = GB_PidTableCalculateCRC(&g_remote_pid_table);
+
     while (true)
     {
         if (LORA_SEND == lora_state)
@@ -235,10 +265,34 @@ void rf_loop(void *arg)
                           send_package.config.control_arg.yaw, send_package.config.control_arg.pitch, send_package.config.control_arg.roll);
                 break;
             case LORA_SEND_PID_SET_INFO:
-                GB_DEBUGI(RF24_TAG, "LORA_SEND_PID_SET_INFO");
-                break;
+                GB_DEBUGI(RF24_TAG, "Sending PID table to master via fragments...");
+
+                // Calculate CRC for PID table
+                g_remote_pid_table.crc16 = GB_PidTableCalculateCRC(&g_remote_pid_table);
+
+                // Send PID table as fragmented message
+                g_remote_msg_id_counter++;
+                if (GB_LoraFragmentSend(
+                    (const uint8_t *)&g_remote_pid_table,
+                    sizeof(g_remote_pid_table),
+                    g_remote_msg_id_counter,
+                    &lora_state) == GB_OK)
+                {
+                    GB_DEBUGI(RF24_TAG, "PID table sent successfully!");
+                    atomic_store(&lora_send_config, LORA_SEND_NA);
+                }
+                else
+                {
+                    GB_DEBUGI(RF24_TAG, "Failed to send PID table");
+                }
+
+                continue; // Skip normal packet send
+
             case LORA_SEND_PID_GET_INFO:
-                GB_DEBUGI(RF24_TAG, "LORA_SEND_PID_GET_INFO");
+                send_package.type = GB_GET_REQUEST;
+                send_package.sync = 0xae;
+                send_package.request.get_type = GB_GET_PID_TABLE;
+                GB_DEBUGI(RF24_TAG, "Requesting PID table from master");
                 break;
             case LORA_GET_MOTION_STATE:
                 send_package.type = GB_GET_REQUEST;
@@ -295,6 +349,69 @@ void rf_loop(void *arg)
                 {                                                 // is there a payload? get the pipe number that recieved it
                     uint8_t bytes = radio.getPayloadSize(&radio); // get the size of the payload
                     radio.read(&radio, &receive_package, bytes);  // fetch payload from FIFO
+
+                    if (receive_package.type == GB_PID_FRAGMENT)
+                    {
+                        GB_LORA_FRAGMENT_T *frag = (GB_LORA_FRAGMENT_T *)&receive_package;
+                        uint8_t complete_msg[GB_MAX_FRAGMENTS * GB_FRAGMENT_PAYLOAD_SIZE];
+                        size_t msg_len = 0;
+
+                        GB_DEBUGI(RF24_TAG, "Received PID fragment: msg_id=%d, frag=%d/%d",
+                        frag->msg_id, frag->frag_index + 1, frag->frag_total);
+
+                        GB_FRAG_RESULT frag_res = GB_LoraFragmentReceive(frag, &g_remote_reassembly_ctx,
+                        complete_msg, &msg_len);
+
+                        // Send ACK for this fragment
+                        GB_LORA_FRAGMENT_T ack_frag;
+                        memset(&ack_frag, 0, sizeof(ack_frag));
+                        ack_frag.type = GB_PID_FRAGMENT;
+                        ack_frag.sync = frag->sync + 1; // ACK
+                        ack_frag.msg_id = frag->msg_id;
+                        ack_frag.frag_index = frag->frag_index;
+                        ack_frag.frag_total = frag->frag_total;
+
+                        radio.stopListening(&radio);
+                        radio.write(&radio, &ack_frag, sizeof(ack_frag));
+                        radio.startListening(&radio);
+
+                        if (frag_res == GB_FRAG_COMPLETE)
+                        {
+                            GB_DEBUGI(RF24_TAG, "PID table reassembly complete!");
+                        }
+
+                        // Copy to PID table structure
+                        if (msg_len >= sizeof(GB_PID_TABLE_T))
+                        {
+                            memcpy(&g_remote_pid_table, complete_msg, sizeof(GB_PID_TABLE_T));
+
+                            // Validate CRC
+                            if (GB_PidTableValidate(&g_remote_pid_table) == GB_OK)
+                            {
+                                GB_DEBUGI(RF24_TAG, "PID table received and validated!");
+
+                                // Log received PID parameters
+                                for (int i = 0; i < PID_MAX; i++)
+                                {
+                                    GB_DEBUGI(RF24_TAG, "PID[%d]: Kp=%d, Ki=%d, Kd=%d",
+                                    i,
+                                    g_remote_pid_table.params[i].kp,
+                                    g_remote_pid_table.params[i].ki,
+                                    g_remote_pid_table.params[i].kd);
+                                }
+
+                                // TODO: Display on screen, store to file, etc.
+                                atomic_store(&lora_send_config, LORA_SEND_NA);
+                            }
+                            else
+                            {
+                                GB_DEBUGI(RF24_TAG, "PID table CRC validation failed!");
+                            }
+                        }
+
+                        continue; // Skip normal packet processing
+                    }
+
                     if (receive_package.sync != send_package.sync + 1)
                     {
                         GB_DEBUGE(ERROR_TAG, "Receive error!");

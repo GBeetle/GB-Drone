@@ -1,4 +1,4 @@
-set(COMPONENT_SRCS "nrf24_interface.c")
+set(COMPONENT_SRCS "nrf24_interface.c lora_fragment.c")
 
 set(COMPONENT_ADD_INCLUDEDIRS "include")
 

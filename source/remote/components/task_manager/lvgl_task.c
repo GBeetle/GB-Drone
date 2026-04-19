@@ -100,7 +100,6 @@ static lv_obj_t *battery_icon;
 // Toggle switch display - using LVGL switch widgets
 static lv_obj_t *toggle_sw_widgets[4] = {NULL}; // The switch widgets
 static lv_obj_t *toggle_sw_labels[4] = {NULL}; // Text labels for each switch
-static lv_obj_t *toggle_sw_state_labels[4] = {NULL}; // State text (UI/FLY, etc.)
 
 // Custom styles for toggle switches
 static lv_style_t style_switch_on;
@@ -403,6 +402,10 @@ static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_ta
         tab_changer_main_page(R_RIGHT);
         break;
 
+    case TOGGLE_SWITHCH_CHANGED:
+        GB_DEBUGI(DISP_TAG, "Toggle switch changed event received");
+        break;
+
     case BTN_OP_MENU:
     case BTN_OP_OPTION:
     default:
@@ -443,7 +446,6 @@ static void battery_update_task(lv_timer_t *timer)
 static void toggle_switch_update_task(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
-
     GB_TOGGLE_SWITCH_STATE toggle_state;
     static GB_TOGGLE_SWITCH_STATE prev_state = {0};
 
@@ -456,14 +458,13 @@ static void toggle_switch_update_task(lv_timer_t *timer)
         if (toggle_state.sw1_state)
         {
             lv_obj_add_state(toggle_sw_widgets[0], LV_STATE_CHECKED);
-            lv_label_set_text(toggle_sw_state_labels[0], "FLY");
-            lv_obj_set_style_text_color(toggle_sw_state_labels[0], lv_color_hex(0xFF0000), 0); // Red for FLY mode
+            lv_label_set_text(toggle_sw_labels[0], "#888888 UI#|#00C853 FLY#");
+
         }
         else
         {
             lv_obj_remove_state(toggle_sw_widgets[0], LV_STATE_CHECKED);
-            lv_label_set_text(toggle_sw_state_labels[0], "UI");
-            lv_obj_set_style_text_color(toggle_sw_state_labels[0], lv_color_hex(0x0000FF), 0); // Blue for UI mode
+            lv_label_set_text(toggle_sw_labels[0], "#00C853 UI#|#888888 FLY#");
         }
     }
 
@@ -473,14 +474,12 @@ static void toggle_switch_update_task(lv_timer_t *timer)
         if (toggle_state.sw2_state)
         {
             lv_obj_add_state(toggle_sw_widgets[1], LV_STATE_CHECKED);
-            lv_label_set_text(toggle_sw_state_labels[1], "3D");
-            lv_obj_set_style_text_color(toggle_sw_state_labels[1], lv_color_hex(0x00C853), 0); // Green for 3D
+            lv_label_set_text(toggle_sw_labels[1], "#888888 UI#|#00C853 3D#");
         }
         else
         {
             lv_obj_remove_state(toggle_sw_widgets[1], LV_STATE_CHECKED);
-            lv_label_set_text(toggle_sw_state_labels[1], "UI");
-            lv_obj_set_style_text_color(toggle_sw_state_labels[1], lv_color_hex(0x0000FF), 0); // Blue for UI
+            lv_label_set_text(toggle_sw_labels[1], "#00C853 UI#|#888888 3D#");
         }
     }
 
@@ -490,14 +489,12 @@ static void toggle_switch_update_task(lv_timer_t *timer)
         if (toggle_state.sw3_state)
         {
             lv_obj_add_state(toggle_sw_widgets[2], LV_STATE_CHECKED);
-            lv_label_set_text(toggle_sw_state_labels[2], "PULL");
-            lv_obj_set_style_text_color(toggle_sw_state_labels[2], lv_color_hex(0xFFA500), 0); // Orange for PULL
+            lv_label_set_text(toggle_sw_labels[2], "#888888 _#|#00C853 PULL#");
         }
         else
         {
             lv_obj_remove_state(toggle_sw_widgets[2], LV_STATE_CHECKED);
-            lv_label_set_text(toggle_sw_state_labels[2], "OFF");
-            lv_obj_set_style_text_color(toggle_sw_state_labels[2], lv_color_hex(0x888888), 0); // Gray for OFF
+            lv_label_set_text(toggle_sw_labels[2], "#00C853 _#|#888888 PULL#");
         }
     }
 
@@ -507,14 +504,12 @@ static void toggle_switch_update_task(lv_timer_t *timer)
         if (toggle_state.sw4_state)
         {
             lv_obj_add_state(toggle_sw_widgets[3], LV_STATE_CHECKED);
-            lv_label_set_text(toggle_sw_state_labels[3], "PUSH");
-            lv_obj_set_style_text_color(toggle_sw_state_labels[3], lv_color_hex(0x9C27B0), 0); // Purple for PUSH
+            lv_label_set_text(toggle_sw_labels[3], "#888888 _#|#00C853 PUSH#");
         }
         else
         {
             lv_obj_remove_state(toggle_sw_widgets[3], LV_STATE_CHECKED);
-            lv_label_set_text(toggle_sw_state_labels[3], "OFF");
-            lv_obj_set_style_text_color(toggle_sw_state_labels[3], lv_color_hex(0x888888), 0); // Gray for OFF
+            lv_label_set_text(toggle_sw_labels[3], "#00C853 _#|#888888 PUSH#");
         }
     }
 
@@ -571,35 +566,32 @@ void welkin_widgets()
     // Style for switch when ON (checked)
     lv_style_init(&style_switch_on);
     lv_style_set_bg_color(&style_switch_on, lv_color_hex(0x00C853)); // Green when ON
-    lv_style_set_border_color(&style_switch_on, lv_color_hex(0x00A843));
-    lv_style_set_border_width(&style_switch_on, 2);
+    lv_style_set_border_width(&style_switch_on, 1);
 
     // Style for switch when OFF (unchecked)
     lv_style_init(&style_switch_off);
     lv_style_set_bg_color(&style_switch_off, lv_color_hex(0xCCCCCC)); // Gray when OFF
-    lv_style_set_border_color(&style_switch_off, lv_color_hex(0x999999));
-    lv_style_set_border_width(&style_switch_off, 2);
+    lv_style_set_border_width(&style_switch_off, 1);
 
     // Style for switch knob
     lv_style_init(&style_switch_knob);
     lv_style_set_bg_color(&style_switch_knob, lv_color_hex(0xFFFFFFFF)); // White knob
-    lv_style_set_border_color(&style_switch_knob, lv_color_hex(0xAAAAAA));
-    lv_style_set_border_width(&style_switch_knob, 2);
-    lv_style_set_pad_all(&style_switch_knob, -4); // Make knob slightly larger
+    lv_style_set_pad_all(&style_switch_knob, -2); // Make knob slightly larger
 
     // Battery voltage display - top right
     lv_obj_t *battery_cont = lv_obj_create(lv_screen_active());
     lv_obj_set_size(battery_cont, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_align(battery_cont, LV_ALIGN_TOP_RIGHT, 0, -2);
+    lv_obj_align(battery_cont, LV_ALIGN_TOP_RIGHT, -2, 0);
     lv_obj_set_layout(battery_cont, LV_LAYOUT_FLEX);
     lv_obj_set_flex_flow(battery_cont, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(battery_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_bg_opa(battery_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_opa(battery_cont, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_pad_all(battery_cont, 0, 0);
+    lv_obj_set_style_pad_all(battery_cont, 2, 0);
 
     battery_label = lv_label_create(battery_cont);
     lv_label_set_text(battery_label, "0%");
+    lv_obj_set_style_text_font(battery_label, &lv_font_montserrat_16, 0);
 
     battery_icon = lv_label_create(battery_cont);
     lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_EMPTY);
@@ -607,63 +599,48 @@ void welkin_widgets()
     // Toggle switches display - top left with LVGL switch widgets
     lv_obj_t *toggle_cont = lv_obj_create(lv_screen_active());
     lv_obj_set_size(toggle_cont, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_align(toggle_cont, LV_ALIGN_TOP_LEFT, 2, 0);
+    lv_obj_align(toggle_cont, LV_ALIGN_TOP_LEFT, 0, 0);
     lv_obj_set_layout(toggle_cont, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(toggle_cont, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(toggle_cont, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_set_flex_flow(toggle_cont, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(toggle_cont, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
     lv_obj_set_style_bg_opa(toggle_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_opa(toggle_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_pad_all(toggle_cont, 2, 0);
-    lv_obj_set_style_pad_row(toggle_cont, 3, 0);
+    lv_obj_set_style_pad_row(toggle_cont, 6, 0);
 
     // Create 4 toggle switch rows (each with: label + switch + state text)
-    const char *switch_names[4] = {"Mode:", "View:", "PID1:", "PID2:"};
-    const char *initial_states[4] = {"UI", "UI", "OFF", "OFF"};
+    const char *initial_labels[4] = {"UI", "UI", "_", "_"};
 
     for (int i = 0; i < 4; i++)
     {
-        // Create horizontal container for this switch row
-        lv_obj_t *row = lv_obj_create(toggle_cont);
-        lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        lv_obj_set_layout(row, LV_LAYOUT_FLEX);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_opa(row, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_pad_all(row, 0, 0);
-        lv_obj_set_style_pad_row(row, 4, 0);
-
-        // Label for switch name (e.g., "Mode:", "View:")
-        toggle_sw_labels[i] = lv_label_create(row);
-        lv_label_set_text(toggle_sw_labels[i], switch_names[i]);
-        lv_obj_set_style_text_font(toggle_sw_labels[i], &lv_font_montserrat_16, 0);
-        lv_obj_set_width(toggle_sw_labels[i], 35); // Fixed width for alignment
+        // Create horizontal container for each switch (switch + label only, no prefix)
+        lv_obj_t *sw_group = lv_obj_create(toggle_cont);
+        lv_obj_set_size(sw_group, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_layout(sw_group, LV_LAYOUT_FLEX);
+        lv_obj_set_flex_flow(sw_group, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(sw_group, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_bg_opa(sw_group, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_opa(sw_group, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_pad_all(sw_group, 0, 0);
+        lv_obj_set_style_pad_column(sw_group, 2, 0); // 2px gap between switch and label
 
         // LVGL switch widget (read-only, reflects hardware state)
-        toggle_sw_widgets[i] = lv_switch_create(row);
-        lv_obj_set_size(toggle_sw_widgets[i], 30, 16); // Compact switch size
-        lv_obj_remove_flag(toggle_sw_widgets[i], LV_OBJ_FLAG_CLICKABLE); // Read-only (hardware controlled)
+        toggle_sw_widgets[i] = lv_switch_create(sw_group);
+        lv_obj_set_size(toggle_sw_widgets[i], 24, 14); // Very compact: 24x14px
+        lv_obj_remove_flag(toggle_sw_widgets[i], LV_OBJ_FLAG_CLICKABLE); // Read-only
 
         // Apply custom styles
         lv_obj_add_style(toggle_sw_widgets[i], &style_switch_off, LV_PART_MAIN);
         lv_obj_add_style(toggle_sw_widgets[i], &style_switch_on, LV_PART_MAIN | LV_STATE_CHECKED);
         lv_obj_add_style(toggle_sw_widgets[i], &style_switch_knob, LV_PART_KNOB);
 
-        // State text label (e.g., "UI", "FLY", "PULL", "OFF")
-        toggle_sw_state_labels[i] = lv_label_create(row);
-        lv_label_set_text(toggle_sw_state_labels[i], initial_states[i]);
-        lv_obj_set_style_text_font(toggle_sw_state_labels[i], &lv_font_montserrat_16, 0);
-        lv_obj_set_width(toggle_sw_state_labels[i], 30); // Fixed width
-
-        // Color the state text based on initial state
-        if (i < 2) // Mode and View switches
-        {
-            lv_obj_set_style_text_color(toggle_sw_state_labels[i], lv_color_hex(0x0000FF), 0); // Blue
-        }
-        else // PID switches
-        {
-            lv_obj_set_style_text_color(toggle_sw_state_labels[i], lv_color_hex(0x888888), 0); // Gray when OFF
-        }
+        // State label: shows current option in GREEN (e.g., "UI|FLY")
+        // Format: "UI|FLY" with selected one in green
+        toggle_sw_labels[i] = lv_label_create(sw_group);
+        lv_label_set_text(toggle_sw_labels[i], initial_labels[i]);
+        lv_obj_set_style_text_font(toggle_sw_labels[i], &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_color(toggle_sw_labels[i], lv_color_hex(0x00C853), 0); // Green for selected
+        lv_label_set_recolor(toggle_sw_labels[i], true); // Enable color codes (set once at creation)
     }
 
     t1 = lv_tabview_add_tab(tv, "GB Drone");
@@ -768,12 +745,12 @@ static void pid_setting_create(lv_obj_t *parent)
     // Enable scrolling for the parent container
     lv_obj_set_scrollbar_mode(parent, LV_SCROLLBAR_MODE_AUTO);
 
-    int32_t grid_w = lv_obj_get_content_width(parent);
-    int32_t grid_h = lv_obj_get_content_height(parent);
+    int32_t parent_w = lv_obj_get_width(parent);
+    int32_t parent_h = lv_obj_get_height(parent);
 
-    GB_DEBUGI(DISP_TAG, "PID tab dimensions: width=%d, height=%d", grid_w, grid_h);
+    GB_DEBUGI(DISP_TAG, "PID tab dimensions: width=%d, height=%d", parent_w, parent_h);
 
-    lvgl_create_pid_table(parent, grid_h, grid_w - 26);
+    lvgl_create_pid_table(parent, parent_h, parent_w * 95 / 100);
 }
 
 static void color_chg_event_cb(lv_event_t *e)

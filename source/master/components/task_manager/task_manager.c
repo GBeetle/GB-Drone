@@ -38,6 +38,9 @@ typedef struct
 struct imu imu;  // create a default MPU object
 volatile GB_Motion_State motionState;
 
+static GB_PID_TABLE_T g_master_pid_table = {0};
+static GB_REASSEMBLY_CTX_T g_master_ressembly_ctx = {0};
+
 static volatile uint8_t anotic_debug_id = 0x00;
 QueueHandle_t gyroQueue, accelQueue, magQueue, baroQueue;
 SemaphoreHandle_t mpuDataQueueReady;
@@ -172,11 +175,6 @@ void GB_MutexInitialize()
     }
     mpuSensorReady = xSemaphoreCreateBinary();
     if (mpuSensorReady == NULL) {
-        GB_DEBUGE(ERROR_TAG, "Failed to create semaphore");
-        abort();
-    }
-    motionStateMutex = xSemaphoreCreateMutex();
-    if (motionStateMutex == NULL) {
         GB_DEBUGE(ERROR_TAG, "Failed to create semaphore");
         abort();
     }
@@ -427,16 +425,103 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
                         out->request.quad_status.yaw);
 
             break;
+        case GB_GET_PID_TABLE:
+            GB_DEBUGI(LORA_TAG, "Remote requested PID table, sending via fragments...");
+
+            // Calculate and set CRC for PID table
+            g_master_pid_table.crc16 = GB_PidTableCalculateCRC(&g_master_pid_table);
+
+            // Send PID table as fragmented message
+            static uint8_t msg_id_counter = 0;
+            msg_id_counter++;
+
+            CHK_RES(GB_LoraFragmentSend(
+            (const uint8_t *)&g_master_pid_table,
+            sizeof(g_master_pid_table),
+            msg_id_counter,
+            state
+            ));
+
+            GB_DEBUGI(LORA_TAG, "PID table sent successfully (msg_id=%d)", msg_id_counter);
+            *state = LORA_IDLE; // Fragments handle state themselves
+            return res; // Early return - fragments handle ACK
         default:
             GB_DEBUGI(LORA_TAG, "Unknown setting type: %d", in->request.get_type);
         }
         *state = LORA_SEND;
+        break;
+    case GB_PID_FRAGMENT:
+        // Handle incoming PID table fragment from remote
+        GB_LORA_FRAGMENT_T *frag = (GB_LORA_FRAGMENT_T *)in;
+        uint8_t complete_msg[GB_MAX_FRAGMENTS * GB_FRAGMENT_PAYLOAD_SIZE];
+        size_t msg_len = 0;
+
+        GB_DEBUGI(LORA_TAG, "Received PID fragment: msg_id=%d, frag=%d/%d",
+            frag->msg_id, frag->frag_index + 1, frag->frag_total);
+
+        GB_FRAG_RESULT frag_res = GB_LoraFragmentReceive(frag, &g_master_ressembly_ctx,
+            complete_msg, &msg_len);
+
+        // Send ACK for this fragment
+        GB_LORA_FRAGMENT_T ack_frag;
+        memset(&ack_frag, 0, sizeof(ack_frag));
+        ack_frag.type = GB_PID_FRAGMENT;
+        ack_frag.sync = frag->sync + 1; // ACK
+        ack_frag.msg_id = frag->msg_id;
+        ack_frag.frag_index = frag->frag_index;
+        ack_frag.frag_total = frag->frag_total;
+
+        memcpy(out, &ack_frag, sizeof(ack_frag));
+        *state = LORA_SEND;
+
+        if (frag_res == GB_FRAG_COMPLETE)
+        {
+            GB_DEBUGI(LORA_TAG, "PID table reassembly complete, validating...");
+
+            // Copy to PID table structure
+            if (msg_len >= sizeof(GB_PID_TABLE_T))
+            {
+                memcpy(&g_master_pid_table, complete_msg, sizeof(GB_PID_TABLE_T));
+
+                // Validate CRC
+                if (GB_PidTableValidate(&g_master_pid_table) == GB_OK)
+                {
+                    GB_DEBUGI(LORA_TAG, "PID table received and validated successfully!");
+
+                    // Log received PID parameters
+                    for (int i = 0; i < PID_MAX; i++)
+                    {
+                        GB_DEBUGI(LORA_TAG, "PID[%d]: Kp=%d, Ki=%d, Kd=%d",
+                            i,
+                            g_master_pid_table.params[i].kp,
+                            g_master_pid_table.params[i].ki,
+                            g_master_pid_table.params[i].kd);
+                    }
+
+                    // TODO: Apply PID parameters to flight controller
+                }
+                else
+                {
+                    GB_DEBUGE(LORA_TAG, "PID table CRC validation failed!");
+                }
+            }
+            else
+            {
+                GB_DEBUGE(LORA_TAG, "Received message too small: %d bytes", msg_len);
+            }
+        }
+        else if (frag_res == GB_FRAG_TIMEOUT)
+        {
+            GB_DEBUGI(LORA_TAG, "Fragment reassembly timeout");
+        }
+
         break;
     default:
         GB_DEBUGI(LORA_TAG, "Unknown PACKAGE type: %d", in->type);
     }
     out->sync = in->sync + 1; // check for remote
 
+error_exit:
     return res;
 }
 
@@ -451,6 +536,7 @@ void nrf24_interrupt_func(void *arg)
     GB_LoraSystemInit(LORA_RECEIVE, 0, &lora_state);
     GB_Max1704xInit(&dev);
     GB_Max1704xStart(&dev);
+    GB_ReassemblyInit(&g_master_ressembly_ctx);
     //GB_GPS_Init();
     nrf24_isr_register();
 

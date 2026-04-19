@@ -309,6 +309,8 @@ static void IRAM_ATTR toggle_switch_isr_handler(void *arg)
     GB_GPIO_Get(TOGGLE_SW_4_GPIO, &level);
     new_state.sw4_state = !level;
 
+    current_toggle_state = new_state;
+
     GB_CONTROL_EVENT event = {
         .type = GB_EVENT_TOGGLE_SWITCH,
         .data.switch_state = new_state

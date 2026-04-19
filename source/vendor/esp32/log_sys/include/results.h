@@ -139,4 +139,11 @@ typedef uint32_t GB_RESULT;
 #define GB_ADC_INIT_FAIL        0x80000e00
 #define GB_ADC_CALI_FAIL        0x80000e01
 
+#define GB_NULL_PTR_ERROR       0x80000f00
+#define GB_INVALID_PARAM        0x80000f01
+#define GB_TIMEOUT_ERROR        0x80000f02
+#define GB_CRC_ERROR            0x80000f03
+#define GB_SEND_ERROR           0x80000f04
+#define GB_RECEIVE_ERROR        0x80000f05
+
 #endif /* end of include guard: _GB_RESULTS__ */
