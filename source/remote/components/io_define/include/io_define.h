@@ -54,4 +54,21 @@
 #define SD_CLK  39
 #define SD_D0   40
 
+// Controller
+#define BTN_GPIO_DPAD_UP       28
+#define BTN_GPIO_DPAD_DOWN     26
+#define BTN_GPIO_DPAD_LEFT     27
+#define BTN_GPIO_DPAD_RIGHT    30
+#define BTN_GPIO_DPAD_MID      29
+
+#define BTN_GPIO_OP_A          11
+#define BTN_GPIO_OP_B          12
+#define BTN_GPIO_OP_X          50
+#define BTN_GPIO_OP_Y          49
+
+#define BTN_GPIO_OP_MENU       33
+#define BTN_GPIO_OP_OPTION     31
+#define BTN_GPIO_OP_SELECT     32
+#define BTN_GPIO_OP_START      34
+
 #endif /* end of include guard: _IO_DEFINE__ */

@@ -20,8 +20,8 @@
 
 #include <stdint.h>
 
-void quad3d_init();
-void quad3d_get_image(uint16_t *image_buffer);
-void quad3d_set_angle(float roll, float pitch, float yaw);
+bool quad3d_init();
+bool quad3d_get_image(uint16_t *image_buffer);
+bool quad3d_set_angle(float roll, float pitch, float yaw);
 
 #endif /* end of include guard: _GB_QUAD_3D__ */

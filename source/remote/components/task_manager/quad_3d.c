@@ -35,6 +35,7 @@ static ZBuffer *frameBuffer = NULL;
 static GLuint modelDisplayList = 0;
 static mat4 projection_matrix;
 static mat4 view_matrix;
+static bool init_fail = false;
 
 SemaphoreHandle_t angleProtected;
 
@@ -89,8 +90,10 @@ GLuint createModelDisplayList(
     return ret;
 }
 
-void quad3d_init()
+bool quad3d_init()
 {
+    if (init_fail)
+        return false;
     GB_DEBUGE(DISP_TAG, "quad3d_init start");
 
     imbuf = calloc(1, sizeof(PIXEL) * winSizeX * winSizeY);
@@ -106,7 +109,7 @@ void quad3d_init()
     if (!frameBuffer)
     {
         GB_DEBUGE(DISP_TAG, "\nZB_open failed!");
-        return;
+        return false;
     }
     glInit(frameBuffer);
 
@@ -154,7 +157,7 @@ void quad3d_init()
         if (!omodel.positions)
         {
             GB_DEBUGE(DISP_TAG, "\nERROR! No positions in model. Aborting...");
-            return;
+            goto error_exit;
         }
         else
         {
@@ -173,12 +176,30 @@ void quad3d_init()
     angleProtected = xSemaphoreCreateMutex();
 
     GB_DEBUGE(DISP_TAG, "quad3d_init end");
+    return true;
+
+error_exit:
+    if (imbuf)
+    {
+        free(imbuf);
+        imbuf = NULL;
+    }
+    if (frameBuffer)
+    {
+        free(frameBuffer);
+        frameBuffer = NULL;
+    }
+    init_fail = true;
+    return false;
 }
 
-void quad3d_get_image(uint16_t *image_buffer)
+bool quad3d_get_image(uint16_t *image_buffer)
 {
     if (NULL == imbuf || NULL == frameBuffer)
-        quad3d_init();
+    {
+        if (!quad3d_init())
+            return false;
+    }
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -231,12 +252,16 @@ void quad3d_get_image(uint16_t *image_buffer)
         image_buffer[i] = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3);
         image_buffer[i] = image_buffer[i] << 8 | image_buffer[i] >> 8;
     }
+    return true;
 }
 
-void quad3d_set_angle(float s_roll, float s_pitch, float s_yaw)
+bool quad3d_set_angle(float s_roll, float s_pitch, float s_yaw)
 {
     if (NULL == imbuf || NULL == frameBuffer)
-        quad3d_init();
+    {
+        if (!quad3d_init())
+            return false;
+    }
 
     if (xSemaphoreTake(angleProtected, portMAX_DELAY) == pdTRUE)
     {
@@ -246,4 +271,5 @@ void quad3d_set_angle(float s_roll, float s_pitch, float s_yaw)
 
         xSemaphoreGive(angleProtected);
     }
+    return true;
 }

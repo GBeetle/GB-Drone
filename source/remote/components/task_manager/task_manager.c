@@ -130,21 +130,25 @@ void controller_task(void *pvParameter)
 {
     uint64_t control_waittime = 0;
     uint64_t time_now = 0;
-    uint8_t ui_operation_mode = 0;
-    uint8_t left_up_op = 0;
     uint16_t throttle_adc, pitch_adc, roll_adc, yaw_adc;
-
+    GB_REMOTE_CONTROL_ID btn_id;
     adc_wrapper_init();
+    button_init();
+    QueueHandle_t btn_queue = button_get_queue();
+
     while (1)
     {
-        ui_operation_mode = 0;
+        while (xQueueReceive(btn_queue, &btn_id, 0))
+        {
+            gb_remote_single_control(btn_id);
+        }
 
         adc_read_by_item(ADC_THROTTLE, &throttle_adc, true);
         adc_read_by_item(ADC_PITCH, &pitch_adc, true);
         adc_read_by_item(ADC_ROLL, &roll_adc, true);
         adc_read_by_item(ADC_YAW, &yaw_adc, true);
 
-        //GB_DEBUGI(GB_INFO, "T: %d, P: %d, R: %d, Y: %d", throttle_adc, pitch_adc, roll_adc, yaw_adc);
+        // GB_DEBUGI(GB_INFO, "T: %d, P: %d, R: %d, Y: %d", throttle_adc, pitch_adc, roll_adc, yaw_adc);
 
         // 飞控设置，双摇杆推到最低点3s，将方向摇杆回中
         if (GB_FLY_MODE == gb_get_user_mode() && throttle_adc == 0 && pitch_adc == 0)
@@ -166,106 +170,7 @@ void controller_task(void *pvParameter)
             control_waittime = 0;
         }
 
-        if (LORA_SEND_CONTROL_COMMAND != lora_send_config) // not fly mode, only control UI
-        {
-#if 0
-            // set angle
-            quad3d_set_angle(_scale_to(roll_adc, 0, ADC_CONSTRAIN_MAX, -30, 30),
-                             _scale_to(pitch_adc, 0, ADC_CONSTRAIN_MAX, -30, 30),
-                             _scale_to(yaw_adc, 0, ADC_CONSTRAIN_MAX, -180, 180));
-#endif
-
-            // 右摇杆左右滑动
-            if (roll_adc <= ADC_CONSTRAIN_MIDDLE / 2)
-            {
-                gb_remote_single_control(R_RIGHT);
-                ui_operation_mode = 1;
-                //GB_DEBUGI(GB_INFO, "[R : R]");
-            }
-            else if (roll_adc >= ADC_CONSTRAIN_MIDDLE + ADC_CONSTRAIN_MIDDLE / 2)
-            {
-                gb_remote_single_control(R_LEFT);
-                ui_operation_mode = 1;
-                //GB_DEBUGI(GB_INFO, "[R : L]");
-            }
-            else if (pitch_adc <= ADC_CONSTRAIN_MIDDLE / 2)
-            {
-                gb_remote_single_control(L_UP_R_DOWN);
-                ui_operation_mode = 1;
-                //GB_DEBUGI(GB_INFO, "[R : D]");
-            }
-            else if (pitch_adc >= ADC_CONSTRAIN_MIDDLE + ADC_CONSTRAIN_MIDDLE / 2)
-            {
-                gb_remote_single_control(L_DOWN_R_UP);
-                ui_operation_mode = 1;
-                //GB_DEBUGI(GB_INFO, "[R : U]");
-            }
-
-            // only need for use mode
-            if (GB_PID_SETTING_MODE == gb_get_user_mode())
-            {
-                // 左摇杆下，右摇杆上下滑动
-                if ((throttle_adc <= ADC_CONSTRAIN_MIDDLE / 2) && (pitch_adc <= ADC_CONSTRAIN_MIDDLE / 2))
-                {
-                    gb_remote_single_control(L_DOWN_R_DOWN);
-                    ui_operation_mode = 1;
-                }
-                else if ((throttle_adc <= ADC_CONSTRAIN_MIDDLE / 2) &&
-                         (pitch_adc >= ADC_CONSTRAIN_MIDDLE + ADC_CONSTRAIN_MIDDLE / 2))
-                {
-                    gb_remote_single_control(L_DOWN_R_UP);
-                    ui_operation_mode = 1;
-                }
-
-                // 左摇杆上，右摇杆上下滑动
-                if ((throttle_adc >= ADC_CONSTRAIN_MIDDLE + ADC_CONSTRAIN_MIDDLE / 2) &&
-                    (pitch_adc <= ADC_CONSTRAIN_MIDDLE / 2))
-                {
-                    gb_remote_single_control(L_UP_R_DOWN);
-                    ui_operation_mode = 2;
-                }
-                else if ((throttle_adc >= ADC_CONSTRAIN_MIDDLE + ADC_CONSTRAIN_MIDDLE / 2) &&
-                         (pitch_adc >= ADC_CONSTRAIN_MIDDLE + ADC_CONSTRAIN_MIDDLE / 2))
-                {
-                    gb_remote_single_control(L_UP_R_UP);
-                    ui_operation_mode = 2;
-                }
-
-                // 左摇杆向上滑动, 右摇杆居中
-                if ((throttle_adc >= ADC_CONSTRAIN_MIDDLE + ADC_CONSTRAIN_MIDDLE / 2) && (0 == left_up_op) &&
-                    (pitch_adc >= ADC_CONSTRAIN_MIDDLE - 50 && pitch_adc <= ADC_CONSTRAIN_MIDDLE + 50))
-                {
-                    gb_remote_single_control(L_UP);
-                    ui_operation_mode = 1;
-                    left_up_op = 1;
-                }
-                // 左摇杆向下，重置
-                else if (throttle_adc <= ADC_CONSTRAIN_MIDDLE / 2)
-                {
-                    left_up_op = 0;
-                }
-            }
-
-            // 左摇杆左右滑动
-            if (yaw_adc <= ADC_CONSTRAIN_MIDDLE / 2)
-            {
-                gb_remote_single_control(L_RIGHT);
-                ui_operation_mode = 1;
-            }
-            else if (yaw_adc >= ADC_CONSTRAIN_MIDDLE + ADC_CONSTRAIN_MIDDLE / 2)
-            {
-                gb_remote_single_control(L_LEFT);
-                ui_operation_mode = 1;
-            }
-        }
-
-        if (ui_operation_mode == 2)
-            vTaskDelay(pdMS_TO_TICKS(100));
-        else if (ui_operation_mode == 1)
-            vTaskDelay(pdMS_TO_TICKS(300));
-        else
-            vTaskDelay(pdMS_TO_TICKS(10));
-
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 

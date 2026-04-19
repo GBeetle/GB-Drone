@@ -136,4 +136,7 @@ typedef uint32_t GB_RESULT;
 #define GB_OFLOW_NOT_INIT       0x80000d07
 #define GB_OFLOW_PARAM_NULL     0x80000d08
 
+#define GB_ADC_INIT_FAIL        0x80000e00
+#define GB_ADC_CALI_FAIL        0x80000e01
+
 #endif /* end of include guard: _GB_RESULTS__ */

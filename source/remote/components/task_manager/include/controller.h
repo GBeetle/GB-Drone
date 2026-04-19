@@ -19,6 +19,10 @@
 #define _GB_CONTROLLER__
 
 #include <stdint.h>
+#include <stdbool.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "results.h"
 
 typedef enum
 {
@@ -43,6 +47,23 @@ typedef enum
     L_RIGHT,
     SEND_PID_DONE,
     FLASH_PID_TBL,
+
+    BTN_DPAD_UP,
+    BTN_DPAD_DOWN,
+    BTN_DPAD_LEFT,
+    BTN_DPAD_RIGHT,
+    BTN_DPAD_MID,
+
+    BTN_OP_A,
+    BTN_OP_B,
+    BTN_OP_X,
+    BTN_OP_Y,
+
+    BTN_OP_MENU,
+    BTN_OP_OPTION,
+    BTN_OP_SELECT,
+    BTN_OP_START,
+    GB_CONTROL_ID_MAX,
 } GB_REMOTE_CONTROL_ID;
 
 typedef enum
@@ -52,8 +73,11 @@ typedef enum
     GB_USER_MODE_MAX,
 } GB_REMOTE_USER_MODE;
 
-void adc_wrapper_init(void);
+GB_RESULT adc_wrapper_init(void);
 void adc_read_by_item(uint8_t item, uint16_t *adc_val, uint8_t is_constrained);
+
+void button_init(void);
+QueueHandle_t button_get_queue(void);
 
 GB_REMOTE_USER_MODE gb_get_user_mode();
 void gb_remote_single_control(GB_REMOTE_CONTROL_ID button_id);

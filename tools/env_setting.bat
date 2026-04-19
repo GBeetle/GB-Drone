@@ -1,1 +1,1 @@
-D:\Espressif\idf_cmd_init.bat esp-idf-144d195ea82314811214678513259b23
+D:\Espressif\idf_cmd_init.bat esp-idf-19bf15883d5988831b99b02a2227c33e

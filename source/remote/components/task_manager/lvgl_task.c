@@ -27,6 +27,7 @@
 #include "lora_state.h"
 #include "gpio_setting.h"
 #include "io_define.h"
+#include "task_manager.h"
 
 /*********************
  *      DEFINES
@@ -63,8 +64,8 @@ extern GB_SEND_CONFIG lora_send_config;
 static void welkin_fc_create(lv_obj_t *parent);
 static void pid_setting_create(lv_obj_t *parent);
 static void color_chg_event_cb(lv_event_t *e);
-static void tab_content_anim_create(lv_obj_t *parent);
 static void tab_changer_main_page(GB_REMOTE_CONTROL_ID op);
+static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_tab);
 
 /**********************
  *  STATIC VARIABLES
@@ -85,6 +86,9 @@ static bool pull_btn = false;
 static bool push_btn = false;
 static int selected_row = -1;
 static int selected_column = -1;
+
+// Tab 0 focus index: 0 = main_btn, 1 = model_3d_btn
+static int t1_focus_idx = 0;
 
 lv_timer_t *draw_task;
 lv_obj_t *model_canvas = NULL;
@@ -228,8 +232,17 @@ void gb_remote_single_control(GB_REMOTE_CONTROL_ID button_id)
 {
     static GB_REMOTE_CONTROL_ID stored_id;
     stored_id = button_id;
-    lv_obj_set_user_data(remote_controller, &stored_id);
-    lv_obj_send_event(remote_controller, LV_EVENT_VALUE_CHANGED, NULL);
+    if (xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(100)) == pdTRUE)
+    {
+        lv_obj_set_user_data(remote_controller, &stored_id);
+        lv_obj_send_event(remote_controller, LV_EVENT_VALUE_CHANGED, NULL);
+        xSemaphoreGive(xGuiSemaphore);
+    }
+    else
+    {
+        GB_DEBUGW(DISP_TAG, "Failed to acquire GUI semphore for btn_id = %u", button_id);
+    }
+
 }
 
 static void _update_pid_table_display(void)
@@ -280,136 +293,163 @@ static void remote_controller_event_cb(lv_event_t *e)
             return;
         }
         GB_DEBUGI(DISP_TAG, "controller callback, btn_id = %u, select[row: %d, column: %d]", *btn_id, selected_row, selected_column);
-        switch (*btn_id)
+
+        if (*btn_id >= BTN_DPAD_UP && *btn_id < GB_CONTROL_ID_MAX)
         {
-            case L_DOWN_R_UP:
-                if (_check_table_selected(TABLE_ROW) && active_tab == 1)
-                {
-                    _run_table_select_raw(TABLE_OPERATION_DOWN);
-                    lv_obj_scroll_by(t2, 0, lv_obj_get_height(t2) / (TABLE_HEIGHT - 4), LV_ANIM_ON);
-                }
-                else if (active_tab == 0)
-                {
-                    if (lv_obj_has_state(main_btn, LV_STATE_CHECKED))
-                        lv_obj_remove_state(main_btn, LV_STATE_CHECKED);
-                    else
-                        lv_obj_add_state(main_btn, LV_STATE_CHECKED);
+            _handle_button_event(*btn_id, active_tab);
+            _update_pid_table_display();
+        }
+    }
+}
 
-                    if (lv_obj_has_state(model_3d_btn, LV_STATE_CHECKED))
-                        lv_obj_remove_state(model_3d_btn, LV_STATE_CHECKED);
-                    else
-                        lv_obj_add_state(model_3d_btn, LV_STATE_CHECKED);
+static void _update_t1_focus(void)
+{
+    if (t1_focus_idx == 0)
+    {
+        lv_obj_add_state(main_btn, LV_STATE_FOCUS_KEY);
+        lv_obj_remove_state(model_3d_btn, LV_STATE_FOCUS_KEY);
+    }
+    else
+    {
+        lv_obj_remove_state(main_btn, LV_STATE_FOCUS_KEY);
+        lv_obj_add_state(model_3d_btn, LV_STATE_FOCUS_KEY);
+    }
+}
 
-                    if (lv_obj_has_state(model_3d_btn, LV_STATE_CHECKED))
-                        lv_obj_send_event(model_3d_btn, LV_EVENT_CLICKED, NULL);
-                    else
-                        lv_obj_send_event(model_3d_btn, LV_EVENT_RELEASED, NULL);
-                }
-                break;
-            case L_DOWN_R_DOWN:
-                if (!_check_table_selected(TABLE_ROW) && active_tab == 1)
-                {
-                    _start_selecte_table();
-                }
-                else if (_check_table_selected(TABLE_ROW) && active_tab == 1)
-                {
-                    _run_table_select_raw(TABLE_OPERATION_UP);
-                    lv_obj_scroll_by(t2, 0, -lv_obj_get_height(t2) / (TABLE_HEIGHT - 2), LV_ANIM_ON);
-                }
-                else if (active_tab == 0)
-                {
-                    if (lv_obj_has_state(main_btn, LV_STATE_CHECKED))
-                        lv_obj_remove_state(main_btn, LV_STATE_CHECKED);
-                    else
-                        lv_obj_add_state(main_btn, LV_STATE_CHECKED);
+static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_tab)
+{
+    switch (btn_id)
+    {
+    case BTN_DPAD_UP:
+        if (active_tab == 1 && _check_table_selected(TABLE_ROW))
+        {
+            _run_table_select_raw(TABLE_OPERATION_DOWN);
+            lv_obj_scroll_by(t2, 0, -lv_obj_get_height(t2) / (TABLE_HEIGHT - 2), LV_ANIM_ON);
+        }
+        break;
 
-                    if (lv_obj_has_state(model_3d_btn, LV_STATE_CHECKED))
-                        lv_obj_remove_state(model_3d_btn, LV_STATE_CHECKED);
-                    else
-                        lv_obj_add_state(model_3d_btn, LV_STATE_CHECKED);
+    case BTN_DPAD_DOWN:
+        if (active_tab == 1)
+        {
+            if (!_check_table_selected(TABLE_ROW))
+                _start_selecte_table();
+            else
+            {
+                _run_table_select_raw(TABLE_OPERATION_UP);
+                lv_obj_scroll_by(t2, 0, lv_obj_get_height(t2) / (TABLE_HEIGHT - 2), LV_ANIM_ON);
+            }
 
-                    if (lv_obj_has_state(model_3d_btn, LV_STATE_CHECKED))
-                        lv_obj_send_event(model_3d_btn, LV_EVENT_CLICKED, NULL);
-                    else
-                        lv_obj_send_event(model_3d_btn, LV_EVENT_RELEASED, NULL);
-                }
-                break;
-            case L_UP_R_UP:
-                if (_check_table_selected(TABLE_ROW) && active_tab == 1)
-                {
-                    pid_table[selected_row][selected_column] += 1;
-                }
-                break;
-            case L_UP_R_DOWN:
-                if (_check_table_selected(TABLE_ROW) && active_tab == 1)
-                {
-                    if (0 < pid_table[selected_row][selected_column])
-                        pid_table[selected_row][selected_column] -= 1;
-                }
-                break;
-            case R_LEFT:
-                if (_check_table_selected(TABLE_ROW) && active_tab == 1)
-                {
-                    _run_table_select_column(TABLE_OPERATION_DOWN);
-                }
+        }
+        break;
+
+    case BTN_DPAD_LEFT:
+        if (active_tab == 1 && _check_table_selected(TABLE_ROW))
+        {
+            _run_table_select_raw(TABLE_OPERATION_DOWN);
+        }
+        else
+        {
+            tab_changer_main_page(R_LEFT);
+        }
+        break;
+
+    case BTN_DPAD_RIGHT:
+        if (active_tab == 1 && _check_table_selected(TABLE_ROW))
+        {
+            _run_table_select_raw(TABLE_OPERATION_UP);
+        }
+        else
+        {
+            tab_changer_main_page(R_RIGHT);
+        }
+        break;
+
+    case BTN_DPAD_MID:
+        if (active_tab == 0)
+        {
+            lv_obj_t *focused = (t1_focus_idx == 0) ? main_btn : model_3d_btn;
+            if (lv_obj_has_state(focused, LV_STATE_CHECKED))
+                lv_obj_remove_state(focused, LV_STATE_CHECKED);
+            else
+                lv_obj_add_state(focused, LV_STATE_CHECKED);
+
+            if (focused == model_3d_btn)
+            {
+                if (lv_obj_has_state(model_3d_btn, LV_STATE_CHECKED))
+                    lv_obj_send_event(model_3d_btn, LV_EVENT_CLICKED, NULL);
                 else
-                {
-                    tab_changer_main_page(R_LEFT);
-                }
-                break;
-            case R_RIGHT:
-                if (_check_table_selected(TABLE_ROW) && active_tab == 1)
-                {
-                    _run_table_select_column(TABLE_OPERATION_UP);
-                }
-                else
-                {
-                    tab_changer_main_page(R_RIGHT);
-                }
-                break;
-            case L_UP:
-                if (push_btn)
-                {
-                    if (lv_obj_has_state(pid_push_btn, LV_STATE_CHECKED))
-                        lv_obj_remove_state(pid_push_btn, LV_STATE_CHECKED);
-                    else
-                        lv_obj_add_state(pid_push_btn, LV_STATE_CHECKED);
-
-                    // sendPIDTblInfo(TABLE_HEIGHT, TABLE_WIDTH, pid_table);
-                }
-                else if (pull_btn)
-                {
-                    if (lv_obj_has_state(pid_pull_btn, LV_STATE_CHECKED))
-                        lv_obj_remove_state(pid_pull_btn, LV_STATE_CHECKED);
-                    else
-                        lv_obj_add_state(pid_pull_btn, LV_STATE_CHECKED);
-
-                    // sendReceivePIDTblInfo();
-                }
-                break;
-            case L_DOWN:
-                break;
-            case L_RIGHT:
-                break;
-            case L_LEFT:
-                break;
-            case SEND_PID_DONE:
+                    lv_obj_send_event(model_3d_btn, LV_EVENT_RELEASED, NULL);
+            }
+        }
+        else if (active_tab == 1)
+        {
+            if (push_btn)
+            {
                 if (lv_obj_has_state(pid_push_btn, LV_STATE_CHECKED))
                     lv_obj_remove_state(pid_push_btn, LV_STATE_CHECKED);
                 else
                     lv_obj_add_state(pid_push_btn, LV_STATE_CHECKED);
-                break;
-            case FLASH_PID_TBL:
+            }
+            else if (pull_btn)
+            {
                 if (lv_obj_has_state(pid_pull_btn, LV_STATE_CHECKED))
                     lv_obj_remove_state(pid_pull_btn, LV_STATE_CHECKED);
                 else
                     lv_obj_add_state(pid_pull_btn, LV_STATE_CHECKED);
-                // getPIDInfoTable(TABLE_HEIGHT, TABLE_WIDTH, pid_table, NULL);
-                break;
-            default:
-                GB_DEBUGE(DISP_TAG, "Wrong button id");
+            }
         }
-        _update_pid_table_display();
+        break;
+
+    // --- up button: increase PID value ---
+    case BTN_OP_B:
+        if (active_tab == 1 && _check_table_selected(TABLE_ROW) && selected_row < TABLE_HEIGHT)
+            pid_table[selected_row][selected_column] += 1;
+        break;
+
+    // --- down button: decrement PID value ---
+    case BTN_OP_Y:
+        if (active_tab == 1 && _check_table_selected(TABLE_ROW) && selected_row < TABLE_HEIGHT)
+        {
+            if (pid_table[selected_row][selected_column] > 0)
+                pid_table[selected_row][selected_column] -= 1;
+        }
+        break;
+
+    // --- right button: increment PID value (fast +10) ---
+    case BTN_OP_A:
+        if (active_tab == 1 && _check_table_selected(TABLE_ROW) && selected_row < TABLE_HEIGHT)
+        pid_table[selected_row][selected_column] += 10;
+        break;
+
+    // --- left button: decrement PID value (fast -10) ---
+    case BTN_OP_X:
+    if (active_tab == 1 && _check_table_selected(TABLE_ROW) && selected_row < TABLE_HEIGHT)
+    {
+        if (pid_table[selected_row][selected_column] >= 10)
+            pid_table[selected_row][selected_column] -= 10;
+        else
+            pid_table[selected_row][selected_column] = 0;
+    }
+    break;
+
+    // --- select: toggle between pull/push buttons
+    case BTN_OP_SELECT:
+        if (active_tab == 1 && (pull_btn || push_btn))
+        {
+            pull_btn = !pull_btn;
+            push_btn = !push_btn;
+        }
+        break;
+
+    // --- start: switch tabs ---
+    case BTN_OP_START:
+        tab_changer_main_page(R_RIGHT);
+        break;
+
+    case BTN_OP_MENU:
+    case BTN_OP_OPTION:
+    default:
+        break;
     }
 }
 
@@ -418,8 +458,8 @@ static void canvas_draw_task(lv_timer_t *timer)
     LV_UNUSED(timer);
     GB_GPIO_Set(TEST_IMU_IO, 1);
 
-    quad3d_get_image(canvas_buffer);
-    lv_canvas_set_buffer(model_canvas, canvas_buffer, LV_HOR_RES_MAX, LV_VER_RES_MAX, LV_COLOR_FORMAT_RGB565);
+    if (quad3d_get_image(canvas_buffer))
+        lv_canvas_set_buffer(model_canvas, canvas_buffer, LV_HOR_RES_MAX, LV_VER_RES_MAX, LV_COLOR_FORMAT_RGB565);
     GB_GPIO_Set(TEST_IMU_IO, 0);
 }
 

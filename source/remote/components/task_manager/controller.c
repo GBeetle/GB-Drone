@@ -21,25 +21,110 @@
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 #include "lora_state.h"
+#include "log_sys.h"
+#include "gb_timer.h"
 
-#define DEFAULT_VREF 0
 #define ADC_12BITS_SAMPLE_MAX 0xfff
+#define ADC_OUTPUT_MAX        1000
+#define DEADZONE              30
+#define FILTER_ALPHA          0.2f
 
-static uint16_t sample_middle;
+typedef struct {
+    int min;
+    int max;
+    int center;
+
+    float filtered;
+} adc_proc_t;
 
 static adc_oneshot_unit_handle_t adc_handle;
-static adc_cali_handle_t adc_cali_handle = NULL;
 
-static const adc_unit_t adc_unit = ADC_UNIT_1;
-static const adc_atten_t atten = ADC_ATTEN_DB_11;
+static const adc_unit_t adc_unit = ADC_UNIT_2;
+static const adc_atten_t atten = ADC_ATTEN_DB_12;
 
-static const adc_channel_t throttle_ch = ADC_CHANNEL_0;
-static const adc_channel_t yaw_ch = ADC_CHANNEL_1;
-static const adc_channel_t pitch_ch = ADC_CHANNEL_3;
+static const adc_channel_t throttle_ch = ADC_CHANNEL_2;
+static const adc_channel_t yaw_ch = ADC_CHANNEL_3;
+static const adc_channel_t pitch_ch = ADC_CHANNEL_5;
 static const adc_channel_t roll_ch = ADC_CHANNEL_4;
 
-void adc_wrapper_init(void)
+static adc_cali_handle_t throttle_cali_handle = NULL;
+static adc_cali_handle_t yaw_cali_handle = NULL;
+static adc_cali_handle_t pitch_cali_handle = NULL;
+static adc_cali_handle_t roll_cali_handle = NULL;
+
+static adc_proc_t throttle_proc = {
+    .min = 50,
+    .max = 3200,
+    .center = 1600,
+    .filtered = 500,
+};
+
+static adc_proc_t yaw_proc = {
+    .min = 0,
+    .max = 3200,
+    .center = 1620,
+    .filtered = 500,
+};
+
+static adc_proc_t pitch_proc = {
+    .min = 105,
+    .max = 2980,
+    .center = 1560,
+    .filtered = 500,
+};
+
+static adc_proc_t roll_proc = {
+    .min = 130,
+    .max = 3120,
+    .center = 1700,
+    .filtered = 500,
+};
+
+
+static inline int clamp(int x, int min, int max)
 {
+    if (x < min) return min;
+    if (x > max) return max;
+    return x;
+}
+
+// 0~1000
+static int normalize(int raw, adc_proc_t *p)
+{
+    raw = clamp(raw, p->min, p->max);
+
+    return (raw - p->min) * ADC_OUTPUT_MAX / (p->max - p->min);
+}
+
+// DEADZONE center = 500
+static int apply_deadzone(int val)
+{
+    if (abs(val - 500) < DEADZONE)
+        return 500;
+    return val;
+}
+
+// one order filter
+static float lowpass_filter(float input, float prev)
+{
+    return FILTER_ALPHA * input + (1 - FILTER_ALPHA) * prev;
+}
+
+static int adc_process(adc_proc_t *p, int raw)
+{
+    int val = normalize(raw, p);
+
+    val = apply_deadzone(val);
+
+    p->filtered = lowpass_filter((float)val, p->filtered);
+
+    return (int)(p->filtered + 0.5f);
+}
+
+GB_RESULT adc_wrapper_init(void)
+{
+    GB_RESULT res = GB_OK;
+
     adc_oneshot_unit_init_cfg_t init_config = {
         .unit_id = adc_unit,
     };
@@ -50,54 +135,45 @@ void adc_wrapper_init(void)
         .atten = atten,
     };
 
-    adc_oneshot_config_channel(adc_handle, throttle_ch, &config);
-    adc_oneshot_config_channel(adc_handle, yaw_ch, &config);
-    adc_oneshot_config_channel(adc_handle, pitch_ch, &config);
-    adc_oneshot_config_channel(adc_handle, roll_ch, &config);
+    CHK_ESP_ERROR(adc_oneshot_config_channel(adc_handle, throttle_ch, &config), GB_ADC_INIT_FAIL);
+    CHK_ESP_ERROR(adc_oneshot_config_channel(adc_handle, yaw_ch, &config), GB_ADC_INIT_FAIL);
+    CHK_ESP_ERROR(adc_oneshot_config_channel(adc_handle, pitch_ch, &config), GB_ADC_INIT_FAIL);
+    CHK_ESP_ERROR(adc_oneshot_config_channel(adc_handle, roll_ch, &config), GB_ADC_INIT_FAIL);
 
-
-#if 0
-    adc_cali_curve_fitting_config_t cali_config = {
+    adc_cali_curve_fitting_config_t throttle_cali_config = {
         .unit_id = adc_unit,
+        .chan = throttle_ch,
         .atten = atten,
         .bitwidth = ADC_BITWIDTH_12,
     };
-    adc_cali_create_scheme_curve_fitting(&cali_config, &adc_cali_handle);
-#endif
+    CHK_ESP_ERROR(adc_cali_create_scheme_curve_fitting(&throttle_cali_config, &throttle_cali_handle), GB_ADC_CALI_FAIL);
 
-    uint16_t sample_sum = 0;
-    for (int i = 0; i < 10; i++)
-    {
-        uint16_t adc_val;
+    adc_cali_curve_fitting_config_t yaw_cali_config = {
+        .unit_id = adc_unit,
+        .chan = yaw_ch,
+        .atten = atten,
+        .bitwidth = ADC_BITWIDTH_12,
+    };
+    CHK_ESP_ERROR(adc_cali_create_scheme_curve_fitting(&yaw_cali_config, &yaw_cali_handle), GB_ADC_CALI_FAIL);
 
-        adc_read_by_item(ADC_YAW, &adc_val, false);
-        sample_sum += adc_val;
-        adc_read_by_item(ADC_PITCH, &adc_val, false);
-        sample_sum += adc_val;
-        adc_read_by_item(ADC_ROLL, &adc_val, false);
-        sample_sum += adc_val;
-    }
-    sample_middle = sample_sum / 30;
-}
+    adc_cali_curve_fitting_config_t pitch_cali_config = {
+        .unit_id = adc_unit,
+        .chan = pitch_ch,
+        .atten = atten,
+        .bitwidth = ADC_BITWIDTH_12,
+    };
+    CHK_ESP_ERROR(adc_cali_create_scheme_curve_fitting(&pitch_cali_config, &pitch_cali_handle), GB_ADC_CALI_FAIL);
 
-// constrain output to 0 ~ ADC_CONSTRAIN_MAX(1000)
-static uint16_t _constrain_adc_output(int origin)
-{
-    return origin / (ADC_12BITS_SAMPLE_MAX / (float)ADC_CONSTRAIN_MAX);
-}
+    adc_cali_curve_fitting_config_t roll_cali_config = {
+        .unit_id = adc_unit,
+        .chan = roll_ch,
+        .atten = atten,
+        .bitwidth = ADC_BITWIDTH_12,
+    };
+    CHK_ESP_ERROR(adc_cali_create_scheme_curve_fitting(&roll_cali_config, &roll_cali_handle), GB_ADC_CALI_FAIL);
 
-//      0 ~ middle                => 0 ~ ADC_CONSTRAIN_MAX/2
-// middle ~ ADC_12BITS_SAMPLE_MAX => ADC_CONSTRAIN_MAX/2 ~ ADC_CONSTRAIN_MAX
-static uint16_t _constrain_adc_by_section(int origin)
-{
-    if (origin <= sample_middle)
-        return origin / (sample_middle / ((float)ADC_CONSTRAIN_MAX / 2));
-    else
-    {
-        uint16_t section = ADC_12BITS_SAMPLE_MAX - sample_middle;
-        origin -= sample_middle;
-        return (ADC_CONSTRAIN_MAX / 2) + origin / ((float)section / (ADC_CONSTRAIN_MAX / 2));
-    }
+error_exit:
+    return res;
 }
 
 /*
@@ -109,6 +185,8 @@ void adc_read_by_item(uint8_t item, uint16_t *adc_val, uint8_t is_constrained)
 {
     int raw = 0;
     adc_channel_t ch;
+    //adc_cali_handle_t cali_handle;
+    adc_proc_t *proc = NULL;
 
     *adc_val = 0;
     if (item >= ADC_TYPE_MAX)
@@ -118,31 +196,106 @@ void adc_read_by_item(uint8_t item, uint16_t *adc_val, uint8_t is_constrained)
     {
     case ADC_THROTTLE:
         ch = throttle_ch;
+        proc = &throttle_proc;
+        //cali_handle = throttle_cali_handle;
         break;
     case ADC_YAW:
         ch = yaw_ch;
+        proc = &yaw_proc;
+        //cali_handle = yaw_cali_handle;
         break;
     case ADC_PITCH:
         ch = pitch_ch;
+        proc = &pitch_proc;
+        //cali_handle = pitch_cali_handle;
         break;
     case ADC_ROLL:
         ch = roll_ch;
+        proc = &roll_proc;
+        //cali_handle = roll_cali_handle;
         break;
     default:
         return;
     }
 
     adc_oneshot_read(adc_handle, ch, &raw);
+    //printf("CH %d RAW: %d\n", ch, raw);
+    //adc_cali_raw_to_voltage(cali_handle, raw, (int*)adc_val);
+    *adc_val = adc_process(proc, raw);
+}
 
-    if (raw >= 0 && is_constrained)
-    {
-        if (ADC_THROTTLE == item)
-            *adc_val = _constrain_adc_output(raw);
-        else
-            *adc_val = _constrain_adc_by_section(raw);
+#define BTN_COUNT    13
+#define BTN_DEBUGANCE_US   100 // 100ms debounce
+
+static QueueHandle_t btn_event_queue = NULL;
+
+typedef struct {
+    int gpio_num;
+    GB_REMOTE_CONTROL_ID btn_id;
+    uint64_t last_isr_time;
+} btn_entry_t;
+
+static btn_entry_t btn_table[BTN_COUNT] = {
+    { BTN_GPIO_DPAD_UP,    BTN_DPAD_UP,    0 },
+    { BTN_GPIO_DPAD_DOWN,  BTN_DPAD_DOWN,  0 },
+    { BTN_GPIO_DPAD_LEFT,  BTN_DPAD_LEFT,  0 },
+    { BTN_GPIO_DPAD_RIGHT, BTN_DPAD_RIGHT, 0 },
+    { BTN_GPIO_DPAD_MID,   BTN_DPAD_MID,   0 },
+    { BTN_GPIO_OP_A,    BTN_OP_A,    0 },
+    { BTN_GPIO_OP_B,    BTN_OP_B,    0 },
+    { BTN_GPIO_OP_X,    BTN_OP_X,    0 },
+    { BTN_GPIO_OP_Y,    BTN_OP_Y,    0 },
+    { BTN_GPIO_OP_MENU,    BTN_OP_MENU,    0 },
+    { BTN_GPIO_OP_OPTION,  BTN_OP_OPTION,  0 },
+    { BTN_GPIO_OP_START,   BTN_OP_START,   0 },
+    { BTN_GPIO_OP_SELECT,  BTN_OP_SELECT,  0 }
+};
+
+static void IRAM_ATTR button_isr_handler(void *arg)
+{
+    btn_entry_t *entry = (btn_entry_t *)arg;
+    uint64_t now = 0;
+
+    GB_GetTimerMs(&now);
+    if (now - entry->last_isr_time < BTN_DEBUGANCE_US) {
+        return;
     }
-    else
+    entry->last_isr_time = now;
+
+    GB_REMOTE_CONTROL_ID id = entry->btn_id;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xQueueSendFromISR(btn_event_queue, &id, &xHigherPriorityTaskWoken);
+    if (xHigherPriorityTaskWoken)
+        portYIELD_FROM_ISR();
+}
+
+void button_init(void)
+{
+    btn_event_queue = xQueueCreate(8, sizeof(GB_REMOTE_CONTROL_ID));
+
+    gpio_config_t io_conf = {
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_NEGEDGE, // active low: trigger on falling edge
+        .pin_bit_mask = 0,
+    };
+
+    for (int i = 0; i < BTN_COUNT; i++)
     {
-        *adc_val = raw;
+        io_conf.pin_bit_mask = 1ULL << btn_table[i].gpio_num;
+        gpio_config(&io_conf);
     }
+
+    gpio_install_isr_service(0);
+
+    for (int i = 0; i < BTN_COUNT; i++)
+    {
+        gpio_isr_handler_add(btn_table[i].gpio_num, button_isr_handler, &btn_table[i]);
+    }
+}
+
+QueueHandle_t button_get_queue(void)
+{
+    return btn_event_queue;
 }

@@ -46,7 +46,7 @@ void app_main(void)
     //GB_GPIO_Reset( TEST_IMU_IO );
     //GB_GPIO_SetDirection( TEST_IMU_IO, GB_GPIO_OUTPUT );
 
-    xTaskCreate(controller_task, "controller", 1024 * 5, NULL, 2 | portPRIVILEGE_BIT, NULL);
+    xTaskCreate(controller_task, "controller", 1024 * 5, NULL, 3 | portPRIVILEGE_BIT, NULL);
     xTaskCreatePinnedToCore(gui_task, "gui", 1024 * 10,
 #if defined CONFIG_LV_USE_DEMO_WIDGETS
                             lv_demo_widgets,
@@ -60,5 +60,5 @@ void app_main(void)
                             NULL,
 #endif
                             1 | portPRIVILEGE_BIT, NULL, tskNO_AFFINITY);
-    xTaskCreate(rf_loop, "nrf24_loop", 4096, NULL, 3 | portPRIVILEGE_BIT, NULL);
+    xTaskCreate(rf_loop, "nrf24_loop", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL);
 }
