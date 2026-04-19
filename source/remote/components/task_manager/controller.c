@@ -233,7 +233,7 @@ static QueueHandle_t control_event_queue = NULL;
 
 // Mutex to protect toggle switch state
 static SemaphoreHandle_t toggle_state_mutex = NULL;
-static GB_TOGGLE_SWITCH_STATE current_toggle_state = {0};
+static GB_TOGGLE_SWITCH_STATE g_current_toggle_state = {0};
 
 typedef struct {
     int gpio_num;
@@ -308,8 +308,6 @@ static void IRAM_ATTR toggle_switch_isr_handler(void *arg)
 
     GB_GPIO_Get(TOGGLE_SW_4_GPIO, &level);
     new_state.sw4_state = !level;
-
-    current_toggle_state = new_state;
 
     GB_CONTROL_EVENT event = {
         .type = GB_EVENT_TOGGLE_SWITCH,
@@ -406,7 +404,7 @@ void controller_input_init(void)
         // Protect write to global state with mutex
         if (xSemaphoreTake(toggle_state_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
         {
-            current_toggle_state = initial_state;
+            g_current_toggle_state = initial_state;
             xSemaphoreGive(toggle_state_mutex);
         }
     }
@@ -429,7 +427,20 @@ void controller_get_toggle_state(GB_TOGGLE_SWITCH_STATE *state)
 
     if (xSemaphoreTake(toggle_state_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
-        *state = current_toggle_state;
+        *state = g_current_toggle_state;
+        xSemaphoreGive(toggle_state_mutex);
+    }
+}
+
+void controller_set_toggle_state(const GB_TOGGLE_SWITCH_STATE *state)
+{
+    if (state == NULL) {
+        return;
+    }
+
+    if (xSemaphoreTake(toggle_state_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
+    {
+        g_current_toggle_state = *state;
         xSemaphoreGive(toggle_state_mutex);
     }
 }

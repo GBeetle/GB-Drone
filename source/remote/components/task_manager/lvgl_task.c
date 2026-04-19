@@ -29,10 +29,13 @@
 #include "gpio_setting.h"
 #include "io_define.h"
 #include "task_manager.h"
+#include "dashboard_widgets.h"
 
 /*********************
  *      DEFINES
  *********************/
+#define SHOW_FPS_COUNTER 1
+
 #define FIRST_COL_PAD (-8)
 #define TABLE_HEIGHT (9)
 #define TABLE_WIDTH 4
@@ -67,6 +70,10 @@ static void pid_setting_create(lv_obj_t *parent);
 static void color_chg_event_cb(lv_event_t *e);
 static void tab_changer_main_page(GB_REMOTE_CONTROL_ID op);
 static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_tab);
+#if SHOW_FPS_COUNTER
+static void create_fps_counter(lv_obj_t *parent);
+static void fps_update_task(lv_timer_t *timer);
+#endif
 
 /**********************
  *  STATIC VARIABLES
@@ -74,6 +81,7 @@ static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_ta
 static lv_obj_t *tv = NULL;
 static lv_obj_t *t1 = NULL;
 static lv_obj_t *t2 = NULL;
+static lv_obj_t *status_bar = NULL;
 
 static lv_style_t style_cell_selected;
 
@@ -87,10 +95,11 @@ static bool push_btn = false;
 static int selected_row = -1;
 static int selected_column = -1;
 
-lv_timer_t *draw_task;
+lv_timer_t *draw_task = NULL;
 lv_obj_t *model_canvas = NULL;
 uint32_t canvas_buffer_size = LV_HOR_RES_MAX * LV_VER_RES_MAX * 2;
 uint16_t *canvas_buffer = NULL;
+static bool canvas_initializing = false;
 
 // battery
 int battery_level = 0;
@@ -105,6 +114,13 @@ static lv_obj_t *toggle_sw_labels[4] = {NULL}; // Text labels for each switch
 static lv_style_t style_switch_on;
 static lv_style_t style_switch_off;
 static lv_style_t style_switch_knob;
+
+#if SHOW_FPS_COUNTER
+static lv_obj_t *fps_label = NULL;
+static uint32_t fps_frame_count = 0;
+static uint32_t fps_last_time = 0;
+static uint32_t fps_current = 0;
+#endif
 
 static void _init_selected_table_cell()
 {
@@ -214,22 +230,62 @@ static void _run_table_select_column(TABLE_OPERATION operation)
 
 void init_canvas()
 {
-    if (NULL == canvas_buffer)
-        canvas_buffer = (uint16_t *)heap_caps_malloc(canvas_buffer_size, MALLOC_CAP_DMA);
-    if (canvas_buffer == NULL)
+    if (canvas_initializing)
     {
-        GB_DEBUGE(DISP_TAG, "init_canvas allocate buffer failed");
+        GB_DEBUGW(DISP_TAG, "Canvas initialization already in process");
         return;
+    }
+    canvas_initializing = true;
+
+    if (NULL == canvas_buffer)
+    {
+        canvas_buffer = (uint16_t *)heap_caps_malloc(canvas_buffer_size, MALLOC_CAP_DMA);
+        if (canvas_buffer == NULL)
+        {
+            GB_DEBUGE(DISP_TAG, "init_canvas allocate buffer failed");
+            canvas_initializing = false;
+            return;
+        }
     }
 
     if (NULL == model_canvas)
+    {
         model_canvas = lv_canvas_create(lv_screen_active());
+
+        lv_obj_set_size(model_canvas, LV_HOR_RES_MAX, LV_VER_RES_MAX - 30);
+        lv_obj_align(model_canvas, LV_ALIGN_TOP_LEFT, 0, 30);
+
+        lv_obj_move_background(model_canvas);
+        if (status_bar)
+            lv_obj_move_foreground(status_bar);
+
+        GB_DEBUGI(DISP_TAG, "Canvas created and positioned below status bar");
+    }
+
+    canvas_initializing = false;
 }
 
 void deinit_canvas()
 {
-    free(canvas_buffer);
-    canvas_buffer = NULL;
+    if (canvas_initializing)
+    {
+        GB_DEBUGW(DISP_TAG, "Canvas initialization already in process, deferring cleanup");
+        return;
+    }
+
+    if (model_canvas)
+    {
+        lv_obj_delete(model_canvas);
+        model_canvas = NULL;
+    }
+
+    if (canvas_buffer)
+    {
+        free(canvas_buffer);
+        canvas_buffer = NULL;
+    }
+
+    GB_DEBUGI(DISP_TAG, "Canvas cleaned up");
 }
 
 void gb_remote_single_control(GB_REMOTE_CONTROL_ID button_id)
@@ -448,6 +504,7 @@ static void toggle_switch_update_task(lv_timer_t *timer)
     LV_UNUSED(timer);
     GB_TOGGLE_SWITCH_STATE toggle_state;
     static GB_TOGGLE_SWITCH_STATE prev_state = {0};
+    static bool processing_3d_toggle = false;
 
     // Get current toggle switch state using thread-safe getter
     controller_get_toggle_state(&toggle_state);
@@ -513,21 +570,52 @@ static void toggle_switch_update_task(lv_timer_t *timer)
         }
     }
 
-    // Automatically enable/disable 3D model based on switch 2
-    if (toggle_state.sw2_state && !draw_task)
+    // Handle 3D model toggle with debouncing and state protection
+    bool sw2_changed = (toggle_state.sw2_state != prev_state.sw2_state);
+
+    if (sw2_changed && !processing_3d_toggle)
     {
-        // Switch to 3D model mode
-        init_canvas();
-        draw_task = lv_timer_create(canvas_draw_task, 100, NULL);
-        atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
-    }
-    else if (!toggle_state.sw2_state && draw_task)
-    {
-        // Switch back to UI mode
-        lv_timer_delete(draw_task);
-        draw_task = NULL;
-        deinit_canvas();
-        atomic_store(&lora_send_config, LORA_SEND_NA);
+        processing_3d_toggle = true;
+
+        if (toggle_state.sw2_state && !draw_task)
+        {
+            // Switch to 3D model mode
+            GB_DEBUGI(DISP_TAG, "Enabling 3D mode");
+            // Hide dashboard before showing 3D model
+            dashboard_hide();
+            init_canvas();
+
+            // Only create timer if canvas was successfully initialized
+            if (model_canvas != NULL)
+            {
+                draw_task = lv_timer_create(canvas_draw_task, 100, NULL);
+                atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
+                GB_DEBUGI(DISP_TAG, "3D mode enabled successfully");
+            }
+            else
+            {
+                GB_DEBUGI(DISP_TAG, "Failed to initialize canvas for 3D mode");
+                // Show dashboard again if 3D init failed
+                dashboard_show();
+            }
+        }
+        else if (!toggle_state.sw2_state && draw_task)
+        {
+            // Switch back to UI mode
+            GB_DEBUGI(DISP_TAG, "Disabling 3D mode");
+
+            lv_timer_delete(draw_task);
+            draw_task = NULL;
+
+            deinit_canvas();
+            atomic_store(&lora_send_config, LORA_SEND_NA);
+
+            // Show dashboard when returning from 3D mode
+            dashboard_show();
+            GB_DEBUGI(DISP_TAG, "3D mode disabled successfully");
+        }
+
+        processing_3d_toggle = false;
     }
 
     // Update PID PULL/PUSH state based on switches 3 and 4
@@ -560,8 +648,6 @@ static void toggle_switch_update_task(lv_timer_t *timer)
  **********************/
 void welkin_widgets()
 {
-    tv = lv_tabview_create(lv_screen_active());
-
     // Initialize custom styles for toggle switches
     // Style for switch when ON (checked)
     lv_style_init(&style_switch_on);
@@ -578,35 +664,17 @@ void welkin_widgets()
     lv_style_set_bg_color(&style_switch_knob, lv_color_hex(0xFFFFFFFF)); // White knob
     lv_style_set_pad_all(&style_switch_knob, -2); // Make knob slightly larger
 
-    // Battery voltage display - top right
-    lv_obj_t *battery_cont = lv_obj_create(lv_screen_active());
-    lv_obj_set_size(battery_cont, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_align(battery_cont, LV_ALIGN_TOP_RIGHT, -2, 0);
-    lv_obj_set_layout(battery_cont, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(battery_cont, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(battery_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_bg_opa(battery_cont, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_opa(battery_cont, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_pad_all(battery_cont, 2, 0);
-
-    battery_label = lv_label_create(battery_cont);
-    lv_label_set_text(battery_label, "0%");
-    lv_obj_set_style_text_font(battery_label, &lv_font_montserrat_16, 0);
-
-    battery_icon = lv_label_create(battery_cont);
-    lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_EMPTY);
-
-    // Toggle switches display - top left with LVGL switch widgets
-    lv_obj_t *toggle_cont = lv_obj_create(lv_screen_active());
-    lv_obj_set_size(toggle_cont, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_align(toggle_cont, LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_set_layout(toggle_cont, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(toggle_cont, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(toggle_cont, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-    lv_obj_set_style_bg_opa(toggle_cont, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_opa(toggle_cont, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_pad_all(toggle_cont, 2, 0);
-    lv_obj_set_style_pad_row(toggle_cont, 6, 0);
+    // Create a top status bar container that spans full width
+    status_bar = lv_obj_create(lv_screen_active());
+    lv_obj_set_size(status_bar, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_align(status_bar, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_layout(status_bar, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(status_bar, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(status_bar, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_opa(status_bar, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_opa(status_bar, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_pad_all(status_bar, 4, 0);
+    lv_obj_set_style_pad_column(status_bar, 8, 0); // Equal spacing between items
 
     // Create 4 toggle switch rows (each with: label + switch + state text)
     const char *initial_labels[4] = {"UI", "UI", "_", "_"};
@@ -614,7 +682,7 @@ void welkin_widgets()
     for (int i = 0; i < 4; i++)
     {
         // Create horizontal container for each switch (switch + label only, no prefix)
-        lv_obj_t *sw_group = lv_obj_create(toggle_cont);
+        lv_obj_t *sw_group = lv_obj_create(status_bar);
         lv_obj_set_size(sw_group, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
         lv_obj_set_layout(sw_group, LV_LAYOUT_FLEX);
         lv_obj_set_flex_flow(sw_group, LV_FLEX_FLOW_ROW);
@@ -635,13 +703,35 @@ void welkin_widgets()
         lv_obj_add_style(toggle_sw_widgets[i], &style_switch_knob, LV_PART_KNOB);
 
         // State label: shows current option in GREEN (e.g., "UI|FLY")
-        // Format: "UI|FLY" with selected one in green
         toggle_sw_labels[i] = lv_label_create(sw_group);
         lv_label_set_text(toggle_sw_labels[i], initial_labels[i]);
         lv_obj_set_style_text_font(toggle_sw_labels[i], &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_color(toggle_sw_labels[i], lv_color_hex(0x00C853), 0); // Green for selected
         lv_label_set_recolor(toggle_sw_labels[i], true); // Enable color codes (set once at creation)
     }
+
+    // Battery display - add to status bar
+    lv_obj_t *battery_cont = lv_obj_create(status_bar);
+    lv_obj_set_size(battery_cont, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_layout(battery_cont, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(battery_cont, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(battery_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_opa(battery_cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_opa(battery_cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_pad_all(battery_cont, 2, 0);
+
+    battery_label = lv_label_create(battery_cont);
+    lv_label_set_text(battery_label, "0%");
+    lv_obj_set_style_text_font(battery_label, &lv_font_montserrat_16, 0);
+
+    battery_icon = lv_label_create(battery_cont);
+    lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_EMPTY);
+    lv_obj_set_style_text_font(battery_icon, &lv_font_montserrat_16, 0);
+
+    // Create tabview AFTER status bar, positioned below it
+    tv = lv_tabview_create(lv_screen_active());
+    lv_obj_align(tv, LV_ALIGN_TOP_MID, 0, 30); // Offset by status bar height
+    lv_obj_set_size(tv, LV_PCT(100), LV_PCT(100) - 30); // Adjust height to account for status bar
 
     t1 = lv_tabview_add_tab(tv, "GB Drone");
     t2 = lv_tabview_add_tab(tv, "PID");
@@ -657,8 +747,16 @@ void welkin_widgets()
     lv_obj_add_flag(remote_controller, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_event_cb(remote_controller, remote_controller_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
 
+#if SHOW_FPS_COUNTER
+    create_fps_counter(lv_screen_active());
+    fps_last_time = lv_tick_get();
+#endif
+
     lv_timer_create(battery_update_task, 500, NULL);
     lv_timer_create(toggle_switch_update_task, 100, NULL);
+#if SHOW_FPS_COUNTER
+    lv_timer_create(fps_update_task, 50, NULL);
+#endif
 }
 
 /**********************
@@ -667,26 +765,15 @@ void welkin_widgets()
 
 static void welkin_fc_create(lv_obj_t *parent)
 {
-    lv_obj_set_layout(parent, LV_LAYOUT_FLEX);
-    lv_obj_set_flex_flow(parent, LV_FLEX_FLOW_ROW_WRAP);
-    lv_obj_set_flex_align(parent, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-
-    lv_obj_t *info_label = lv_label_create(parent);
-    lv_label_set_text(info_label, "GB-Drone Remote\n\n"
-        "Use toggle switches:\n"
-        "SW1: UI/FLY mode\n"
-        "SW2: UI/3D view\n"
-        "SW3: PULL PID\n"
-        "SW4: PUSH PID");
-    lv_obj_align(info_label, LV_ALIGN_CENTER, 0, 0);
+    dashboard_create(parent);
 }
 
-static void lvgl_create_pid_table(lv_obj_t *parent, int32_t height, int32_t width)
+static void lvgl_create_pid_table(lv_obj_t *parent)
 {
     pid_table_obj = lv_table_create(parent);
     char pid_str[8];
 
-    GB_DEBUGI(DISP_TAG, "Creating PID table: withd = %d, height = %d", width, height);
+    GB_DEBUGI(DISP_TAG, "Creating PID table");
 
     lv_style_init(&style_cell_selected);
     lv_style_set_border_color(&style_cell_selected, lv_color_hex(0xFF0000));
@@ -700,16 +787,15 @@ static void lvgl_create_pid_table(lv_obj_t *parent, int32_t height, int32_t widt
     lv_table_set_column_count(pid_table_obj, TABLE_WIDTH);
     lv_table_set_row_count(pid_table_obj, TABLE_HEIGHT);
 
-    lv_obj_set_size(pid_table_obj, width, LV_SIZE_CONTENT);
-    lv_obj_align(pid_table_obj, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_width(pid_table_obj, LV_PCT(95));
+    lv_obj_set_height(pid_table_obj, LV_SIZE_CONTENT);
+    lv_obj_align(pid_table_obj, LV_ALIGN_TOP_MID, 0, 10);
     lv_obj_clear_flag(pid_table_obj, LV_OBJ_FLAG_SCROLLABLE);
 
-    for (int i = 0; i < TABLE_WIDTH; i++)
+    lv_table_set_column_width(pid_table_obj, 0, 50);
+    for (int i = 1; i < TABLE_WIDTH; i++)
     {
-    if (0 == i)
-        lv_table_set_column_width(pid_table_obj, i, width / TABLE_WIDTH + FIRST_COL_PAD);
-    else
-        lv_table_set_column_width(pid_table_obj, i, (width - FIRST_COL_PAD) / TABLE_WIDTH);
+        lv_table_set_column_width(pid_table_obj, i, 80);
     }
 
     /*Fill the first column*/
@@ -745,12 +831,9 @@ static void pid_setting_create(lv_obj_t *parent)
     // Enable scrolling for the parent container
     lv_obj_set_scrollbar_mode(parent, LV_SCROLLBAR_MODE_AUTO);
 
-    int32_t parent_w = lv_obj_get_width(parent);
-    int32_t parent_h = lv_obj_get_height(parent);
+    GB_DEBUGI(DISP_TAG, "Creating PID tab content");
 
-    GB_DEBUGI(DISP_TAG, "PID tab dimensions: width=%d, height=%d", parent_w, parent_h);
-
-    lvgl_create_pid_table(parent, parent_h, parent_w * 95 / 100);
+    lvgl_create_pid_table(parent);
 }
 
 static void color_chg_event_cb(lv_event_t *e)
@@ -797,3 +880,59 @@ GB_REMOTE_USER_MODE gb_get_user_mode()
     else
         return GB_USER_MODE_MAX;
 }
+
+#if SHOW_FPS_COUNTER
+
+/**
+ * @brief Create FPS counter label at bottom right corner
+ * @param parent Parent screen object
+ */
+static void create_fps_counter(lv_obj_t *parent)
+{
+    fps_label = lv_label_create(parent);
+    lv_label_set_text(fps_label, "FPS: ---");
+    lv_obj_set_style_text_color(fps_label, lv_color_hex(0x00FF00), 0); // Green text
+    lv_obj_set_style_bg_color(fps_label, lv_color_hex(0x000000), 0); // Black background
+    lv_obj_set_style_bg_opa(fps_label, LV_OPA_70, 0); // Semi-transparent
+    lv_obj_set_style_pad_all(fps_label, 4, 0);
+    lv_obj_set_style_text_font(fps_label, &lv_font_montserrat_14, 0);
+
+    // Position at bottom right corner
+    lv_obj_align(fps_label, LV_ALIGN_BOTTOM_RIGHT, -5, -5);
+
+    GB_DEBUGI(DISP_TAG, "FPS counter created at bottom right");
+}
+
+static void fps_update_task(lv_timer_t *timer)
+{
+    LV_UNUSED(timer);
+
+    if (fps_label == NULL) return;
+
+    fps_frame_count++;
+    uint32_t current_time = lv_tick_get();
+
+    // Update FPS every 500ms
+    if (current_time - fps_last_time >= 500)
+    {
+        uint32_t elapsed_ms = current_time - fps_last_time;
+        fps_current = (fps_frame_count * 1000) / elapsed_ms;
+
+        char buf[16];
+        snprintf(buf, sizeof(buf), "FPS:%lu", (unsigned long)fps_current);
+        lv_label_set_text(fps_label, buf);
+
+        // Reset counters
+        fps_frame_count = 0;
+        fps_last_time = current_time;
+
+        // Color code based on performance
+        if (fps_current >= 30)
+            lv_obj_set_style_text_color(fps_label, lv_color_hex(0x00FF00), 0); // Green: Good
+        else if (fps_current >= 20)
+            lv_obj_set_style_text_color(fps_label, lv_color_hex(0xFFFF00), 0); // Yellow: OK
+        else
+            lv_obj_set_style_text_color(fps_label, lv_color_hex(0xFF0000), 0); // Red: Poor
+    }
+}
+#endif

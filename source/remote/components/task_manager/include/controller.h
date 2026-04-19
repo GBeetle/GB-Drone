@@ -118,6 +118,7 @@ void adc_read_by_item(uint8_t item, uint16_t *adc_val, uint8_t is_constrained);
 void controller_input_init(void);
 QueueHandle_t controller_get_event_queue(void);
 void controller_get_toggle_state(GB_TOGGLE_SWITCH_STATE *state);
+void controller_set_toggle_state(const GB_TOGGLE_SWITCH_STATE *state);
 
 GB_REMOTE_USER_MODE gb_get_user_mode();
 void gb_remote_single_control(GB_REMOTE_CONTROL_ID button_id);

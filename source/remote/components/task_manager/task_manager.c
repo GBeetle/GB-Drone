@@ -29,7 +29,6 @@
 #include "esp_timer.h"
 #include "quad_3d.h"
 #include "lora_state.h"
-#include "sdkconfig.h"
 #include "disp_dsi.h"
 
 #define LV_TICK_PERIOD_MS 10
@@ -40,10 +39,6 @@ typedef void (*create_demo)(void);
 
 SemaphoreHandle_t xGuiSemaphore;
 atomic_uint_fast32_t lora_send_config = ATOMIC_VAR_INIT(LORA_SEND_NA);
-
-static GB_PID_TABLE_T g_remote_pid_table = {0};
-static GB_REASSEMBLY_CTX_T g_remote_reassembly_ctx = {0};
-static uint8_t g_remote_msg_id_counter = 0;
 
 static void lv_tick_task(void *arg)
 {
@@ -172,6 +167,7 @@ void controller_task(void *pvParameter)
             {
                 // Toggle switch changed
                 current_toggle_state = event.data.switch_state;
+                controller_set_toggle_state(&event.data.switch_state);
             }
         }
 
@@ -184,6 +180,13 @@ void controller_task(void *pvParameter)
             GB_DEBUGI(GB_INFO, "Toggle switch changed: SW1=%d, SW2=%d, SW3=%d, SW4=%d",
                 current_toggle_state.sw1_state, current_toggle_state.sw2_state,
                 current_toggle_state.sw3_state, current_toggle_state.sw4_state);
+
+            // Handle SW1: Fly mode
+            if (current_toggle_state.sw3_state && !prev_toggle_state.sw3_state)
+            {
+                GB_DEBUGI(GB_INFO, "SW1 triggered: Fly Mode");
+                atomic_store(&lora_send_config, LORA_SEND_CONTROL_COMMAND);
+            }
 
             // Handle SW3: Pull PID table from master (rising edge)
             if (current_toggle_state.sw3_state && !prev_toggle_state.sw3_state)
@@ -212,6 +215,10 @@ void controller_task(void *pvParameter)
 
 void rf_loop(void *arg)
 {
+    static GB_PID_TABLE_T remote_pid_table = {0};
+    static GB_REASSEMBLY_CTX_T remote_reassembly_ctx = {0};
+    static uint8_t remote_msg_id_counter = 0;
+
     uint8_t send_retry = 0;
     uint64_t receive_waittime = 0;
     uint64_t time_now = 0;
@@ -221,17 +228,17 @@ void rf_loop(void *arg)
     GB_LORA_PACKAGE_T receive_package;
 
     GB_LoraSystemInit(LORA_SEND, 1, &lora_state);
-    GB_ReassemblyInit(&g_remote_reassembly_ctx);
+    GB_ReassemblyInit(&remote_reassembly_ctx);
 
     // Initialize demo PID table with some default values
     for (int i = 0; i < PID_MAX; i++)
     {
-        g_remote_pid_table.params[i].kp = 100 + i * 10; // Example: 100, 110, 120...
-        g_remote_pid_table.params[i].ki = 50 + i * 5;
-        g_remote_pid_table.params[i].kd = 20 + i * 2;
+        remote_pid_table.params[i].kp = 100 + i * 10; // Example: 100, 110, 120...
+        remote_pid_table.params[i].ki = 50 + i * 5;
+        remote_pid_table.params[i].kd = 20 + i * 2;
     }
 
-    g_remote_pid_table.crc16 = GB_PidTableCalculateCRC(&g_remote_pid_table);
+    remote_pid_table.crc16 = GB_PidTableCalculateCRC(&remote_pid_table);
 
     while (true)
     {
@@ -268,14 +275,14 @@ void rf_loop(void *arg)
                 GB_DEBUGI(RF24_TAG, "Sending PID table to master via fragments...");
 
                 // Calculate CRC for PID table
-                g_remote_pid_table.crc16 = GB_PidTableCalculateCRC(&g_remote_pid_table);
+                remote_pid_table.crc16 = GB_PidTableCalculateCRC(&remote_pid_table);
 
                 // Send PID table as fragmented message
-                g_remote_msg_id_counter++;
+                remote_msg_id_counter++;
                 if (GB_LoraFragmentSend(
-                    (const uint8_t *)&g_remote_pid_table,
-                    sizeof(g_remote_pid_table),
-                    g_remote_msg_id_counter,
+                    (const uint8_t *)&remote_pid_table,
+                    sizeof(remote_pid_table),
+                    remote_msg_id_counter,
                     &lora_state) == GB_OK)
                 {
                     GB_DEBUGI(RF24_TAG, "PID table sent successfully!");
@@ -313,12 +320,6 @@ void rf_loop(void *arg)
                 // GB_DEBUGI(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));
                 if (LORA_SEND_SKY_WAL_CONFIG == current_config || LORA_SEND_CONTROL_COMMAND == current_config) // don't need ack for esc setting
                     continue;
-                if (LORA_SEND_PID_SET_INFO == current_config && GB_GET_PID_INFO_0_7 == send_package.config.set_type)
-                {
-                    //uint16_t fake_tbl[1][1];
-                    //sendPIDTblInfo(1, 1, fake_tbl);
-                    continue;
-                }
                 lora_state = LORA_RECEIVE;
                 radio.startListening(&radio);
                 send_retry = 0;
@@ -359,7 +360,7 @@ void rf_loop(void *arg)
                         GB_DEBUGI(RF24_TAG, "Received PID fragment: msg_id=%d, frag=%d/%d",
                         frag->msg_id, frag->frag_index + 1, frag->frag_total);
 
-                        GB_FRAG_RESULT frag_res = GB_LoraFragmentReceive(frag, &g_remote_reassembly_ctx,
+                        GB_FRAG_RESULT frag_res = GB_LoraFragmentReceive(frag, &remote_reassembly_ctx,
                         complete_msg, &msg_len);
 
                         // Send ACK for this fragment
@@ -383,10 +384,10 @@ void rf_loop(void *arg)
                         // Copy to PID table structure
                         if (msg_len >= sizeof(GB_PID_TABLE_T))
                         {
-                            memcpy(&g_remote_pid_table, complete_msg, sizeof(GB_PID_TABLE_T));
+                            memcpy(&remote_pid_table, complete_msg, sizeof(GB_PID_TABLE_T));
 
                             // Validate CRC
-                            if (GB_PidTableValidate(&g_remote_pid_table) == GB_OK)
+                            if (GB_PidTableValidate(&remote_pid_table) == GB_OK)
                             {
                                 GB_DEBUGI(RF24_TAG, "PID table received and validated!");
 
@@ -395,9 +396,9 @@ void rf_loop(void *arg)
                                 {
                                     GB_DEBUGI(RF24_TAG, "PID[%d]: Kp=%d, Ki=%d, Kd=%d",
                                     i,
-                                    g_remote_pid_table.params[i].kp,
-                                    g_remote_pid_table.params[i].ki,
-                                    g_remote_pid_table.params[i].kd);
+                                    remote_pid_table.params[i].kp,
+                                    remote_pid_table.params[i].ki,
+                                    remote_pid_table.params[i].kd);
                                 }
 
                                 // TODO: Display on screen, store to file, etc.
@@ -421,18 +422,6 @@ void rf_loop(void *arg)
                     if (LORA_SEND_NA == current_config)
                     {
                         battery_level = receive_package.init.battery_capacity;
-                    }
-                    else if (LORA_SEND_PID_SET_INFO == current_config)
-                    {
-                        //wk_remote_single_control(SEND_PID_DONE);
-                        atomic_store(&lora_send_config, LORA_SEND_NA);
-                    }
-                    else if (LORA_SEND_PID_GET_INFO == current_config)
-                    {
-                        //uint16_t fake_tbl[1][1];
-                        //getPIDInfoTable(1, 1, fake_tbl, &(out_package.config.pid));
-                        //sendReceivePIDTblInfoWithType(GB_GET_PID_INFO_8_15);
-                        atomic_store(&lora_send_config, LORA_SEND_NA);
                     }
                     else if (LORA_GET_MOTION_STATE == current_config)
                     {

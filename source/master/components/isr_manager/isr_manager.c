@@ -31,7 +31,9 @@ void IRAM_ATTR mpu_dmp_isr_handler(void* arg)
     /* Notify the task that the transmission is complete. */
     if(mpu_isr_handle)
     {
-        xSemaphoreGiveFromISR(mpuSensorReady, NULL);
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        xSemaphoreGiveFromISR(mpuSensorReady, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
     //GB_GPIO_Set( TEST_NRF24_IO, 0 );
 }
