@@ -1,0 +1,38 @@
+menu "SD Card Configuration"
+
+choice SDMMC_BUS_WIDTH
+    prompt "SD/MMC bus width"
+    default SDMMC_BUS_WIDTH_1
+    help
+        Select the bus width for the SD card interface.
+        Use 1-line for Master (drone) and 4-line for Remote (controller).
+
+    config SDMMC_BUS_WIDTH_4
+        bool "4-line SD/MMC"
+
+    config SDMMC_BUS_WIDTH_1
+        bool "1-line SD/MMC"
+
+endchoice
+
+choice SDMMC_SPEED_MODE
+    prompt "SD/MMC speed mode"
+    default SDMMC_SPEED_DEFAULT
+    help
+        Select the speed mode for the SD card interface.
+
+    config SDMMC_SPEED_DEFAULT
+        bool "Default Speed"
+
+    config SDMMC_SPEED_HS
+        bool "High Speed"
+
+    config SDMMC_SPEED_UHS_I_SDR50
+        bool "UHS-I SDR50"
+
+    config SDMMC_SPEED_UHS_I_DDR50
+        bool "UHS-I DDR50"
+
+endchoice
+
+endmenu

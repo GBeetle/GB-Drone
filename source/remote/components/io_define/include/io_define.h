@@ -50,9 +50,13 @@
 #define TEST_IMU_IO 17
 
 // SD card
-#define SD_CMD  38
-#define SD_CLK  39
-#define SD_D0   40
+#define SD_PWR  45
+#define SD_CMD  44
+#define SD_CLK  43
+#define SD_D0   39
+#define SD_D1   40
+#define SD_D2   41
+#define SD_D3   42
 
 // Controller
 #define BTN_GPIO_DPAD_UP       28

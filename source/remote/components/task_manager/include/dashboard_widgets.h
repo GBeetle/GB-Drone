@@ -20,7 +20,6 @@
 
 #include <stdlib.h>
 #include "lvgl.h"
-#include "lvgl_driver.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -115,9 +115,10 @@ static lv_style_t style_switch_on;
 static lv_style_t style_switch_off;
 static lv_style_t style_switch_knob;
 
+volatile uint32_t g_fps_frame_count = 0;
+
 #if SHOW_FPS_COUNTER
 static lv_obj_t *fps_label = NULL;
-static uint32_t fps_frame_count = 0;
 static uint32_t fps_last_time = 0;
 static uint32_t fps_current = 0;
 #endif
@@ -150,21 +151,9 @@ static void _run_table_select_raw(TABLE_OPERATION operation)
     if (operation == TABLE_OPERATION_UP)
     {
         selected_row += 1;
-        if (selected_row > TABLE_HEIGHT)
+        if (selected_row >= TABLE_HEIGHT)
         {
             selected_row -= 1;
-        }
-        // selected button line
-        else if (selected_row == TABLE_HEIGHT)
-        {
-            if (selected_column < TABLE_WIDTH / 2)
-            {
-                pull_btn = true;
-            }
-            else
-            {
-                push_btn = true;
-            }
         }
     }
     else if (operation == TABLE_OPERATION_DOWN)
@@ -172,12 +161,6 @@ static void _run_table_select_raw(TABLE_OPERATION operation)
         selected_row -= 1;
         if (selected_row < 0)
             selected_row = -1;
-        // reset button
-        if (selected_row < TABLE_HEIGHT)
-        {
-            pull_btn = false;
-            push_btn = false;
-        }
     }
     else
         GB_DEBUGE(DISP_TAG, "Wrong pid_table_obj cell operation");
@@ -189,36 +172,12 @@ static void _run_table_select_column(TABLE_OPERATION operation)
     {
         if (operation == TABLE_OPERATION_UP)
         {
-            if (pull_btn)
-            {
-                pull_btn = false;
-                push_btn = true;
-                break;
-            }
-            else if (push_btn)
-            {
-                push_btn = false;
-                pull_btn = true;
-                break;
-            }
             selected_column += 1;
             if (selected_column >= TABLE_WIDTH)
                 selected_column = 0;
         }
         else if (operation == TABLE_OPERATION_DOWN)
         {
-            if (pull_btn)
-            {
-                pull_btn = false;
-                push_btn = true;
-                break;
-            }
-            else if (push_btn)
-            {
-                push_btn = false;
-                pull_btn = true;
-                break;
-            }
             selected_column -= 1;
             if (selected_column < 0)
                 selected_column = TABLE_WIDTH - 1;
@@ -321,7 +280,12 @@ static void _update_pid_table_display(void)
     // Update selected cell highlight using lv_table_set_selected_cell
     if (selected_row >= 0 && selected_column >= 0 && selected_row < TABLE_HEIGHT)
     {
+        lv_obj_add_state(pid_table_obj, LV_STATE_FOCUSED | LV_STATE_FOCUS_KEY);
         lv_table_set_selected_cell(pid_table_obj, selected_row, selected_column);
+    }
+    else
+    {
+        lv_obj_remove_state(pid_table_obj, LV_STATE_FOCUSED | LV_STATE_FOCUS_KEY);
     }
 }
 
@@ -358,14 +322,15 @@ static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_ta
     switch (btn_id)
     {
     case BTN_DPAD_UP:
+    case BTN_OP_B:
         if (active_tab == 1 && _check_table_selected(TABLE_ROW))
         {
             _run_table_select_raw(TABLE_OPERATION_DOWN);
-            lv_obj_scroll_by(t2, 0, -lv_obj_get_height(t2) / (TABLE_HEIGHT - 2), LV_ANIM_ON);
         }
         break;
 
     case BTN_DPAD_DOWN:
+    case BTN_OP_Y:
         if (active_tab == 1)
         {
             if (!_check_table_selected(TABLE_ROW))
@@ -373,16 +338,15 @@ static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_ta
             else
             {
                 _run_table_select_raw(TABLE_OPERATION_UP);
-                lv_obj_scroll_by(t2, 0, lv_obj_get_height(t2) / (TABLE_HEIGHT - 2), LV_ANIM_ON);
             }
-
         }
         break;
 
     case BTN_DPAD_LEFT:
+    case BTN_OP_X:
         if (active_tab == 1 && _check_table_selected(TABLE_ROW))
         {
-            _run_table_select_raw(TABLE_OPERATION_DOWN);
+            _run_table_select_column(TABLE_OPERATION_DOWN);
         }
         else
         {
@@ -391,9 +355,10 @@ static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_ta
         break;
 
     case BTN_DPAD_RIGHT:
+    case BTN_OP_A:
         if (active_tab == 1 && _check_table_selected(TABLE_ROW))
         {
-            _run_table_select_raw(TABLE_OPERATION_UP);
+            _run_table_select_column(TABLE_OPERATION_UP);
         }
         else
         {
@@ -402,24 +367,32 @@ static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_ta
         break;
 
     case BTN_DPAD_MID:
-        if (active_tab == 0)
-        {
-            // TODO
-        }
-        else if (active_tab == 1)
-        {
-            // TODO
-        }
+        tab_changer_main_page(R_RIGHT);
         break;
 
-    // --- up button: increase PID value ---
-    case BTN_OP_B:
+    // --- decrement PID value (fast -10) ---
+    case BTN_OP_SELECT:
         if (active_tab == 1 && _check_table_selected(TABLE_ROW) && selected_row < TABLE_HEIGHT)
-            pid_table[selected_row][selected_column] += 1;
+        {
+            if (pid_table[selected_row][selected_column] >= 10)
+                pid_table[selected_row][selected_column] -= 10;
+            else
+                pid_table[selected_row][selected_column] = 0;
+        }
         break;
 
-    // --- down button: decrement PID value ---
-    case BTN_OP_Y:
+    // --- start: switch tabs ---
+    case BTN_OP_START:
+        if (active_tab == 1 && _check_table_selected(TABLE_ROW) && selected_row < TABLE_HEIGHT)
+        pid_table[selected_row][selected_column] += 10;
+        break;
+
+    case TOGGLE_SWITHCH_CHANGED:
+        GB_DEBUGI(DISP_TAG, "Toggle switch changed event received");
+        break;
+
+    // --- decrement PID value ---
+    case BTN_OP_OPTION:
         if (active_tab == 1 && _check_table_selected(TABLE_ROW) && selected_row < TABLE_HEIGHT)
         {
             if (pid_table[selected_row][selected_column] > 0)
@@ -427,43 +400,11 @@ static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_ta
         }
         break;
 
-    // --- right button: increment PID value (fast +10) ---
-    case BTN_OP_A:
-        if (active_tab == 1 && _check_table_selected(TABLE_ROW) && selected_row < TABLE_HEIGHT)
-        pid_table[selected_row][selected_column] += 10;
-        break;
-
-    // --- left button: decrement PID value (fast -10) ---
-    case BTN_OP_X:
-    if (active_tab == 1 && _check_table_selected(TABLE_ROW) && selected_row < TABLE_HEIGHT)
-    {
-        if (pid_table[selected_row][selected_column] >= 10)
-            pid_table[selected_row][selected_column] -= 10;
-        else
-            pid_table[selected_row][selected_column] = 0;
-    }
-    break;
-
-    // --- select: toggle between pull/push buttons
-    case BTN_OP_SELECT:
-        if (active_tab == 1 && (pull_btn || push_btn))
-        {
-            pull_btn = !pull_btn;
-            push_btn = !push_btn;
-        }
-        break;
-
-    // --- start: switch tabs ---
-    case BTN_OP_START:
-        tab_changer_main_page(R_RIGHT);
-        break;
-
-    case TOGGLE_SWITHCH_CHANGED:
-        GB_DEBUGI(DISP_TAG, "Toggle switch changed event received");
-        break;
-
+    // --- increase PID value ---
     case BTN_OP_MENU:
-    case BTN_OP_OPTION:
+        if (active_tab == 1 && _check_table_selected(TABLE_ROW) && selected_row < TABLE_HEIGHT)
+            pid_table[selected_row][selected_column] += 1;
+        break;
     default:
         break;
     }
@@ -732,6 +673,8 @@ void welkin_widgets()
     tv = lv_tabview_create(lv_screen_active());
     lv_obj_align(tv, LV_ALIGN_TOP_MID, 0, 30); // Offset by status bar height
     lv_obj_set_size(tv, LV_PCT(100), LV_PCT(100) - 30); // Adjust height to account for status bar
+    int32_t disp_var = lv_display_get_vertical_resolution(NULL);
+    lv_obj_set_size(tv, LV_PCT(100), disp_var - 30);
 
     t1 = lv_tabview_add_tab(tv, "GB Drone");
     t2 = lv_tabview_add_tab(tv, "PID");
@@ -778,24 +721,27 @@ static void lvgl_create_pid_table(lv_obj_t *parent)
     lv_style_init(&style_cell_selected);
     lv_style_set_border_color(&style_cell_selected, lv_color_hex(0xFF0000));
     lv_style_set_border_width(&style_cell_selected, 4);
-    lv_style_set_border_opa(&style_cell_selected, LV_OPA_50);
+    lv_style_set_border_opa(&style_cell_selected, LV_OPA_COVER);
     lv_style_set_border_side(&style_cell_selected, LV_BORDER_SIDE_FULL);
 
     // In LVGL 9, table cells use LV_PART_ITEMS for cell styling
-    lv_obj_add_style(pid_table_obj, &style_cell_selected, LV_PART_ITEMS | LV_STATE_PRESSED);
+    lv_obj_add_style(pid_table_obj, &style_cell_selected, LV_PART_ITEMS | LV_STATE_FOCUS_KEY);
 
     lv_table_set_column_count(pid_table_obj, TABLE_WIDTH);
     lv_table_set_row_count(pid_table_obj, TABLE_HEIGHT);
 
-    lv_obj_set_width(pid_table_obj, LV_PCT(95));
-    lv_obj_set_height(pid_table_obj, LV_SIZE_CONTENT);
-    lv_obj_align(pid_table_obj, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_width(pid_table_obj, LV_PCT(100));
+    lv_obj_set_height(pid_table_obj, LV_PCT(100));
+    lv_obj_align(pid_table_obj, LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_clear_flag(pid_table_obj, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_table_set_column_width(pid_table_obj, 0, 50);
+    int32_t table_width = lv_display_get_horizontal_resolution(NULL);
+    int32_t first_col_w = table_width / (TABLE_WIDTH + 2);
+    int32_t data_col_w = (table_width - first_col_w) / (TABLE_WIDTH - 1);
+    lv_table_set_column_width(pid_table_obj, 0, first_col_w);
     for (int i = 1; i < TABLE_WIDTH; i++)
     {
-        lv_table_set_column_width(pid_table_obj, i, 80);
+        lv_table_set_column_width(pid_table_obj, i, data_col_w);
     }
 
     /*Fill the first column*/
@@ -909,21 +855,20 @@ static void fps_update_task(lv_timer_t *timer)
 
     if (fps_label == NULL) return;
 
-    fps_frame_count++;
     uint32_t current_time = lv_tick_get();
 
     // Update FPS every 500ms
     if (current_time - fps_last_time >= 500)
     {
         uint32_t elapsed_ms = current_time - fps_last_time;
-        fps_current = (fps_frame_count * 1000) / elapsed_ms;
+        fps_current = (g_fps_frame_count * 1000) / elapsed_ms;
 
         char buf[16];
         snprintf(buf, sizeof(buf), "FPS:%lu", (unsigned long)fps_current);
         lv_label_set_text(fps_label, buf);
 
         // Reset counters
-        fps_frame_count = 0;
+        g_fps_frame_count = 0;
         fps_last_time = current_time;
 
         // Color code based on performance

@@ -2525,6 +2525,17 @@ CONFIG_TOUCH_INVERT_Y=y
 # end of Disp-Driver Touch controller
 
 #
+# SD Card Configuration
+#
+# CONFIG_SDMMC_BUS_WIDTH_4 is not set
+CONFIG_SDMMC_BUS_WIDTH_1=y
+CONFIG_SDMMC_SPEED_DEFAULT=y
+# CONFIG_SDMMC_SPEED_HS is not set
+# CONFIG_SDMMC_SPEED_UHS_I_SDR50 is not set
+# CONFIG_SDMMC_SPEED_UHS_I_DDR50 is not set
+# end of SD Card Configuration
+
+#
 # log_system
 #
 CONFIG_UART_LOG_ENABLE=y

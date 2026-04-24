@@ -34,9 +34,9 @@ const int pins[] = {SD_CLK,
                     SD_D0
 #ifdef CONFIG_SDMMC_BUS_WIDTH_4
                     ,
-                    CONFIG_EXAMPLE_PIN_D1,
-                    CONFIG_EXAMPLE_PIN_D2,
-                    CONFIG_EXAMPLE_PIN_D3
+                    SD_D1,
+                    SD_D2,
+                    SD_D3
 #endif
 };
 

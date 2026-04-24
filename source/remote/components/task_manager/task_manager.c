@@ -35,6 +35,7 @@
 
 extern void welkin_widgets();
 extern int battery_level;
+extern volatile uint32_t g_fps_frame_count;
 typedef void (*create_demo)(void);
 
 SemaphoreHandle_t xGuiSemaphore;
@@ -116,6 +117,7 @@ void gui_task(void *pvParameter)
         if (pdTRUE == xSemaphoreTake(xGuiSemaphore, portMAX_DELAY))
         {
             lv_timer_handler();
+            g_fps_frame_count++;
             xSemaphoreGive(xGuiSemaphore);
         }
     }
