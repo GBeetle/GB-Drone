@@ -184,10 +184,18 @@ void controller_task(void *pvParameter)
                 current_toggle_state.sw3_state, current_toggle_state.sw4_state);
 
             // Handle SW1: Fly mode
-            if (current_toggle_state.sw3_state && !prev_toggle_state.sw3_state)
+            if (current_toggle_state.sw1_state != prev_toggle_state.sw1_state)
             {
-                GB_DEBUGI(GB_INFO, "SW1 triggered: Fly Mode");
-                atomic_store(&lora_send_config, LORA_SEND_CONTROL_COMMAND);
+                if (current_toggle_state.sw1_state)
+                {
+                    GB_DEBUGI(GB_INFO, "SW1 ON: Fly Mode");
+                    atomic_store(&lora_send_config, LORA_SEND_CONTROL_COMMAND);
+                }
+                else
+                {
+                    GB_DEBUGI(GB_INFO, "SW1 OFF: Exit Fly Mode");
+                    atomic_store(&lora_send_config, LORA_SEND_NA);
+                }
             }
 
             // Handle SW3: Pull PID table from master (rising edge)
@@ -247,7 +255,9 @@ void rf_loop(void *arg)
         if (LORA_SEND == lora_state)
         {
             GB_SEND_CONFIG current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
-            // GB_DEBUGI(RF24_TAG, "Transmission begin, %d", current_config);  // payload was delivered
+            uint64_t time_now;
+            GB_GetTimerMs(&time_now);
+            GB_DEBUGI(RF24_TAG, "Transmission begin, %d, time: %lld", current_config, time_now);  // payload was delivered
             switch (current_config)
             {
             case LORA_SEND_NA:
@@ -315,10 +325,9 @@ void rf_loop(void *arg)
 
             // This device is a TX node
             GB_RESULT report = radio.write(&radio, &send_package, sizeof(GB_LORA_PACKAGE_T)); // transmit & save the report
-
+            current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
             if (report == GB_OK)
             {
-                GB_SEND_CONFIG current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
                 // GB_DEBUGI(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));
                 if (LORA_SEND_SKY_WAL_CONFIG == current_config || LORA_SEND_CONTROL_COMMAND == current_config) // don't need ack for esc setting
                     continue;

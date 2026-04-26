@@ -152,7 +152,7 @@ bool quad3d_init()
     {
         objraw omodel;
         model m = initmodel();
-        omodel = tobj_load("/storage/quad.obj");
+        omodel = tobj_load("/sdcard/quad.obj");
 
         if (!omodel.positions)
         {

@@ -198,7 +198,7 @@ void init_canvas()
 
     if (NULL == canvas_buffer)
     {
-        canvas_buffer = (uint16_t *)heap_caps_malloc(canvas_buffer_size, MALLOC_CAP_DMA);
+        canvas_buffer = (uint16_t *)heap_caps_malloc(canvas_buffer_size, MALLOC_CAP_SPIRAM);
         if (canvas_buffer == NULL)
         {
             GB_DEBUGE(DISP_TAG, "init_canvas allocate buffer failed");

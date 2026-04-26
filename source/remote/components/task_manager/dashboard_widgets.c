@@ -22,6 +22,7 @@
 #include "log_sys.h"
 #include "sdkconfig.h"
 #include "disp_driver.h"
+#include "esp_heap_caps.h"
 
 /**********************
  *    DEFINES
@@ -49,7 +50,12 @@
  *    STATIC PROTOTYPES
  **********************/
 static void create_attitude_indicator(lv_obj_t *parent);
+static lv_obj_t *create_single_gauge(lv_obj_t *row, lv_obj_t **gauge_out,
+    lv_obj_t **label_out, const char *text, int range_min, int range_max,
+    int bg_start, int bg_end);
 static void create_telemetry_gauges(lv_obj_t *parent);
+static void create_sensor_indicator(lv_obj_t *parent, const char *label_text,
+    const char *icon, lv_obj_t **led_out, lv_obj_t **label_out);
 static void create_sensor_status_row(lv_obj_t *parent);
 static void create_flight_status_bar(lv_obj_t *parent);
 static void update_attitude_indicator(float pitch, float roll);
@@ -112,7 +118,10 @@ void dashboard_create(lv_obj_t *parent)
     lv_obj_set_style_bg_color(dashboard_container, COLOR_BACKGROUND, 0);
     lv_obj_set_style_border_width(dashboard_container, 0, 0);
     lv_obj_set_style_pad_all(dashboard_container, 5, 0);
+    lv_obj_set_style_pad_row(dashboard_container, 5, 0);
     lv_obj_set_scrollbar_mode(dashboard_container, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_set_flex_flow(dashboard_container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(dashboard_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     // Create UI sections
     create_attitude_indicator(dashboard_container);
@@ -190,11 +199,10 @@ static void create_attitude_indicator(lv_obj_t *parent)
     // Create canvas for attitude indicator
     attitude_canvas = lv_canvas_create(parent);
     lv_obj_set_size(attitude_canvas, ATTITUDE_SIZE, ATTITUDE_SIZE);
-    lv_obj_align(attitude_canvas, LV_ALIGN_TOP_MID, 0, 10);
 
     // Allocate buffer for canvas
-    size_t buf_size = ATTITUDE_SIZE * ATTITUDE_SIZE * sizeof(lv_color_t);
-    attitude_buffer = (lv_color_t *)lv_malloc(buf_size);
+    size_t buf_size = ATTITUDE_SIZE * ATTITUDE_SIZE * sizeof(uint16_t);
+    attitude_buffer = (lv_color_t *)heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
 
     if (attitude_buffer != NULL) {
         lv_canvas_set_buffer(attitude_canvas, attitude_buffer, ATTITUDE_SIZE, ATTITUDE_SIZE, LV_COLOR_FORMAT_RGB565);
@@ -209,98 +217,75 @@ static void create_attitude_indicator(lv_obj_t *parent)
     }
 }
 
+static lv_obj_t *create_single_gauge(lv_obj_t *row, lv_obj_t **gauge_out,
+                                     lv_obj_t **label_out, const char *text, int range_min, int range_max,
+                                     int bg_start, int bg_end)
+{
+    // Each gauge is wrapped in a container for label overlay
+    lv_obj_t *wrap = lv_obj_create(row);
+    lv_obj_set_size(wrap, GAUGE_SIZE, GAUGE_SIZE);
+    lv_obj_set_style_bg_opa(wrap, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(wrap, 0, 0);
+    lv_obj_set_style_pad_all(wrap, 0, 0);
+    lv_obj_set_flex_grow(wrap, 1);
+
+    *gauge_out = lv_arc_create(wrap);
+    lv_obj_set_size(*gauge_out, GAUGE_SIZE, GAUGE_SIZE);
+    lv_obj_center(*gauge_out);
+    lv_arc_set_range(*gauge_out, range_min, range_max);
+    lv_arc_set_value(*gauge_out, 0);
+    lv_arc_set_bg_angles(*gauge_out, bg_start, bg_end);
+    lv_obj_set_style_arc_color(*gauge_out, COLOR_GOOD, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(*gauge_out, 8, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(*gauge_out, 8, LV_PART_MAIN);
+    lv_obj_clear_flag(*gauge_out, LV_OBJ_FLAG_CLICKABLE);
+
+    *label_out = lv_label_create(wrap);
+    lv_label_set_text(*label_out, text);
+    lv_obj_set_style_text_align(*label_out, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(*label_out, COLOR_TEXT_PRIMARY, 0);
+    lv_obj_center(*label_out);
+
+    return wrap;
+}
+
 static void create_telemetry_gauges(lv_obj_t *parent)
 {
-    int gauge_y = 270;
-    int parent_width = lv_display_get_horizontal_resolution(NULL);
-    int gauge_spacing = (parent_width - 20) / 4;
+    // Row container for all gauges
+    lv_obj_t *gauge_row = lv_obj_create(parent);
+    lv_obj_set_size(gauge_row, LV_PCT(100), GAUGE_SIZE);
+    lv_obj_set_style_bg_opa(gauge_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(gauge_row, 0, 0);
+    lv_obj_set_style_pad_all(gauge_row, 0, 0);
+    lv_obj_set_style_pad_column(gauge_row, 5, 0);
+    lv_obj_set_flex_flow(gauge_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(gauge_row, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    // --- Altitude Gauge ---
-    alt_gauge = lv_arc_create(parent);
-    lv_obj_set_size(alt_gauge, GAUGE_SIZE, GAUGE_SIZE);
-    lv_obj_set_pos(alt_gauge, 10, gauge_y);
-    lv_arc_set_range(alt_gauge, 0, 100);
-    lv_arc_set_value(alt_gauge, 0);
-    lv_arc_set_bg_angles(alt_gauge, 135, 45);
-    lv_obj_set_style_arc_color(alt_gauge, COLOR_GOOD, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(alt_gauge, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(alt_gauge, 8, LV_PART_MAIN);
-    lv_obj_clear_flag(alt_gauge, LV_OBJ_FLAG_CLICKABLE);
-
-    alt_label = lv_label_create(parent);
-    lv_label_set_text(alt_label, "0m\nALT");
-    lv_obj_set_style_text_align(alt_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align_to(alt_label, alt_gauge, LV_ALIGN_CENTER, 0, 0);
-
-    // --- Speed Gauge ---
-    speed_gauge = lv_arc_create(parent);
-    lv_obj_set_size(speed_gauge, GAUGE_SIZE, GAUGE_SIZE);
-    lv_obj_set_pos(speed_gauge, 10 + gauge_spacing, gauge_y);
-    lv_arc_set_range(speed_gauge, 0, 20);
-    lv_arc_set_value(speed_gauge, 0);
-    lv_arc_set_bg_angles(speed_gauge, 135, 45);
-    lv_obj_set_style_arc_color(speed_gauge, COLOR_GOOD, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(speed_gauge, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(speed_gauge, 8, LV_PART_MAIN);
-    lv_obj_clear_flag(speed_gauge, LV_OBJ_FLAG_CLICKABLE);
-
-    speed_label = lv_label_create(parent);
-    lv_label_set_text(speed_label, "0m/s\nSPD");
-    lv_obj_set_style_text_align(speed_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align_to(speed_label, speed_gauge, LV_ALIGN_CENTER, 0, 0);
-
-    // --- Distance Gauge ---
-    dist_gauge = lv_arc_create(parent);
-    lv_obj_set_size(dist_gauge, GAUGE_SIZE, GAUGE_SIZE);
-    lv_obj_set_pos(dist_gauge, 10 + gauge_spacing * 2, gauge_y);
-    lv_arc_set_range(dist_gauge, 0, 500);
-    lv_arc_set_value(dist_gauge, 0);
-    lv_arc_set_bg_angles(dist_gauge, 135, 45);
-    lv_obj_set_style_arc_color(dist_gauge, COLOR_GOOD, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(dist_gauge, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(dist_gauge, 8, LV_PART_MAIN);
-    lv_obj_clear_flag(dist_gauge, LV_OBJ_FLAG_CLICKABLE);
-
-    dist_label = lv_label_create(parent);
-    lv_label_set_text(dist_label, "0m\nDIST");
-    lv_obj_set_style_text_align(dist_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align_to(dist_label, dist_gauge, LV_ALIGN_CENTER, 0, 0);
-
-    // --- Heading Gauge ---
-    heading_gauge = lv_arc_create(parent);
-    lv_obj_set_size(heading_gauge, GAUGE_SIZE, GAUGE_SIZE);
-    lv_obj_set_pos(heading_gauge, 10 + gauge_spacing * 3, gauge_y);
-    lv_arc_set_range(heading_gauge, 0, 359);
-    lv_arc_set_value(heading_gauge, 0);
-    lv_arc_set_bg_angles(heading_gauge, 0, 360);
-    lv_obj_set_style_arc_color(heading_gauge, COLOR_GOOD, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(heading_gauge, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(heading_gauge, 8, LV_PART_MAIN);
-    lv_obj_clear_flag(heading_gauge, LV_OBJ_FLAG_CLICKABLE);
-
-    heading_label = lv_label_create(parent);
-    lv_label_set_text(heading_label, "0°\nHEAD");
-    lv_obj_set_style_text_align(heading_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align_to(heading_label, heading_gauge, LV_ALIGN_CENTER, 0, 0);
+    create_single_gauge(gauge_row, &alt_gauge, &alt_label, "@m\nALT", 0, 100, 135, 45);
+    create_single_gauge(gauge_row, &speed_gauge, &speed_label, "@m/s\nSPD", 0, 20, 135, 45);
+    create_single_gauge(gauge_row, &dist_gauge, &dist_label, "@m\nDIST", 0, 500, 135, 45);
+    create_single_gauge(gauge_row, &heading_gauge, &heading_label, "@o\nHEAD", 0, 359, 0, 360);
 
     GB_DEBUGI(DISP_TAG, "Telemetry gauges created");
 }
 
 static void create_sensor_indicator(lv_obj_t *parent, const char *label_text, const char *icon,
-    int x_pos, int y_pos, lv_obj_t **led_out, lv_obj_t **label_out)
+    lv_obj_t **led_out, lv_obj_t **label_out)
 {
     lv_obj_t *container = lv_obj_create(parent);
-    lv_obj_set_size(container, 90, 90);
-    lv_obj_set_pos(container, x_pos, y_pos);
+    lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(container, 0, 0);
+    lv_obj_set_style_pad_all(container, 4, 0);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_grow(container, 1);
 
     // Icon label
     lv_obj_t *icon_label = lv_label_create(container);
     lv_label_set_text(icon_label, icon);
     lv_obj_set_style_text_font(icon_label, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(icon_label, COLOR_TEXT_SECONDARY, 0);
 
     // LED indicator
     *led_out = lv_led_create(container);
@@ -317,26 +302,28 @@ static void create_sensor_indicator(lv_obj_t *parent, const char *label_text, co
 
 static void create_sensor_status_row(lv_obj_t *parent)
 {
-    int sensor_y = 410;
-    int parent_width = lv_display_get_horizontal_resolution(NULL);
-    int sensor_spacing = parent_width / 5;
+    // Row container for all sensors
+    lv_obj_t *sensor_row = lv_obj_create(parent);
+    lv_obj_set_size(sensor_row, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(sensor_row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(sensor_row, 0, 0);
+    lv_obj_set_style_pad_all(sensor_row, 0, 0);
+    lv_obj_set_flex_flow(sensor_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(sensor_row, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    create_sensor_indicator(parent, "GPS", LV_SYMBOL_GPS, 5, sensor_y, &gps_led, &gps_detail_label);
-    create_sensor_indicator(parent, "IMU", LV_SYMBOL_SETTINGS, sensor_spacing, sensor_y, &imu_led, &imu_detail_label);
-    create_sensor_indicator(parent, "MAG", LV_SYMBOL_IMAGE, sensor_spacing * 2, sensor_y, &mag_led, &mag_detail_label);
-    create_sensor_indicator(parent, "BARO", LV_SYMBOL_LIST, sensor_spacing * 3, sensor_y, &baro_led, &baro_detail_label);
-    create_sensor_indicator(parent, "RADIO", LV_SYMBOL_WIFI, sensor_spacing * 4, sensor_y, &radio_led, &radio_detail_label);
+    create_sensor_indicator(sensor_row, "GPS", LV_SYMBOL_GPS, &gps_led, &gps_detail_label);
+    create_sensor_indicator(sensor_row, "IMU", LV_SYMBOL_SETTINGS, &imu_led, &imu_detail_label);
+    create_sensor_indicator(sensor_row, "MAG", LV_SYMBOL_IMAGE, &mag_led, &mag_detail_label);
+    create_sensor_indicator(sensor_row, "BARO", LV_SYMBOL_LIST, &baro_led, &baro_detail_label);
+    create_sensor_indicator(sensor_row, "RADIO", LV_SYMBOL_WIFI, &radio_led, &radio_detail_label);
 
     GB_DEBUGI(DISP_TAG, "Sensor status row created");
 }
 
 static void create_flight_status_bar(lv_obj_t *parent)
 {
-    int status_y = 520;
-
     lv_obj_t *container = lv_obj_create(parent);
-    lv_obj_set_size(container, lv_display_get_horizontal_resolution(NULL) - 10, 80);
-    lv_obj_set_pos(container, 5, status_y);
+    lv_obj_set_size(container, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(container, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_border_color(container, COLOR_NEUTRAL, 0);
     lv_obj_set_style_border_width(container, 1, 0);

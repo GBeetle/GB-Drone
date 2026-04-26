@@ -35,4 +35,8 @@ choice SDMMC_SPEED_MODE
 
 endchoice
 
+config SD_PWR_CTRL_LDO_INTERNAL_IO
+        bool "PWR LDO INTERNAL"
+        default "n"
+
 endmenu

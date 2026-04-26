@@ -39,6 +39,7 @@ void app_main(void)
     GB_LogSystemInit();
 
     GB_FileSystem_Init();
+    GB_SDCardFileSystem_Init();
 
     disp_driver_init();
 
@@ -59,6 +60,6 @@ void app_main(void)
 #else
                             NULL,
 #endif
-                            1 | portPRIVILEGE_BIT, NULL, tskNO_AFFINITY);
-    xTaskCreate(rf_loop, "nrf24_loop", 4096, NULL, 2 | portPRIVILEGE_BIT, NULL);
+                            2 | portPRIVILEGE_BIT, NULL, tskNO_AFFINITY);
+    xTaskCreate(rf_loop, "nrf24_loop", 4096, NULL, 5 | portPRIVILEGE_BIT, NULL);
 }

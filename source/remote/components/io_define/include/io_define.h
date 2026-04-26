@@ -50,7 +50,7 @@
 #define TEST_IMU_IO 17
 
 // SD card
-#define SD_PWR  45
+#define SD_PWR_ID  4
 #define SD_CMD  44
 #define SD_CLK  43
 #define SD_D0   39

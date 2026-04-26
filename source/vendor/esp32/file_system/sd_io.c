@@ -21,6 +21,9 @@
 #include "results.h"
 #include "file_system.h"
 #include "sd_io.h"
+#if CONFIG_SD_PWR_CTRL_LDO_INTERNAL_IO
+#include "sd_pwr_ctrl_by_on_chip_ldo.h"
+#endif
 
 #define GPIO_INPUT_PIN_SEL(pin) (1ULL << pin)
 #define EXAMPLE_IS_UHS1 (CONFIG_SDMMC_SPEED_UHS_I_SDR50 || CONFIG_SDMMC_SPEED_UHS_I_DDR50)
@@ -137,6 +140,20 @@ GB_RESULT GB_SDCardFileSystem_Init()
     host.max_freq_khz = SDMMC_FREQ_DDR50;
 #endif
 
+#if CONFIG_SD_PWR_CTRL_LDO_INTERNAL_IO
+    sd_pwr_ctrl_ldo_config_t ldo_config = {
+        .ldo_chan_id = SD_PWR_ID,
+    };
+    sd_pwr_ctrl_handle_t pwr_ctrl_handle = NULL;
+
+    ret = sd_pwr_ctrl_new_on_chip_ldo(&ldo_config, &pwr_ctrl_handle);
+    if (ret != ESP_OK) {
+        GB_DEBUGE(FS_TAG, "Failed to create a new on-chip LDO power control driver");
+        return GB_FS_SD_INIT_FAIL;
+    }
+    host.pwr_ctrl_handle = pwr_ctrl_handle;
+#endif
+
     // This initializes the slot without card detect (CD) and write protect (WP) signals.
     // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
@@ -163,7 +180,7 @@ GB_RESULT GB_SDCardFileSystem_Init()
     // Enable internal pullups on enabled pins. The internal pullups
     // are insufficient however, please make sure 10k external pullups are
     // connected on the bus. This is for debug / example purpose only.
-    //slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+    slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 
     GB_DEBUGI(FS_TAG, "Mounting filesystem");
     ret = esp_vfs_fat_sdmmc_mount(gb_file_system_partition[GB_FILE_SD_CARD], &host, &slot_config, &mount_config, &card);
