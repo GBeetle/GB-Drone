@@ -20,8 +20,13 @@
 #define M_PI 3.14159265
 #endif
 
-#define winSizeX LV_HOR_RES_MAX
-#define winSizeY LV_VER_RES_MAX
+#if (CONFIG_DISPLAY_ORIENTATION_PORTRAIT)
+#define winSizeX LV_VER_RES_MAX
+#define winSizeY LV_HOR_RES_MAX
+#else
+#define winSizeX LV_VER_RES_MAX
+#define winSizeY LV_HOR_RES_MAX
+#endif
 
 vec3 campos = (vec3){.d[0] = 8, .d[1] = 8, .d[2] = 8};     // camera position
 vec3 camforw = (vec3){.d[0] = -1, .d[1] = -1, .d[2] = -1}; // camera forward direction
@@ -243,15 +248,7 @@ bool quad3d_get_image(uint16_t *image_buffer)
 #endif
     ZB_copyFrameBuffer(frameBuffer, imbuf, winSizeX * sizeof(PIXEL));
 
-    for (int i = 0; i < winSizeX * winSizeY; i++)
-    {
-        uint8_t red = GET_RED(imbuf[i]);
-        uint8_t green = GET_GREEN(imbuf[i]);
-        uint8_t blue = GET_BLUE(imbuf[i]);
-
-        image_buffer[i] = ((red & 0xF8) << 8) | ((green & 0xFC) << 3) | (blue >> 3);
-        image_buffer[i] = image_buffer[i] << 8 | image_buffer[i] >> 8;
-    }
+    memcpy(image_buffer, imbuf, winSizeX * winSizeY * sizeof(uint16_t));
     return true;
 }
 

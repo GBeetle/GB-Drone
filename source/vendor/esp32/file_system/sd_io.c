@@ -21,8 +21,10 @@
 #include "results.h"
 #include "file_system.h"
 #include "sd_io.h"
+#include "gb_timer.h"
 #if CONFIG_SD_PWR_CTRL_LDO_INTERNAL_IO
 #include "sd_pwr_ctrl_by_on_chip_ldo.h"
+#include "esp_ldo_regulator.h"
 #endif
 
 #define GPIO_INPUT_PIN_SEL(pin) (1ULL << pin)
@@ -141,6 +143,20 @@ GB_RESULT GB_SDCardFileSystem_Init()
 #endif
 
 #if CONFIG_SD_PWR_CTRL_LDO_INTERNAL_IO
+    // Fix reset SD card not work
+    {
+        esp_ldo_channel_config_t ldo_off_cfg = {
+            .chan_id = SD_PWR_ID,
+            .flags.adjustable = true,
+        };
+        esp_ldo_channel_handle_t ldo_chan = NULL;
+        if (esp_ldo_acquire_channel(&ldo_off_cfg, &ldo_chan) == ESP_OK) {
+            esp_ldo_channel_adjust_voltage(ldo_chan, 0);
+            GB_SleepMs(100);
+            esp_ldo_release_channel(ldo_chan);
+        }
+    }
+
     sd_pwr_ctrl_ldo_config_t ldo_config = {
         .ldo_chan_id = SD_PWR_ID,
     };

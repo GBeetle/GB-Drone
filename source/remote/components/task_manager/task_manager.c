@@ -246,6 +246,7 @@ void rf_loop(void *arg)
     uint64_t receive_waittime = 0;
     uint64_t time_now = 0;
     uint32_t delay_time = 1000;
+    uint8_t send_retry = 0;
     GB_LORA_STATE lora_state;
     GB_LORA_PACKAGE_T send_package;
     GB_LORA_PACKAGE_T receive_package;
@@ -344,7 +345,7 @@ void rf_loop(void *arg)
                 report = radio.write_data(&radio, &send_package, sizeof(GB_LORA_PACKAGE_T), true);
             else
                 report = radio.write(&radio, &send_package, sizeof(GB_LORA_PACKAGE_T)); // transmit & save the report
-            current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
+
             if (report == GB_OK)
             {
                 // GB_DEBUGI(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));
@@ -359,7 +360,18 @@ void rf_loop(void *arg)
             }
             else
             {
-                GB_DEBUGE(RF24_TAG, "Transmission failed or timed out, %08x", report);
+                GB_DEBUGE(RF24_TAG, "Transmission failed or timed out, %08x, retry: %d", report, send_retry);
+                if (LORA_SEND_SKY_WAL_CONFIG == current_config || LORA_SEND_CONTROL_COMMAND == current_config)
+                {
+                    GB_SleepMs(20);
+                    continue;
+                }
+                send_retry++;
+                if (send_retry >= 5)
+                {
+                    send_retry = 0;
+                    atomic_store(&lora_send_config, LORA_SEND_NA);
+                }
             }
         }
         else if (LORA_RECEIVE == lora_state)

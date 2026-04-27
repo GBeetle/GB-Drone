@@ -326,7 +326,7 @@ static GB_RESULT _init_radio(struct rf24 *nrf24)
     // Enabling 16b CRC is by far the most obvious case if the wrong timing is used - or skipped.
     // Technically we require 4.5ms + 14us as a worst case. We'll just call it 5ms for good measure.
     // WARNING: Delay is based on P-variant whereby non-P *may* require different timing.
-    vTaskDelay(5 / portTICK_PERIOD_MS);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     // Set 1500uS (minimum for 32B payload in ESB@250KBPS) timeouts, to make testing a little easier
     // WARNING: If this is ever lowered, either 250KBS mode with AA is broken or maximum packet

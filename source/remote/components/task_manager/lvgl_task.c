@@ -211,7 +211,11 @@ void init_canvas()
     {
         model_canvas = lv_canvas_create(lv_screen_active());
 
+#if (CONFIG_DISPLAY_ORIENTATION_PORTRAIT)
+        lv_obj_set_size(model_canvas, LV_VER_RES_MAX, LV_HOR_RES_MAX - 30);
+#else
         lv_obj_set_size(model_canvas, LV_HOR_RES_MAX, LV_VER_RES_MAX - 30);
+#endif
         lv_obj_align(model_canvas, LV_ALIGN_TOP_LEFT, 0, 30);
 
         lv_obj_move_foreground(model_canvas);
@@ -415,9 +419,14 @@ static void canvas_draw_task(lv_timer_t *timer)
     LV_UNUSED(timer);
     GB_GPIO_Set(TEST_IMU_IO, 1);
 
+#if (CONFIG_DISPLAY_ORIENTATION_PORTRAIT)
+    if (quad3d_get_image(canvas_buffer))
+        lv_canvas_set_buffer(model_canvas, canvas_buffer, LV_VER_RES_MAX, LV_HOR_RES_MAX, LV_COLOR_FORMAT_RGB565);
+#else
     if (quad3d_get_image(canvas_buffer))
         lv_canvas_set_buffer(model_canvas, canvas_buffer, LV_HOR_RES_MAX, LV_VER_RES_MAX, LV_COLOR_FORMAT_RGB565);
-    GB_GPIO_Set(TEST_IMU_IO, 0);
+#endif
+        GB_GPIO_Set(TEST_IMU_IO, 0);
 }
 
 static void battery_update_task(lv_timer_t *timer)
