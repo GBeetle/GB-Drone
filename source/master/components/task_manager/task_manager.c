@@ -355,7 +355,7 @@ error_exit:
     return;
 }
 
-static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAGE_T *in, GB_LORA_PACKAGE_T *out, GB_LORA_STATE *state)
+static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAGE_T *in, GB_LORA_PACKAGE_T *out, GB_LORA_STATE *state, size_t *out_size)
 {
     GB_RESULT res = GB_OK;
     float voltage = 0;
@@ -366,8 +366,8 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
         GB_Max1704xGetVoltage(dev, &voltage);
         out->type = GB_INIT_DATA;
         out->init.system_state = GB_SYSTEM_INITIALIZE_PASS;
-        out->init.battery_capacity = (voltage < MAX1704X_VOL_MIN && voltage > MAX1704X_VOL_MAX) ?
-                                     (voltage - MAX1704X_VOL_MIN) / (MAX1704X_VOL_MAX - MAX1704X_VOL_MIN) : 0xff;
+        out->init.battery_capacity = (voltage > MAX1704X_VOL_MIN && voltage < MAX1704X_VOL_MAX) ?
+                                     (uint8_t)((voltage - MAX1704X_VOL_MIN) / (MAX1704X_VOL_MAX - MAX1704X_VOL_MIN) * 100) : 0xff;
         out->init.sensor_state = 0xf0;
         *state = LORA_SEND;
         GB_DEBUGI(LORA_TAG, "Receive GB_INIT_DATA, sync: %d, Voltage: %.2f.V, battery_capacity: %d", in->sync, voltage, out->init.battery_capacity);
@@ -431,19 +431,22 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             // Calculate and set CRC for PID table
             g_master_pid_table.crc16 = GB_PidTableCalculateCRC(&g_master_pid_table);
 
+            radio.stopListening(&radio);
+
             // Send PID table as fragmented message
             static uint8_t msg_id_counter = 0;
             msg_id_counter++;
 
             CHK_RES(GB_LoraFragmentSend(
-            (const uint8_t *)&g_master_pid_table,
-            sizeof(g_master_pid_table),
-            msg_id_counter,
-            state
+                (const uint8_t *)&g_master_pid_table,
+                sizeof(g_master_pid_table),
+                msg_id_counter,
+                state
             ));
 
             GB_DEBUGI(LORA_TAG, "PID table sent successfully (msg_id=%d)", msg_id_counter);
-            *state = LORA_IDLE; // Fragments handle state themselves
+            *state = LORA_RECEIVE;
+            radio.startListening(&radio);
             return res; // Early return - fragments handle ACK
         default:
             GB_DEBUGI(LORA_TAG, "Unknown setting type: %d", in->request.get_type);
@@ -472,6 +475,7 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
         ack_frag.frag_total = frag->frag_total;
 
         memcpy(out, &ack_frag, sizeof(ack_frag));
+        *out_size = sizeof(GB_LORA_FRAGMENT_T);
         *state = LORA_SEND;
 
         if (frag_res == GB_FRAG_COMPLETE)
@@ -527,8 +531,13 @@ error_exit:
 
 void nrf24_interrupt_func(void *arg)
 {
-    GB_LORA_PACKAGE_T in_package;
-    GB_LORA_PACKAGE_T out_package;
+    union {
+        GB_LORA_PACKAGE_T pkg;
+        GB_LORA_FRAGMENT_T frag;
+    } in_buf, out_buf;
+    GB_LORA_PACKAGE_T *in_package = &in_buf.pkg;
+    GB_LORA_PACKAGE_T *out_package = &out_buf.pkg;
+    size_t out_send_size = sizeof(GB_LORA_PACKAGE_T);
     uint8_t send_retry = 0;
     GB_LORA_STATE lora_state = LORA_IDLE;
     GB_MAX1704X_DEV_T dev = { 0 };
@@ -553,7 +562,8 @@ void nrf24_interrupt_func(void *arg)
             {                                                 // is there a payload? get the pipe number that recieved itv
                 uint8_t bytes = radio.getPayloadSize(&radio); // get the size of the payload
                 radio.read(&radio, &in_package, bytes);       // fetch payload from FIFO
-                CHK_LOGE(gb_lora_request_dispatch(&dev, &in_package, &out_package, &lora_state), "Remote info dispatch failed");
+                out_send_size = sizeof(GB_LORA_PACKAGE_T);
+                CHK_LOGE(gb_lora_request_dispatch(&dev, (GB_LORA_PACKAGE_T *)&in_package, (GB_LORA_PACKAGE_T *)&out_package, &lora_state, &out_send_size), "Remote info dispatch failed");
             }
             else
                 GB_DEBUGI(RF24_TAG, "Received nothing...");
@@ -572,7 +582,7 @@ void nrf24_interrupt_func(void *arg)
         if (lora_state == LORA_SEND)
         {
             radio.stopListening(&radio);
-            GB_RESULT report = radio.write(&radio, &out_package, sizeof(GB_LORA_PACKAGE_T));
+            GB_RESULT report = radio.write(&radio, &out_package, out_send_size);
             if (report == GB_OK)
             {
                 GB_DEBUGV(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));

@@ -20,8 +20,8 @@
 #define M_PI 3.14159265
 #endif
 
-#define winSizeX LV_VER_RES_MAX
-#define winSizeY LV_HOR_RES_MAX
+#define winSizeX LV_HOR_RES_MAX
+#define winSizeY LV_VER_RES_MAX
 
 vec3 campos = (vec3){.d[0] = 8, .d[1] = 8, .d[2] = 8};     // camera position
 vec3 camforw = (vec3){.d[0] = -1, .d[1] = -1, .d[2] = -1}; // camera forward direction

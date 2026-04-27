@@ -552,6 +552,7 @@ static void toggle_switch_update_task(lv_timer_t *timer)
             atomic_store(&lora_send_config, LORA_SEND_NA);
 
             // Show dashboard when returning from 3D mode
+            if (tv) lv_obj_clear_flag(tv, LV_OBJ_FLAG_HIDDEN);
             dashboard_show();
             GB_DEBUGI(DISP_TAG, "3D mode disabled successfully");
         }

@@ -1141,8 +1141,17 @@ static GB_RESULT write_data(struct rf24 *nrf24, const void *buf, uint8_t len, co
     //Start Writing
     CHK_RES(nrf24->startFastWrite(nrf24, buf, len, multicast, true));
 
+    uint64_t start_time = 0, now = 0;
+    GB_GetTimerMs(&start_time);
     while (!(nrf24->get_status(nrf24) & (_BV(TX_DS) | _BV(MAX_RT))))
-        ;
+    {
+        GB_GetTimerMs(&now);
+        if (now - start_time > 100)
+        {
+            res = GB_NRF24_TRANS_TIMEOUT;
+            break;
+        }
+    }
 
     nrf24->ce(nrf24, RF_LOW);
 

@@ -2313,6 +2313,18 @@ CONFIG_COMPASS_I2C=y
 # end of Compass Driver
 
 #
+# SD Card Configuration
+#
+# CONFIG_SDMMC_BUS_WIDTH_4 is not set
+CONFIG_SDMMC_BUS_WIDTH_1=y
+CONFIG_SDMMC_SPEED_DEFAULT=y
+# CONFIG_SDMMC_SPEED_HS is not set
+# CONFIG_SDMMC_SPEED_UHS_I_SDR50 is not set
+# CONFIG_SDMMC_SPEED_UHS_I_DDR50 is not set
+# CONFIG_SD_PWR_CTRL_LDO_INTERNAL_IO is not set
+# end of SD Card Configuration
+
+#
 # IMU Driver
 #
 # CONFIG_MPU6050 is not set

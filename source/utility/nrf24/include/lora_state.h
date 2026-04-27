@@ -211,7 +211,7 @@ typedef struct
     uint8_t msg_id; // Current message ID
     uint8_t frag_total; // Expected total fragments
     uint8_t frag_received; // Fragments received count
-    uint32_t timestamp_ms; // Start time for timeout
+    uint64_t timestamp_ms; // Start time for timeout
     uint8_t buffer[GB_MAX_FRAGMENTS * GB_FRAGMENT_PAYLOAD_SIZE]; // 108 bytes max
     bool fragments_received[GB_MAX_FRAGMENTS]; // Track which fragments arrived
 } GB_REASSEMBLY_CTX_T;

@@ -36,7 +36,7 @@ uint16_t GB_CRC16(const uint8_t *data, size_t len)
         crc ^= data[i];
         for (uint8_t j = 0; j < 8; j++)
         {
-            if ((crc & 0x0001) == 0)
+            if (crc & 0x0001)
                 crc = (crc >> 1) ^ 0xA001;
             else
                 crc = crc >> 1;
@@ -106,7 +106,7 @@ GB_RESULT GB_ReassemblyCheckTimeout(GB_REASSEMBLY_CTX_T *ctx)
     uint64_t current_time = 0;
 
     GB_GetTimerMs(&current_time);
-    uint32_t elapsed = current_time - ctx->timestamp_ms;
+    uint64_t elapsed = current_time - ctx->timestamp_ms;
 
     if (elapsed > GB_REASSEMBLY_TIMEOUT_MS)
     {
@@ -174,12 +174,14 @@ GB_RESULT GB_LoraFragmentSend(
             frag_index + 1, frag_total, payload_size);
 
         // Send fragment via NRF24
-        if (!radio.write(&radio, &frag, sizeof(frag)))
+        if (radio.write(&radio, &frag, sizeof(frag)) != GB_OK)
         {
             GB_DEBUGI(LORA_TAG, "Failed to send fragment %d/%d", frag_index + 1, frag_total);
             res = GB_SEND_ERROR;
             goto error_exit;
         }
+
+        radio.startListening(&radio);
 
         // Wait for ACK with timeout
         uint64_t start_time = 0;
@@ -212,6 +214,8 @@ GB_RESULT GB_LoraFragmentSend(
             GB_GetTimerMs(&wait_time);
         }
 
+        radio.stopListening(&radio);
+
         if (!ack_received)
         {
             GB_DEBUGI(LORA_TAG, "ACK timeout for fragment %d/%d", frag_index + 1, frag_total);
@@ -224,7 +228,7 @@ GB_RESULT GB_LoraFragmentSend(
     }
 
     GB_DEBUGI(LORA_TAG, "All %d fragments sent successfully", frag_total);
-    *state = LORA_IDLE;
+    *state = LORA_SEND;
 
 error_exit:
     return res;
@@ -267,7 +271,7 @@ GB_FRAG_RESULT GB_LoraFragmentReceive(
         ctx->active = true;
         ctx->msg_id = frag->msg_id;
         ctx->frag_total = frag->frag_total;
-        GB_GetTimerMs((uint64_t*)&(ctx->timestamp_ms));
+        GB_GetTimerMs(&(ctx->timestamp_ms));
     }
 
     // Verify fragment belongs to current message

@@ -201,15 +201,29 @@ void controller_task(void *pvParameter)
             // Handle SW3: Pull PID table from master (rising edge)
             if (current_toggle_state.sw3_state && !prev_toggle_state.sw3_state)
             {
-                GB_DEBUGI(GB_INFO, "SW3 triggered: Requesting PID table from master");
-                atomic_store(&lora_send_config, LORA_SEND_PID_GET_INFO);
+                if (!current_toggle_state.sw1_state)
+                {
+                    GB_DEBUGI(GB_INFO, "SW3 triggered: Requesting PID table from master");
+                    atomic_store(&lora_send_config, LORA_SEND_PID_GET_INFO);
+                }
+                else
+                {
+                    GB_DEBUGI(GB_INFO, "SW3 ignored: Cannot request PID during fly mode");
+                }
             }
 
             // Handle SW4: Push PID table to master (rising edge)
             if (current_toggle_state.sw4_state && !prev_toggle_state.sw4_state)
             {
-                GB_DEBUGI(GB_INFO, "SW4 triggered: Sending PID table to master");
-                atomic_store(&lora_send_config, LORA_SEND_PID_SET_INFO);
+                if (!current_toggle_state.sw1_state)
+                {
+                    GB_DEBUGI(GB_INFO, "SW4 triggered: Sending PID table to master");
+                    atomic_store(&lora_send_config, LORA_SEND_PID_SET_INFO);
+                }
+                else
+                {
+                    GB_DEBUGI(GB_INFO, "SW3 ignored: Cannot push PID during fly mode");
+                }
             }
 
             prev_toggle_state = current_toggle_state;
@@ -229,15 +243,15 @@ void rf_loop(void *arg)
     static GB_REASSEMBLY_CTX_T remote_reassembly_ctx = {0};
     static uint8_t remote_msg_id_counter = 0;
 
-    uint8_t send_retry = 0;
     uint64_t receive_waittime = 0;
     uint64_t time_now = 0;
-    uint32_t delay_time = 5000;
+    uint32_t delay_time = 1000;
     GB_LORA_STATE lora_state;
     GB_LORA_PACKAGE_T send_package;
     GB_LORA_PACKAGE_T receive_package;
 
     GB_LoraSystemInit(LORA_SEND, 1, &lora_state);
+    radio.enableDynamicAck(&radio);
     GB_ReassemblyInit(&remote_reassembly_ctx);
 
     // Initialize demo PID table with some default values
@@ -249,19 +263,15 @@ void rf_loop(void *arg)
     }
 
     remote_pid_table.crc16 = GB_PidTableCalculateCRC(&remote_pid_table);
-    uint64_t t_prev_end = 0;
 
     while (true)
     {
         if (LORA_SEND == lora_state)
         {
             GB_SEND_CONFIG current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
-            uint64_t time_now;
-            uint64_t t0, t1, t2 = 0, t3 = 0, t4, t5;
-            GB_GetTimerMs(&time_now);
-            GB_GetTimerMs(&t0);
-            GB_DEBUGI(RF24_TAG, "Transmission begin, %d, time: %lld", current_config, time_now);  // payload was delivered
-            GB_GetTimerMs(&t1);
+            //uint64_t time_now;
+            //GB_GetTimerMs(&time_now);
+            //GB_DEBUGI(RF24_TAG, "Transmission begin, %d, time: %lld", current_config, time_now);  // payload was delivered
             switch (current_config)
             {
             case LORA_SEND_NA:
@@ -280,15 +290,12 @@ void rf_loop(void *arg)
                 send_package.type = GB_SET_CONFIG;
                 send_package.sync = 0xac;
                 send_package.config.set_type = GB_SET_CONTROL_ARG;
-                GB_GetTimerMs(&t2);
                 adc_read_by_item(ADC_THROTTLE, &send_package.config.control_arg.throttle, true);
                 adc_read_by_item(ADC_YAW, &send_package.config.control_arg.yaw, true);
                 adc_read_by_item(ADC_PITCH, &send_package.config.control_arg.pitch, true);
                 adc_read_by_item(ADC_ROLL, &send_package.config.control_arg.roll, true);
-                GB_GetTimerMs(&t3);
                 GB_DEBUGI(RF24_TAG, "Commander throttle, %d, yaw: %d, pitch: %d, roll: %d", send_package.config.control_arg.throttle,
                           send_package.config.control_arg.yaw, send_package.config.control_arg.pitch, send_package.config.control_arg.roll);
-                GB_GetTimerMs(&t4);
                 break;
             case LORA_SEND_PID_SET_INFO:
                 GB_DEBUGI(RF24_TAG, "Sending PID table to master via fragments...");
@@ -305,13 +312,14 @@ void rf_loop(void *arg)
                     &lora_state) == GB_OK)
                 {
                     GB_DEBUGI(RF24_TAG, "PID table sent successfully!");
-                    atomic_store(&lora_send_config, LORA_SEND_NA);
                 }
                 else
                 {
                     GB_DEBUGI(RF24_TAG, "Failed to send PID table");
                 }
 
+                lora_state = LORA_SEND;
+                atomic_store(&lora_send_config, LORA_SEND_NA);
                 continue; // Skip normal packet send
 
             case LORA_SEND_PID_GET_INFO:
@@ -331,39 +339,28 @@ void rf_loop(void *arg)
             }
 
             // This device is a TX node
-            GB_GetTimerMs(&t4);
-            GB_RESULT report = radio.write(&radio, &send_package, sizeof(GB_LORA_PACKAGE_T)); // transmit & save the report
-            GB_GetTimerMs(&t5);
+            GB_RESULT report;
+            if (current_config == LORA_SEND_CONTROL_COMMAND)
+                report = radio.write_data(&radio, &send_package, sizeof(GB_LORA_PACKAGE_T), true);
+            else
+                report = radio.write(&radio, &send_package, sizeof(GB_LORA_PACKAGE_T)); // transmit & save the report
             current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
             if (report == GB_OK)
             {
                 // GB_DEBUGI(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));
                 if (LORA_SEND_SKY_WAL_CONFIG == current_config || LORA_SEND_CONTROL_COMMAND == current_config) // don't need ack for esc setting
                 {
-                    uint64_t t6;
-                    GB_GetTimerMs(&t6);
-                    GB_DEBUGI(RF24_TAG, "TIMING gap: %lld, log1: %lld, adc: %lld, write: %lld, total: %lld, timing_log: %lld",
-                        t_prev_end ? t0 - t_prev_end : 0, t1 - t0, t3 - t2, t4 - t3, t5 - t4, t5 - t0, t6 - t5);
-                    GB_GetTimerMs(&t_prev_end);
+                    GB_SleepMs(20);
                     continue;
                 }
                 lora_state = LORA_RECEIVE;
                 radio.startListening(&radio);
-                send_retry = 0;
                 GB_GetTimerUs(&receive_waittime);
             }
             else
             {
-                GB_DEBUGE(RF24_TAG, "Transmission failed or timed out"); // payload was not delivered
-                send_retry++;
-                if (send_retry >= 5)
-                {
-                    send_retry = 0;
-                    lora_state = LORA_RECEIVE;
-                    radio.startListening(&radio);
-                }
+                GB_DEBUGE(RF24_TAG, "Transmission failed or timed out, %08x", report);
             }
-            continue;
         }
         else if (LORA_RECEIVE == lora_state)
         {
@@ -406,35 +403,38 @@ void rf_loop(void *arg)
                         if (frag_res == GB_FRAG_COMPLETE)
                         {
                             GB_DEBUGI(RF24_TAG, "PID table reassembly complete!");
-                        }
 
-                        // Copy to PID table structure
-                        if (msg_len >= sizeof(GB_PID_TABLE_T))
-                        {
-                            memcpy(&remote_pid_table, complete_msg, sizeof(GB_PID_TABLE_T));
-
-                            // Validate CRC
-                            if (GB_PidTableValidate(&remote_pid_table) == GB_OK)
+                            // Copy to PID table structure
+                            if (msg_len >= sizeof(GB_PID_TABLE_T))
                             {
-                                GB_DEBUGI(RF24_TAG, "PID table received and validated!");
+                                memcpy(&remote_pid_table, complete_msg, sizeof(GB_PID_TABLE_T));
 
-                                // Log received PID parameters
-                                for (int i = 0; i < PID_MAX; i++)
+                                // Validate CRC
+                                if (GB_PidTableValidate(&remote_pid_table) == GB_OK)
                                 {
-                                    GB_DEBUGI(RF24_TAG, "PID[%d]: Kp=%d, Ki=%d, Kd=%d",
-                                    i,
-                                    remote_pid_table.params[i].kp,
-                                    remote_pid_table.params[i].ki,
-                                    remote_pid_table.params[i].kd);
-                                }
+                                    GB_DEBUGI(RF24_TAG, "PID table received and validated!");
 
-                                // TODO: Display on screen, store to file, etc.
-                                atomic_store(&lora_send_config, LORA_SEND_NA);
+                                    // Log received PID parameters
+                                    for (int i = 0; i < PID_MAX; i++)
+                                    {
+                                        GB_DEBUGI(RF24_TAG, "PID[%d]: Kp=%d, Ki=%d, Kd=%d",
+                                        i,
+                                        remote_pid_table.params[i].kp,
+                                        remote_pid_table.params[i].ki,
+                                        remote_pid_table.params[i].kd);
+                                    }
+
+                                    // TODO: Display on screen, store to file, etc.
+                                    atomic_store(&lora_send_config, LORA_SEND_NA);
+                                }
+                                else
+                                {
+                                    GB_DEBUGI(RF24_TAG, "PID table CRC validation failed!");
+                                }
                             }
-                            else
-                            {
-                                GB_DEBUGI(RF24_TAG, "PID table CRC validation failed!");
-                            }
+
+                            lora_state = LORA_SEND;
+                            radio.stopListening(&radio);
                         }
 
                         continue; // Skip normal packet processing
@@ -449,6 +449,7 @@ void rf_loop(void *arg)
                     if (LORA_SEND_NA == current_config)
                     {
                         battery_level = receive_package.init.battery_capacity;
+                        delay_time = 1000;
                     }
                     else if (LORA_GET_MOTION_STATE == current_config)
                     {
@@ -465,6 +466,7 @@ void rf_loop(void *arg)
                     else
                     {
                         atomic_store(&lora_send_config, LORA_SEND_NA);
+                        delay_time = 1000;
                     }
                     lora_state = LORA_SEND;
                     radio.stopListening(&radio);
