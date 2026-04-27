@@ -2339,8 +2339,8 @@ CONFIG_AUX_BAROMETER=y
 #
 # log_system
 #
-# CONFIG_UART_LOG_ENABLE is not set
-CONFIG_USB_LOG_ENABLE=y
+CONFIG_UART_LOG_ENABLE=y
+# CONFIG_USB_LOG_ENABLE is not set
 # end of log_system
 
 #

@@ -49,6 +49,8 @@ typedef struct {
     uint32_t vres;
 } lvgl_port_ppa_disp_size_t;
 
+typedef void (*lvgl_port_ppa_done_cb_t)(uint8_t *out_buf, lvgl_port_ppa_disp_area_t *area, void *user_data);
+
 /**
  * @brief Rotation configuration
  */
@@ -60,6 +62,7 @@ typedef struct {
     ppa_trans_mode_t          ppa_mode;     /*!< Blocking or non-blocking mode */
     bool                      swap_bytes;   /*!< SWAP bytes  */
     void                      *user_data;
+    lvgl_port_ppa_done_cb_t   done_cb;
 } lvgl_port_ppa_disp_rotate_t;
 
 

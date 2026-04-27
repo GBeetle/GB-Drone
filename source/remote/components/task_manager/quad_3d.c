@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <esp_heap_caps.h>
 #include <TGL/gl.h>
 #include "zbuffer.h"
 
@@ -35,7 +36,6 @@ float yaw = 0.0f;
 float pitch = 0.0f;
 float roll = 0.0f;
 
-static PIXEL *imbuf = NULL;
 static ZBuffer *frameBuffer = NULL;
 static GLuint modelDisplayList = 0;
 static mat4 projection_matrix;
@@ -101,8 +101,6 @@ bool quad3d_init()
         return false;
     GB_DEBUGE(DISP_TAG, "quad3d_init start");
 
-    imbuf = calloc(1, sizeof(PIXEL) * winSizeX * winSizeY);
-
     // initialize TinyGL
     frameBuffer = ZB_open(winSizeX, winSizeY,
 #if TGL_FEATURE_RENDER_BITS == 32
@@ -117,6 +115,21 @@ bool quad3d_init()
         return false;
     }
     glInit(frameBuffer);
+
+    // Try to place Z-buffer in faster internal SRAM for better random-access performance
+    GLint zbuf_size = winSizeX * winSizeY * sizeof(GLushort);
+    void *fast_zbuf = heap_caps_malloc(zbuf_size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (fast_zbuf)
+    {
+        memcpy(fast_zbuf, frameBuffer->zbuf, zbuf_size);
+        gl_free(frameBuffer->zbuf);
+        frameBuffer->zbuf = fast_zbuf;
+        GB_DEBUGI(DISP_TAG, "Z-buffer allocated in internal SRAM (%ld bytes)", (long)zbuf_size);
+    }
+    else
+    {
+        GB_DEBUGI(DISP_TAG, "Internal SRAM not enough for zbuf, keeping PSRAM");
+    }
 
     glShadeModel(GL_SMOOTH);
     glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
@@ -184,11 +197,6 @@ bool quad3d_init()
     return true;
 
 error_exit:
-    if (imbuf)
-    {
-        free(imbuf);
-        imbuf = NULL;
-    }
     if (frameBuffer)
     {
         free(frameBuffer);
@@ -200,7 +208,7 @@ error_exit:
 
 bool quad3d_get_image(uint16_t *image_buffer)
 {
-    if (NULL == imbuf || NULL == frameBuffer)
+    if (NULL == frameBuffer)
     {
         if (!quad3d_init())
             return false;
@@ -246,15 +254,13 @@ bool quad3d_get_image(uint16_t *image_buffer)
                 ((DATONE & 0x00FF0000) >> 16) << screen->format->Bshift;
         }
 #endif
-    ZB_copyFrameBuffer(frameBuffer, imbuf, winSizeX * sizeof(PIXEL));
-
-    memcpy(image_buffer, imbuf, winSizeX * winSizeY * sizeof(uint16_t));
+    ZB_copyFrameBuffer(frameBuffer, image_buffer, winSizeX * sizeof(PIXEL));
     return true;
 }
 
 bool quad3d_set_angle(float s_roll, float s_pitch, float s_yaw)
 {
-    if (NULL == imbuf || NULL == frameBuffer)
+    if (NULL == frameBuffer)
     {
         if (!quad3d_init())
             return false;
@@ -270,4 +276,79 @@ bool quad3d_set_angle(float s_roll, float s_pitch, float s_yaw)
         return true;
     }
     return false;
+}
+
+static uint16_t *render_buffers[2] = {NULL, NULL};
+static volatile int front_buf = 0;
+static volatile bool frame_ready = false;
+static TaskHandle_t render_task_handle = NULL;
+
+static void render_3d_task(void *arg)
+{
+    (void)arg;
+
+    while (1)
+    {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        int back = 1 - front_buf;
+        if (render_buffers[back] && quad3d_get_image(render_buffers[back]))
+        {
+            front_buf = back;
+            frame_ready = true;
+        }
+    }
+}
+
+bool quad3d_start_render_task(uint16_t *buf_a, uint16_t *buf_b)
+{
+    if (render_task_handle != NULL)
+        return false;
+
+    render_buffers[0] = buf_a;
+    render_buffers[1] = buf_b;
+    front_buf = 0;
+    frame_ready = false;
+
+    BaseType_t ret = xTaskCreatePinnedToCore(render_3d_task, "3d_render",
+        32768, NULL, 5 | portPRIVILEGE_BIT, &render_task_handle, 1);
+    if (ret != pdPASS)
+    {
+        GB_DEBUGE(DISP_TAG, "Failed to create 3D render task");
+        render_task_handle = NULL;
+        return false;
+    }
+
+    // Trigger first render
+    xTaskNotifyGive(render_task_handle);
+    GB_DEBUGE(DISP_TAG, "3D render task started on core 1");
+    return true;
+}
+
+void quad3d_stop_render_task(void)
+{
+    if (render_task_handle)
+    {
+        vTaskDelete(render_task_handle);
+        render_task_handle = NULL;
+    }
+
+    render_buffers[0] = NULL;
+    render_buffers[1] = NULL;
+    frame_ready = false;
+}
+
+bool quad3d_is_frame_ready(void)
+{
+    return frame_ready;
+}
+
+uint16_t *quad3d_get_front_buffer(void)
+{
+    frame_ready = false;
+    // Trigger next render
+    if (render_task_handle)
+    {
+        xTaskNotifyGive(render_task_handle);
+    }
+    return render_buffers[front_buf];
 }

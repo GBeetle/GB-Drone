@@ -295,6 +295,7 @@ void gb_sensor_fusion(void* arg)
         motionState.roll = euler.angle.roll;
         motionState.pitch = euler.angle.pitch;
         motionState.yaw = euler.angle.yaw;
+        motionState.height = baro_data.altitude;
 
         GB_DEBUGD(SENSOR_TAG, "Gyro.x %f, Gyro.y %f, Gyro.z %f\n", gyroscope.axis.x, gyroscope.axis.y, gyroscope.axis.z);
         GB_DEBUGD(SENSOR_TAG, "Accel.x %f, Accel.y %f, Accel.z %f\n", accelerometer.axis.x, accelerometer.axis.y, accelerometer.axis.z);
@@ -416,13 +417,29 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             // roll -> pitch
             // pitch -> roll
             // yaw -> yaw
-            out->request.quad_status.roll = -motionState.pitch * GB_ERLER_SCALE_RATE;
-            out->request.quad_status.pitch = motionState.roll * GB_ERLER_SCALE_RATE;
-            out->request.quad_status.yaw = motionState.yaw * GB_ERLER_SCALE_RATE;
-            GB_DEBUGD(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d",
-                        out->request.quad_status.roll,
-                        out->request.quad_status.pitch,
-                        out->request.quad_status.yaw);
+            out->request.motion_status.roll = -motionState.pitch * GB_ERLER_SCALE_RATE;
+            out->request.motion_status.pitch = motionState.roll * GB_ERLER_SCALE_RATE;
+            out->request.motion_status.yaw = motionState.yaw * GB_ERLER_SCALE_RATE;
+            out->request.motion_status.altitude = (int16_t)motionState.height;
+            out->request.motion_status.system_state = GB_SYSTEM_INITIALIZE_PASS;
+
+            static uint8_t battery_counter = 0;
+            static uint8_t cached_battery = 0;
+            if (++battery_counter >= 100)
+            {
+                battery_counter = 0;
+                GB_Max1704xGetVoltage(dev, &voltage);
+                cached_battery = (voltage > MAX1704X_VOL_MIN && voltage < MAX1704X_VOL_MAX) ?
+                                (uint8_t)((voltage - MAX1704X_VOL_MIN) / (MAX1704X_VOL_MAX - MAX1704X_VOL_MIN) * 100) : 0xff;
+            }
+            out->request.motion_status.battery = cached_battery;
+
+            GB_DEBUGD(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
+                        out->request.motion_status.roll,
+                        out->request.motion_status.pitch,
+                        out->request.motion_status.yaw,
+                        out->request.motion_status.altitude,
+                        out->request.motion_status.battery);
 
             break;
         case GB_GET_PID_TABLE:

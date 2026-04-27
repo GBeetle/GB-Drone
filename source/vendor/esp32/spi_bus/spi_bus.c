@@ -16,6 +16,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include "sdkconfig.h"
 #include "log_sys.h"
 #include "esp_intr_alloc.h"
@@ -191,6 +192,7 @@ static GB_RESULT writeBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr,
     uint32_t process_len = 0;
     uint32_t process_times = length / SPI_DMA_MAX_TRANS_SIZE + 1;
     spi_transaction_t transaction[process_times];
+    memset(transaction, 0, sizeof(transaction));
 
     for (int i = 0; remain_len > 0; i++)
     {
@@ -201,14 +203,9 @@ static GB_RESULT writeBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr,
 
         //GB_DEBUGE(ERROR_TAG, "PUSH %d bytes", process_len);
 
-        transaction[i].flags = 0;
-        transaction[i].cmd = 0;
         transaction[i].addr = regAddr & SPIBUS_WRITE;
         transaction[i].length = process_len * 8;
-        transaction[i].rxlength = 0;
-        transaction[i].user = NULL;
         transaction[i].tx_buffer = data;
-        transaction[i].rx_buffer = NULL;
         err = spi_device_transmit((spi_device_handle_t)(spi->device[devAddr].devHandle), &transaction[i]);
         if (err != ESP_OK) {
             char str[process_len*5+1];
@@ -281,13 +278,10 @@ static GB_RESULT readBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr, 
 
 static GB_RESULT readWriteBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *r_data, uint8_t *w_data) {
     if(length == 0) return GB_SPI_INVALID_SIZE;
-    spi_transaction_t transaction;
-    transaction.flags = 0;
-    transaction.cmd = 0;
+    spi_transaction_t transaction = {0};
     transaction.addr = regAddr;
     transaction.length = length * 8;
     transaction.rxlength = length * 8;
-    transaction.user = NULL;
     transaction.tx_buffer = w_data;
     transaction.rx_buffer = r_data;
     esp_err_t err = spi_device_transmit((spi_device_handle_t)(spi->device[devAddr].devHandle), &transaction);
@@ -313,6 +307,7 @@ GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t r
     uint32_t process_len = 0;
     uint32_t process_times = length / SPI_DMA_MAX_TRANS_SIZE + 1;
     spi_transaction_ext_t transaction[process_times];
+    memset(transaction, 0, sizeof(transaction));
 
     //GB_DEBUGE(ERROR_TAG, "readWriteBytesWithConfig begin %d bytes", length);
 
@@ -334,7 +329,6 @@ GB_RESULT readWriteBytesWithConfig(struct spi *spi, uint64_t devAddr, uint64_t r
         transaction[i].base.cmd = cmd;
         transaction[i].base.addr = regAddr;
         transaction[i].base.length = process_len * 8;
-        transaction[i].base.rxlength = 0;
         transaction[i].base.user = NULL;
         transaction[i].base.tx_buffer = w_data;
         transaction[i].base.rx_buffer = r_data;

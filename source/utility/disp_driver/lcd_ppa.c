@@ -21,15 +21,16 @@ struct lvgl_port_ppa_t {
     uint32_t             buffer_size;
     ppa_client_handle_t  srm_handle;
     ppa_srm_color_mode_t color_mode;
+    lvgl_port_ppa_done_cb_t done_cb;
+    lvgl_port_ppa_disp_area_t done_area;
+    void                 *done_user_data;
 };
 
 static const char *TAG = "PPA";
 /*******************************************************************************
 * Function definitions
 *******************************************************************************/
-#if PPA_LCD_ENABLE_CB
 static bool _lvgl_port_ppa_callback(ppa_client_handle_t ppa_client, ppa_event_data_t *event_data, void *user_data);
-#endif
 /*******************************************************************************
 * Public API functions
 *******************************************************************************/
@@ -65,13 +66,11 @@ lvgl_port_ppa_handle_t lvgl_port_ppa_create(const lvgl_port_ppa_cfg_t *cfg)
     ESP_GOTO_ON_ERROR(ppa_register_client(&ppa_client_config, &ppa_ctx->srm_handle), err, TAG,
                       "Error when registering PPA client!");
 
-#if PPA_LCD_ENABLE_CB
     ppa_event_callbacks_t ppa_cbs = {
         .on_trans_done = _lvgl_port_ppa_callback,
     };
     ESP_GOTO_ON_ERROR(ppa_client_register_event_callbacks(ppa_ctx->srm_handle, &ppa_cbs), err, TAG,
                       "Error when registering PPA callbacks!");
-#endif
 
     ppa_ctx->color_mode = cfg->color_mode;
 
@@ -159,6 +158,10 @@ esp_err_t lvgl_port_ppa_rotate(lvgl_port_ppa_handle_t handle, lvgl_port_ppa_disp
     rotate_cfg->area.y1 = y1;
     rotate_cfg->area.y2 = y2;
 
+    ppa_ctx->done_cb = rotate_cfg->done_cb;
+    ppa_ctx->done_area = rotate_cfg->area;
+    ppa_ctx->done_user_data = rotate_cfg->user_data;
+
     /* Prepare Operation     */
     ppa_srm_oper_config_t srm_oper_config = {
         .in.buffer = rotate_cfg->in_buff,
@@ -185,15 +188,18 @@ esp_err_t lvgl_port_ppa_rotate(lvgl_port_ppa_handle_t handle, lvgl_port_ppa_disp
         .byte_swap = rotate_cfg->swap_bytes,
 
         .mode = rotate_cfg->ppa_mode,
-        .user_data = rotate_cfg->user_data,
+        .user_data = ppa_ctx,
     };
 
     return ppa_do_scale_rotate_mirror(ppa_ctx->srm_handle, &srm_oper_config);
 }
 
-#if PPA_LCD_ENABLE_CB
 static bool _lvgl_port_ppa_callback(ppa_client_handle_t ppa_client, ppa_event_data_t *event_data, void *user_data)
 {
+    lvgl_port_ppa_t *ppa_ctx = (lvgl_port_ppa_t *)user_data;
+    if (ppa_ctx && ppa_ctx->done_cb)
+    {
+        ppa_ctx->done_cb(ppa_ctx->buffer, &ppa_ctx->done_area, ppa_ctx->done_user_data);
+    }
     return false;
 }
-#endif

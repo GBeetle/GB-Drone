@@ -18,10 +18,16 @@
 #ifndef _GB_QUAD_3D__
 #define _GB_QUAD_3D__
 
+#include <stdbool.h>
 #include <stdint.h>
 
 bool quad3d_init();
 bool quad3d_get_image(uint16_t *image_buffer);
 bool quad3d_set_angle(float roll, float pitch, float yaw);
+
+bool quad3d_start_render_task(uint16_t *buf_a, uint16_t *buf_b);
+void quad3d_stop_render_task(void);
+bool quad3d_is_frame_ready(void);
+uint16_t* quad3d_get_front_buffer(void);
 
 #endif /* end of include guard: _GB_QUAD_3D__ */

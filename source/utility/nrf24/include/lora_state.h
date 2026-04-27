@@ -108,14 +108,6 @@ typedef struct
     uint16_t pitch;
 } GB_SET_CONTROL_ARG_T;
 
-typedef struct
-{ // 0 ~ 100 for every value
-    int16_t throttle;
-    int16_t yaw;
-    int16_t roll;
-    int16_t pitch;
-} GB_CONTROL_ARG_T;
-
 typedef uint16_t GB_SET_THROTTLE_T;
 typedef struct
 {
@@ -123,7 +115,6 @@ typedef struct
     union
     {
         GB_SET_THROTTLE_T throttle;
-        //LORA_GB_PID_INIT_T pid;  TODO
         GB_SET_CONTROL_ARG_T control_arg;
     };
 } GB_SET_CONFIG_T;
@@ -132,12 +123,22 @@ typedef uint8_t GB_GET_BATTERY_INFO_T;
 typedef uint32_t GB_GET_PID_INFO_T;
 typedef struct
 {
+    int16_t roll;
+    int16_t pitch;
+    int16_t yaw;
+    int16_t altitude;
+    int16_t battery;
+    GB_SYSTEM_STATE system_state;
+} GB_MOTION_STATE_T;
+
+typedef struct
+{
     GB_GET_TYPE get_type;
     union
     {
         GB_GET_BATTERY_INFO_T battery;
         GB_GET_PID_INFO_T pid;
-        GB_CONTROL_ARG_T quad_status;
+        GB_MOTION_STATE_T motion_status;
     };
 } GB_GET_REQUEST_T;
 

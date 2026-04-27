@@ -42,7 +42,8 @@ void lvgl_driver_flush(lv_display_t * drv, const lv_area_t * area, uint8_t * col
         .rotation = PPA_SRM_ROTATION_ANGLE_90,
         .ppa_mode = PPA_TRANS_MODE_BLOCKING,
         .swap_bytes = false,
-        .user_data = NULL
+        .user_data = NULL,
+        .done_cb = NULL,
     };
     /* Do operation */
     esp_err_t err = lvgl_port_ppa_rotate(disp_dsi_get_ppa_handle(), &rotate_cfg);

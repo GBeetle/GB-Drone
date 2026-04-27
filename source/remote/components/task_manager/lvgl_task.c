@@ -99,6 +99,7 @@ lv_timer_t *draw_task = NULL;
 lv_obj_t *model_canvas = NULL;
 uint32_t canvas_buffer_size = LV_HOR_RES_MAX * LV_VER_RES_MAX * 2;
 uint16_t *canvas_buffer = NULL;
+uint16_t *canvas_buffer_b = NULL;
 static bool canvas_initializing = false;
 
 // battery
@@ -207,6 +208,17 @@ void init_canvas()
         }
     }
 
+    if (NULL == canvas_buffer_b)
+    {
+        canvas_buffer_b = (uint16_t *)heap_caps_malloc(canvas_buffer_size, MALLOC_CAP_SPIRAM);
+        if (canvas_buffer_b == NULL)
+        {
+            GB_DEBUGE(DISP_TAG, "init_canvas allocate buffer B failed");
+            canvas_initializing = false;
+            return;
+        }
+    }
+
     if (NULL == model_canvas)
     {
         model_canvas = lv_canvas_create(lv_screen_active());
@@ -221,9 +233,15 @@ void init_canvas()
         lv_obj_move_foreground(model_canvas);
         if (status_bar)
             lv_obj_move_foreground(status_bar);
+#if SHOW_FPS_COUNTER
+        if (fps_label)
+            lv_obj_move_foreground(fps_label);
+#endif
 
         GB_DEBUGI(DISP_TAG, "Canvas created and positioned below status bar");
     }
+
+    quad3d_start_render_task(canvas_buffer, canvas_buffer_b);
 
     canvas_initializing = false;
 }
@@ -235,6 +253,8 @@ void deinit_canvas()
         GB_DEBUGW(DISP_TAG, "Canvas initialization already in process, deferring cleanup");
         return;
     }
+
+    quad3d_stop_render_task();
 
     if (model_canvas)
     {
@@ -417,16 +437,16 @@ static void _handle_button_event(GB_REMOTE_CONTROL_ID btn_id, uint32_t active_ta
 static void canvas_draw_task(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
-    GB_GPIO_Set(TEST_IMU_IO, 1);
 
+    if (quad3d_is_frame_ready())
+    {
+        uint16_t *buf = quad3d_get_front_buffer();
 #if (CONFIG_DISPLAY_ORIENTATION_PORTRAIT)
-    if (quad3d_get_image(canvas_buffer))
-        lv_canvas_set_buffer(model_canvas, canvas_buffer, LV_VER_RES_MAX, LV_HOR_RES_MAX, LV_COLOR_FORMAT_RGB565);
+        lv_canvas_set_buffer(model_canvas, buf, LV_VER_RES_MAX, LV_HOR_RES_MAX, LV_COLOR_FORMAT_RGB565);
 #else
-    if (quad3d_get_image(canvas_buffer))
-        lv_canvas_set_buffer(model_canvas, canvas_buffer, LV_HOR_RES_MAX, LV_VER_RES_MAX, LV_COLOR_FORMAT_RGB565);
+        lv_canvas_set_buffer(model_canvas, buf, LV_HOR_RES_MAX, LV_VER_RES_MAX, LV_COLOR_FORMAT_RGB565);
 #endif
-        GB_GPIO_Set(TEST_IMU_IO, 0);
+    }
 }
 
 static void battery_update_task(lv_timer_t *timer)
@@ -538,7 +558,7 @@ static void toggle_switch_update_task(lv_timer_t *timer)
             // Only create timer if canvas was successfully initialized
             if (model_canvas != NULL)
             {
-                draw_task = lv_timer_create(canvas_draw_task, 100, NULL);
+                draw_task = lv_timer_create(canvas_draw_task, 33, NULL);
                 atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
                 GB_DEBUGI(DISP_TAG, "3D mode enabled successfully");
             }
