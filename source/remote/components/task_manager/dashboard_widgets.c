@@ -42,9 +42,17 @@
 #define COLOR_BACKGROUND lv_color_hex(0x1E1E1E)
 
 // Layout dimensions
-#define ATTITUDE_SIZE 240
-#define GAUGE_SIZE 90
+#define ATTITUDE_SIZE 200
+#define GAUGE_SIZE 85
 #define SENSOR_ICON_SIZE 20
+
+#if defined CONFIG_TFT_DISPLAY_PROTOCOL_DSI
+#define ATTITUDE_CF   LV_COLOR_FORMAT_RGB888
+#define ATTITUDE_BPP  3
+#else
+#define ATTITUDE_CF   LV_COLOR_FORMAT_RGB565
+#define ATTITUDE_BPP  2
+#endif
 
 /**********************
  *    STATIC PROTOTYPES
@@ -63,10 +71,6 @@ static void update_telemetry_gauges(flight_data_t *data);
 static void update_sensor_status(flight_data_t *data);
 static void update_flight_status(flight_data_t *data);
 static void update_led_color(lv_obj_t *led, sensor_status_t status);
-static void canvas_draw_rect(lv_obj_t *canvas, int32_t x, int32_t y,
-                      int32_t w, int32_t h, lv_draw_rect_dsc_t *dsc);
-static void canvas_draw_line(lv_obj_t *canvas, const lv_point_precise_t *points,
-                      uint32_t point_cnt, lv_draw_line_dsc_t *dsc);
 
 /**********************
  *    STATIC VARIABLES
@@ -117,9 +121,10 @@ void dashboard_create(lv_obj_t *parent)
     lv_obj_set_pos(dashboard_container, 0, 0);
     lv_obj_set_style_bg_color(dashboard_container, COLOR_BACKGROUND, 0);
     lv_obj_set_style_border_width(dashboard_container, 0, 0);
-    lv_obj_set_style_pad_all(dashboard_container, 5, 0);
-    lv_obj_set_style_pad_row(dashboard_container, 5, 0);
-    lv_obj_set_scrollbar_mode(dashboard_container, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_set_style_pad_all(dashboard_container, 4, 0);
+    lv_obj_set_style_pad_row(dashboard_container, 4, 0);
+    lv_obj_set_scrollbar_mode(dashboard_container, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(dashboard_container, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(dashboard_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(dashboard_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
@@ -201,11 +206,11 @@ static void create_attitude_indicator(lv_obj_t *parent)
     lv_obj_set_size(attitude_canvas, ATTITUDE_SIZE, ATTITUDE_SIZE);
 
     // Allocate buffer for canvas
-    size_t buf_size = ATTITUDE_SIZE * ATTITUDE_SIZE * sizeof(uint16_t);
-    attitude_buffer = (lv_color_t *)heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
+    size_t buf_size = ATTITUDE_SIZE * ATTITUDE_SIZE * ATTITUDE_BPP;
+    attitude_buffer = (lv_color_t *)heap_caps_aligned_alloc(64, buf_size, MALLOC_CAP_SPIRAM);
 
     if (attitude_buffer != NULL) {
-        lv_canvas_set_buffer(attitude_canvas, attitude_buffer, ATTITUDE_SIZE, ATTITUDE_SIZE, LV_COLOR_FORMAT_RGB565);
+        lv_canvas_set_buffer(attitude_canvas, attitude_buffer, ATTITUDE_SIZE, ATTITUDE_SIZE, ATTITUDE_CF);
         lv_canvas_fill_bg(attitude_canvas, COLOR_BACKGROUND, LV_OPA_COVER);
 
         // Draw initial horizon
@@ -261,10 +266,10 @@ static void create_telemetry_gauges(lv_obj_t *parent)
     lv_obj_set_flex_flow(gauge_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(gauge_row, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    create_single_gauge(gauge_row, &alt_gauge, &alt_label, "@m\nALT", 0, 100, 135, 45);
-    create_single_gauge(gauge_row, &speed_gauge, &speed_label, "@m/s\nSPD", 0, 20, 135, 45);
-    create_single_gauge(gauge_row, &dist_gauge, &dist_label, "@m\nDIST", 0, 500, 135, 45);
-    create_single_gauge(gauge_row, &heading_gauge, &heading_label, "@o\nHEAD", 0, 359, 0, 360);
+    create_single_gauge(gauge_row, &alt_gauge, &alt_label, "0\nALT", 0, 100, 135, 45);
+    create_single_gauge(gauge_row, &speed_gauge, &speed_label, "0m/s\nSPD", 0, 20, 135, 45);
+    create_single_gauge(gauge_row, &dist_gauge, &dist_label, "0m\nDIST", 0, 500, 135, 45);
+    create_single_gauge(gauge_row, &heading_gauge, &heading_label, "0\nHEAD", 0, 359, 0, 360);
 
     GB_DEBUGI(DISP_TAG, "Telemetry gauges created");
 }
@@ -272,29 +277,14 @@ static void create_telemetry_gauges(lv_obj_t *parent)
 static void create_sensor_indicator(lv_obj_t *parent, const char *label_text, const char *icon,
     lv_obj_t **led_out, lv_obj_t **label_out)
 {
-    lv_obj_t *container = lv_obj_create(parent);
-    lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(container, 0, 0);
-    lv_obj_set_style_pad_all(container, 4, 0);
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_flex_grow(container, 1);
-
-    // Icon label
-    lv_obj_t *icon_label = lv_label_create(container);
-    lv_label_set_text(icon_label, icon);
-    lv_obj_set_style_text_font(icon_label, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(icon_label, COLOR_TEXT_SECONDARY, 0);
-
     // LED indicator
-    *led_out = lv_led_create(container);
+    *led_out = lv_led_create(parent);
     lv_obj_set_size(*led_out, 16, 16);
     lv_led_set_color(*led_out, COLOR_NEUTRAL);
     lv_led_off(*led_out);
 
     // Detail label
-    *label_out = lv_label_create(container);
+    *label_out = lv_label_create(parent);
     lv_label_set_text(*label_out, label_text);
     lv_obj_set_style_text_color(*label_out, COLOR_TEXT_SECONDARY, 0);
     lv_obj_set_style_text_font(*label_out, &lv_font_montserrat_16, 0);
@@ -305,9 +295,11 @@ static void create_sensor_status_row(lv_obj_t *parent)
     // Row container for all sensors
     lv_obj_t *sensor_row = lv_obj_create(parent);
     lv_obj_set_size(sensor_row, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(sensor_row, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(sensor_row, 0, 0);
-    lv_obj_set_style_pad_all(sensor_row, 0, 0);
+    lv_obj_set_style_bg_color(sensor_row, lv_color_hex(0x2A2A2A), 0);
+    lv_obj_set_style_border_color(sensor_row, COLOR_NEUTRAL, 0);
+    lv_obj_set_style_border_width(sensor_row, 1, 0);
+    lv_obj_set_style_pad_all(sensor_row, 4, 0);
+    lv_obj_set_style_pad_column(sensor_row, 6, 0);
     lv_obj_set_flex_flow(sensor_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(sensor_row, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
@@ -327,75 +319,27 @@ static void create_flight_status_bar(lv_obj_t *parent)
     lv_obj_set_style_bg_color(container, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_border_color(container, COLOR_NEUTRAL, 0);
     lv_obj_set_style_border_width(container, 1, 0);
-    lv_obj_set_style_pad_all(container, 10, 0);
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(container, 5, 0);
+    lv_obj_set_style_pad_all(container, 4, 0);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
-    // Row 1
-    lv_obj_t *row1 = lv_obj_create(container);
-    lv_obj_set_size(row1, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(row1, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(row1, 0, 0);
-    lv_obj_set_flex_flow(row1, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(row1, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-    connection_label = lv_label_create(row1);
+    connection_label = lv_label_create(container);
     lv_label_set_text(connection_label, LV_SYMBOL_CLOSE " DISC");
     lv_obj_set_style_text_color(connection_label, COLOR_DANGER, 0);
 
-    arm_label = lv_label_create(row1);
+    arm_label = lv_label_create(container);
     lv_label_set_text(arm_label, LV_SYMBOL_STOP " DISARM");
     lv_obj_set_style_text_color(arm_label, COLOR_GOOD, 0);
 
-    // Row 2
-    lv_obj_t *row2 = lv_obj_create(container);
-    lv_obj_set_size(row2, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_opa(row2, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(row2, 0, 0);
-    lv_obj_set_flex_flow(row2, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(row2, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-    mode_label = lv_label_create(row2);
+    mode_label = lv_label_create(container);
     lv_label_set_text(mode_label, LV_SYMBOL_SETTINGS " INIT");
     lv_obj_set_style_text_color(mode_label, COLOR_TEXT_PRIMARY, 0);
 
-    freq_label = lv_label_create(row2);
+    freq_label = lv_label_create(container);
     lv_label_set_text(freq_label, LV_SYMBOL_BLUETOOTH " 433MHz");
     lv_obj_set_style_text_color(freq_label, COLOR_TEXT_SECONDARY, 0);
 
     GB_DEBUGI(DISP_TAG, "Flight status bar created");
-}
-
-static void canvas_draw_rect(lv_obj_t *canvas, int32_t x, int32_t y,
-                      int32_t w, int32_t h, lv_draw_rect_dsc_t *dsc)
-{
-    lv_layer_t layer;
-    lv_canvas_init_layer(canvas, &layer);
-
-    lv_area_t coords = {
-        .x1 = x,
-        .y1 = y,
-        .x2 = x + w - 1,
-        .y2 = y + h - 1
-    };
-
-    lv_draw_rect(&layer, dsc, &coords);
-    lv_canvas_finish_layer(canvas, &layer);
-}
-
-static void canvas_draw_line(lv_obj_t *canvas, const lv_point_precise_t *points,
-                      uint32_t point_cnt, lv_draw_line_dsc_t *dsc)
-{
-    if (point_cnt < 2) return;
-
-    lv_layer_t layer;
-    lv_canvas_init_layer(canvas, &layer);
-
-    dsc->p1 = points[0];
-    dsc->p2 = points[1];
-
-    lv_draw_line(&layer, dsc);
-    lv_canvas_finish_layer(canvas, &layer);
 }
 
 static void update_attitude_indicator(float pitch, float roll)
@@ -406,45 +350,76 @@ static void update_attitude_indicator(float pitch, float roll)
     int center_y = ATTITUDE_SIZE / 2;
     float pitch_scale = 3.0f;
     int pitch_offset = (int)(pitch * pitch_scale);
+    int horizon_y = center_y - pitch_offset;
+
+    if (horizon_y < 0) horizon_y = 0;
+    if (horizon_y > ATTITUDE_SIZE) horizon_y = ATTITUDE_SIZE;
 
     // Fill background
     lv_canvas_fill_bg(attitude_canvas, lv_color_hex(0x000000), LV_OPA_COVER);
 
+    // Use a SINGLE layer for all draw operations (LVGL 9 best practice)
+    lv_layer_t layer;
+    lv_canvas_init_layer(attitude_canvas, &layer);
+
     // Draw sky (top half)
-    lv_draw_rect_dsc_t sky_dsc;
-    lv_draw_rect_dsc_init(&sky_dsc);
-    sky_dsc.bg_color = COLOR_SKY;
-    sky_dsc.bg_opa = LV_OPA_COVER;
-    canvas_draw_rect(attitude_canvas, 0, 0, ATTITUDE_SIZE, center_y - pitch_offset, &sky_dsc);
+    if (horizon_y > 0) {
+        lv_draw_rect_dsc_t sky_dsc;
+        lv_draw_rect_dsc_init(&sky_dsc);
+        sky_dsc.bg_color = COLOR_SKY;
+        sky_dsc.bg_opa = LV_OPA_COVER;
+        lv_area_t sky_area = {0, 0, ATTITUDE_SIZE - 1, horizon_y - 1};
+        lv_draw_rect(&layer, &sky_dsc, &sky_area);
+    }
 
     // Draw ground (bottom half)
-    lv_draw_rect_dsc_t ground_dsc;
-    lv_draw_rect_dsc_init(&ground_dsc);
-    ground_dsc.bg_color = COLOR_GROUND;
-    ground_dsc.bg_opa = LV_OPA_COVER;
-    canvas_draw_rect(attitude_canvas, 0, center_y - pitch_offset, ATTITUDE_SIZE, ATTITUDE_SIZE - (center_y - pitch_offset), &ground_dsc);
+    if (horizon_y < ATTITUDE_SIZE) {
+        lv_draw_rect_dsc_t ground_dsc;
+        lv_draw_rect_dsc_init(&ground_dsc);
+        ground_dsc.bg_color = COLOR_GROUND;
+        ground_dsc.bg_opa = LV_OPA_COVER;
+        lv_area_t ground_area = {0, horizon_y, ATTITUDE_SIZE - 1, ATTITUDE_SIZE - 1};
+        lv_draw_rect(&layer, &ground_dsc, &ground_area);
+    }
 
     // Draw horizon line
     lv_draw_line_dsc_t line_dsc;
     lv_draw_line_dsc_init(&line_dsc);
     line_dsc.color = COLOR_HORIZON;
     line_dsc.width = 3;
+    line_dsc.p1.x = 0;
+    line_dsc.p1.y = horizon_y;
+    line_dsc.p2.x = ATTITUDE_SIZE - 1;
+    line_dsc.p2.y = horizon_y;
+    lv_draw_line(&layer, &line_dsc);
 
-    lv_point_precise_t points[2] = {
-        {0, center_y - pitch_offset},
-        {ATTITUDE_SIZE, center_y - pitch_offset}
-    };
-    canvas_draw_line(attitude_canvas, points, 2, &line_dsc);
-
-    // Draw center aircraft symbol
+    // Draw center aircraft symbol (yellow)
     line_dsc.color = lv_color_hex(0xFFFF00);
     line_dsc.width = 3;
 
-    lv_point_precise_t left_wing[2] = {{center_x - 40, center_y}, {center_x - 10, center_y}};
-    canvas_draw_line(attitude_canvas, left_wing, 2, &line_dsc);
+    // Left wing
+    line_dsc.p1.x = center_x - 40;
+    line_dsc.p1.y = center_y;
+    line_dsc.p2.x = center_x - 10;
+    line_dsc.p2.y = center_y;
+    lv_draw_line(&layer, &line_dsc);
 
-    lv_point_precise_t right_wing[2] = {{center_x + 10, center_y}, {center_x + 40, center_y}};
-    canvas_draw_line(attitude_canvas, right_wing, 2, &line_dsc);
+    // Right wing
+    line_dsc.p1.x = center_x + 10;
+    line_dsc.p1.y = center_y;
+    line_dsc.p2.x = center_x + 40;
+    line_dsc.p2.y = center_y;
+    lv_draw_line(&layer, &line_dsc);
+
+    // Center dot
+    line_dsc.p1.x = center_x;
+    line_dsc.p1.y = center_y - 2;
+    line_dsc.p2.x = center_x;
+    line_dsc.p2.y = center_y + 2;
+    lv_draw_line(&layer, &line_dsc);
+
+    // Finish all draw operations at once
+    lv_canvas_finish_layer(attitude_canvas, &layer);
 }
 
 static void update_telemetry_gauges(flight_data_t *data)

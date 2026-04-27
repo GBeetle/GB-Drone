@@ -214,7 +214,7 @@ void init_canvas()
         lv_obj_set_size(model_canvas, LV_HOR_RES_MAX, LV_VER_RES_MAX - 30);
         lv_obj_align(model_canvas, LV_ALIGN_TOP_LEFT, 0, 30);
 
-        lv_obj_move_background(model_canvas);
+        lv_obj_move_foreground(model_canvas);
         if (status_bar)
             lv_obj_move_foreground(status_bar);
 
@@ -523,7 +523,7 @@ static void toggle_switch_update_task(lv_timer_t *timer)
             // Switch to 3D model mode
             GB_DEBUGI(DISP_TAG, "Enabling 3D mode");
             // Hide dashboard before showing 3D model
-            dashboard_hide();
+            if (tv) lv_obj_add_flag(tv, LV_OBJ_FLAG_HIDDEN);
             init_canvas();
 
             // Only create timer if canvas was successfully initialized
@@ -537,7 +537,7 @@ static void toggle_switch_update_task(lv_timer_t *timer)
             {
                 GB_DEBUGI(DISP_TAG, "Failed to initialize canvas for 3D mode");
                 // Show dashboard again if 3D init failed
-                dashboard_show();
+                if (tv) lv_obj_clear_flag(tv, LV_OBJ_FLAG_HIDDEN);
             }
         }
         else if (!toggle_state.sw2_state && draw_task)
