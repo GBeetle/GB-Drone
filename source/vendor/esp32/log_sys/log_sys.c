@@ -16,13 +16,23 @@
  */
 
 #include "esp_log.h"
+#include "log_sys.h"
+
+#ifdef CONFIG_USB_LOG_ENABLE
 #include "tusb_cdc_acm.h"
 #include "tusb_console.h"
 #include "tinyusb.h"
 #include "tinyusb_net.h"
 #include "class/cdc/cdc_device.h"
+#endif
+
+#ifdef CONFIG_UART_LOG_ENABLE
 #include "driver/uart.h"
-#include "log_sys.h"
+#endif
+
+#ifdef CONFIG_USB_JTAG_LOG_ENABLE
+#include "driver/usb_serial_jtag.h"
+#endif
 
 #define GB_LOG_BUFFER_SIZE 1024
 
@@ -68,6 +78,14 @@ void GB_LogSystemInit()
     };
     ESP_ERROR_CHECK(uart_driver_install(UART_NUM_0, 2*1024, 0, 0, NULL, 0));
     ESP_ERROR_CHECK(uart_param_config(UART_NUM_0, &uart_config));
+#endif
+
+#ifdef CONFIG_USB_JTAG_LOG_ENABLE
+    usb_serial_jtag_driver_config_t usb_serial_jtag_config = {
+        .tx_buffer_size = 1024,
+        .rx_buffer_size = 1024
+    };
+    ESP_ERROR_CHECK(usb_serial_jtag_driver_install(&usb_serial_jtag_config));
 #endif
 
 #ifdef CONFIG_USB_LOG_ENABLE
@@ -159,6 +177,9 @@ GB_RESULT GB_ReadBytes(uint8_t *buf, size_t *rx_size)
 #ifdef CONFIG_UART_LOG_ENABLE
     int rxBytes = uart_read_bytes(UART_NUM_0, buf, *rx_size, 10 / portTICK_PERIOD_MS);
     *rx_size = rxBytes;
+#elif CONFIG_USB_JTAG_LOG_ENABLE
+    int rxBytes = usb_serial_jtag_read_bytes(buf, *rx_size, 10 / portTICK_PERIOD_MS);
+    *rx_size = rxBytes;
 #elif CONFIG_USB_LOG_ENABLE
     esp_err_t ret = tinyusb_cdcacm_read(TINYUSB_CDC_ACM_0, buf, CONFIG_TINYUSB_CDC_RX_BUFSIZE, rx_size);
     if (ret == ESP_OK) {
@@ -177,6 +198,8 @@ GB_RESULT GB_WriteBytes(const uint8_t *buf, size_t tx_size)
 
 #ifdef CONFIG_UART_LOG_ENABLE
     uart_write_bytes(UART_NUM_0, (const uint8_t *)buf, tx_size);
+#elif CONFIG_USB_JTAG_LOG_ENABLE
+    usb_serial_jtag_write_bytes(buf, tx_size, 10 / portTICK_PERIOD_MS);
 #elif CONFIG_USB_LOG_ENABLE
     esp_err_t ret = tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, buf, tx_size);
     if (ret != ESP_OK) {

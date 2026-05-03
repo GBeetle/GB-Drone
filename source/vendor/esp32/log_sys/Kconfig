@@ -10,6 +10,8 @@ choice LOG_PORT
         bool "UART"
     config USB_LOG_ENABLE
         bool "USB"
+    config USB_JTAG_LOG_ENABLE
+        bool "USB_JTAG"
 
 endchoice
 

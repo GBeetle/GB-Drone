@@ -37,6 +37,7 @@
 void app_main(void)
 {
     GB_LogSystemInit();
+    GB_ISR_Init();
 
     GB_FileSystem_Init();
     GB_SDCardFileSystem_Init();

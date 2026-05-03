@@ -256,14 +256,10 @@ error_exit:
 
 static GB_RESULT readBytes(struct spi *spi, uint64_t devAddr, uint64_t regAddr, size_t length, uint8_t *data) {
     if(length == 0) return GB_SPI_INVALID_SIZE;
-    spi_transaction_t transaction;
-    transaction.flags = 0;
-    transaction.cmd = 0;
+    spi_transaction_t transaction = {0};;
     transaction.addr = regAddr | SPIBUS_READ;
     transaction.length = length * 8;
     transaction.rxlength = length * 8;
-    transaction.user = NULL;
-    transaction.tx_buffer = NULL;
     transaction.rx_buffer = data;
     esp_err_t err = spi_device_transmit((spi_device_handle_t)(spi->device[devAddr].devHandle), &transaction);
     if (err != ESP_OK) {

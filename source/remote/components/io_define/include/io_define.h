@@ -25,7 +25,7 @@
 #define NRF24_SPI_CS 5
 #define NRF24_SPI_CLOCK_SPEED SPI_MASTER_FREQ_10M
 #define NRF24_CE 7
-#define NRF24_IRQ 10
+#define NRF24_INT 10
 
 // TFT
 #define TFT_SPI_MOSI 11

@@ -293,25 +293,9 @@ static void IRAM_ATTR toggle_switch_isr_handler(void *arg)
     }
     toggle_last_isr_time = now;
 
-    // Read all toggle switch states using gpio_setting wrapper
-    uint32_t level;
-    GB_TOGGLE_SWITCH_STATE new_state;
-
-    GB_GPIO_Get(TOGGLE_SW_1_GPIO, &level);
-    new_state.sw1_state = !level; // Active low
-
-    GB_GPIO_Get(TOGGLE_SW_2_GPIO, &level);
-    new_state.sw2_state = !level;
-
-    GB_GPIO_Get(TOGGLE_SW_3_GPIO, &level);
-    new_state.sw3_state = !level;
-
-    GB_GPIO_Get(TOGGLE_SW_4_GPIO, &level);
-    new_state.sw4_state = !level;
-
     GB_CONTROL_EVENT event = {
         .type = GB_EVENT_TOGGLE_SWITCH,
-        .data.switch_state = new_state
+        .data.switch_state = {0}
     };
 
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -367,9 +351,6 @@ void controller_input_init(void)
     };
 
     gpio_config(&toggle_conf);
-
-    // Install ISR service
-    gpio_install_isr_service(0);
 
     // Register button ISR handlers
     for (int i = 0; i < BTN_COUNT; i++)

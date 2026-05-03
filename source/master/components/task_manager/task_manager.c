@@ -413,7 +413,6 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
         case GB_GET_BATTERY_INFO:
             break;
         case GB_GET_MOTION_STATE:
-            GB_DEBUGD(RF24_TAG, "motionState roll: %f, pitch: %f, yaw: %f", motionState.roll, motionState.pitch, motionState.yaw);
             // roll -> pitch
             // pitch -> roll
             // yaw -> yaw
@@ -434,7 +433,7 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             }
             out->request.motion_status.battery = cached_battery;
 
-            GB_DEBUGD(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
+            GB_DEBUGI(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
                         out->request.motion_status.roll,
                         out->request.motion_status.pitch,
                         out->request.motion_status.yaw,
@@ -578,20 +577,12 @@ void nrf24_interrupt_func(void *arg)
             if (radio.available(&radio, &pipe))
             {                                                 // is there a payload? get the pipe number that recieved itv
                 uint8_t bytes = radio.getPayloadSize(&radio); // get the size of the payload
-                radio.read(&radio, &in_package, bytes);       // fetch payload from FIFO
+                radio.read(&radio, in_package, bytes);       // fetch payload from FIFO
                 out_send_size = sizeof(GB_LORA_PACKAGE_T);
-                CHK_LOGE(gb_lora_request_dispatch(&dev, (GB_LORA_PACKAGE_T *)&in_package, (GB_LORA_PACKAGE_T *)&out_package, &lora_state, &out_send_size), "Remote info dispatch failed");
+                CHK_LOGE(gb_lora_request_dispatch(&dev, (GB_LORA_PACKAGE_T *)in_package, (GB_LORA_PACKAGE_T *)out_package, &lora_state, &out_send_size), "Remote info dispatch failed");
             }
             else
                 GB_DEBUGI(RF24_TAG, "Received nothing...");
-        }
-        if (rf_status & _BV(TX_DS))
-        {
-            GB_DEBUGI(RF24_TAG, "Transmission successful! ");
-        }
-        if (rf_status & _BV(MAX_RT))
-        {
-            GB_DEBUGI(RF24_TAG, "Transmission MAX_RT! ");
         }
         // GB_DEBUGI(RF24_TAG, "RF status: %d", rf_status);
         radio.write_register(&radio, NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT), false);
@@ -599,7 +590,7 @@ void nrf24_interrupt_func(void *arg)
         if (lora_state == LORA_SEND)
         {
             radio.stopListening(&radio);
-            GB_RESULT report = radio.write(&radio, &out_package, out_send_size);
+            GB_RESULT report = radio.write(&radio, out_package, out_send_size);
             if (report == GB_OK)
             {
                 GB_DEBUGV(RF24_TAG, "Transmission successful!, config: %02x", radio.read_register(&radio, NRF_CONFIG));
@@ -653,7 +644,7 @@ void uart_rx_task(void *arg)
 
     while (1)
     {
-
+        rxBytes = sizeof(data);
         GB_ReadBytes(data, (size_t *)&rxBytes);
 
         if (rxBytes <= 0)
@@ -678,8 +669,7 @@ void uart_rx_task(void *arg)
             GB_DEBUGE(ERROR_TAG, "Receve data format error, length: %d", rxBytes);
             GB_DUMPE(ERROR_TAG, data, rxBytes);
         }
-        rxBytes = 0;
-        memset(data, 0, 128);
+        memset(data, 0, sizeof(data));
         /*
         if (rxBytes > 0) {
             data[rxBytes] = 0;

@@ -260,10 +260,9 @@ bool quad3d_get_image(uint16_t *image_buffer)
 
 bool quad3d_set_angle(float s_roll, float s_pitch, float s_yaw)
 {
-    if (NULL == frameBuffer)
+    if (NULL == angleProtected)
     {
-        if (!quad3d_init())
-            return false;
+        return false;
     }
 
     if (xSemaphoreTake(angleProtected, pdMS_TO_TICKS(5)) == pdTRUE)

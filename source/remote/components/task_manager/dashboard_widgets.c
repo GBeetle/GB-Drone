@@ -492,29 +492,20 @@ static void update_led_color(lv_obj_t *led, sensor_status_t status)
 
 static void update_sensor_status(flight_data_t *data)
 {
-    char buf[16];
-
     // GPS
     update_led_color(gps_led, data->gps_status);
-    snprintf(buf, sizeof(buf), "%dSAT", data->gps_satellites);
-    lv_label_set_text(gps_detail_label, buf);
 
     // IMU
     update_led_color(imu_led, data->imu_status);
-    lv_label_set_text(imu_detail_label, data->imu_status == SENSOR_STATUS_GOOD ? "READY" : "ERR");
 
     // MAG
     update_led_color(mag_led, data->mag_status);
-    lv_label_set_text(mag_detail_label, data->mag_status == SENSOR_STATUS_WARNING ? "CAL" : "READY");
 
     // BARO
     update_led_color(baro_led, data->baro_status);
-    lv_label_set_text(baro_detail_label, data->baro_status == SENSOR_STATUS_GOOD ? "READY" : "ERR");
 
     // RADIO
     update_led_color(radio_led, data->radio_status);
-    snprintf(buf, sizeof(buf), "%dBm", data->rssi);
-    lv_label_set_text(radio_detail_label, buf);
 }
 
 static void update_flight_status(flight_data_t *data)

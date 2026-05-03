@@ -32,6 +32,9 @@
 #include "lora_state.h"
 #include "disp_dsi.h"
 #include "dashboard_widgets.h"
+#include "gpio_setting.h"
+#include "io_define.h"
+#include "driver/gpio.h"
 
 #define LV_TICK_PERIOD_MS 10
 
@@ -171,8 +174,26 @@ void controller_task(void *pvParameter)
             else if (event.type == GB_EVENT_TOGGLE_SWITCH)
             {
                 // Toggle switch changed
-                current_toggle_state = event.data.switch_state;
-                controller_set_toggle_state(&event.data.switch_state);
+                GB_SleepMs(30);
+
+                // Read all toggle switch states using gpio_setting wrapper
+                uint32_t level;
+                GB_TOGGLE_SWITCH_STATE new_state;
+
+                GB_GPIO_Get(TOGGLE_SW_1_GPIO, &level);
+                new_state.sw1_state = !level; // Active low
+
+                GB_GPIO_Get(TOGGLE_SW_2_GPIO, &level);
+                new_state.sw2_state = !level;
+
+                GB_GPIO_Get(TOGGLE_SW_3_GPIO, &level);
+                new_state.sw3_state = !level;
+
+                GB_GPIO_Get(TOGGLE_SW_4_GPIO, &level);
+                new_state.sw4_state = !level;
+
+                current_toggle_state = new_state;
+                controller_set_toggle_state(&new_state);
             }
         }
 
@@ -231,9 +252,6 @@ void controller_task(void *pvParameter)
 
             prev_toggle_state = current_toggle_state;
 
-            // Add small delay for hardware debouncing
-            vTaskDelay(pdMS_TO_TICKS(50));
-
             // Send notification to GUI task that toggle state changed
             gb_remote_single_control(TOGGLE_SWITHCH_CHANGED);
         }
@@ -290,7 +308,7 @@ static void rf_prepare_package(rf_context_t *ctx, GB_SEND_CONFIG config)
     case LORA_GET_MOTION_STATE:
         pkg->type = GB_GET_REQUEST;
         pkg->sync = 0xad;
-        pkg->config.set_type = GB_GET_MOTION_STATE;
+        pkg->request.get_type = GB_GET_MOTION_STATE;
         GB_DEBUGI(RF24_TAG, "GB_GET_MOTION_STATE");
         break;
     default:
@@ -345,6 +363,7 @@ static bool rf_handle_send(rf_context_t *ctx)
 
     if (report == GB_OK) {
         if (is_fire_and_forget) {
+            ctx->send_retry = 0;
             GB_SleepMs(20);
             return true;
         }
@@ -447,7 +466,11 @@ static void rf_process_response(rf_context_t *ctx)
         else
             strcpy(fdata->flight_mode, "INIT");
 
-        dashboard_update(fdata);
+        if (pdTRUE == xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(50)))
+        {
+            dashboard_update(fdata);
+            xSemaphoreGive(xGuiSemaphore);
+        }
 
         // Auto-enter motion state polling after successful init
         atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
@@ -460,7 +483,7 @@ static void rf_process_response(rf_context_t *ctx)
         battery_level = ctx->receive_package.request.motion_status.battery;
         GB_SYSTEM_STATE sys_state = ctx->receive_package.request.motion_status.system_state;
 
-        GB_DEBUGD(RF24_TAG, "Received motion_status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
+        GB_DEBUGI(RF24_TAG, "Received motion_status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
                  ctx->receive_package.request.motion_status.roll,
                  ctx->receive_package.request.motion_status.pitch,
                  ctx->receive_package.request.motion_status.yaw,
@@ -479,7 +502,12 @@ static void rf_process_response(rf_context_t *ctx)
         fdata->armed = (sys_state == GB_SYSTEM_UNLOCK);
         if (fdata->connected)
             strcpy(fdata->flight_mode, fdata->armed ? "UNLOCK" : "READY");
-        dashboard_update(fdata);
+
+        if (pdTRUE == xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(50)))
+        {
+            dashboard_update(fdata);
+            xSemaphoreGive(xGuiSemaphore);
+        }
 
         // Only update 3D model when it is enabled
         if (draw_task != NULL)
@@ -488,8 +516,7 @@ static void rf_process_response(rf_context_t *ctx)
         atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
         ctx->delay_time = 10;
     } else {
-        atomic_store(&lora_send_config, LORA_SEND_NA);
-        ctx->delay_time = 1000;
+        GB_DEBUGI(RF24_TAG, "Config changed externally to %d, skipping response", current_config);
     }
 
     ctx->lora_state = LORA_SEND;
@@ -502,14 +529,41 @@ static bool rf_handle_receive(rf_context_t *ctx)
 
     if (!(rf_status & _BV(RX_DR)))
     {
+        GB_SEND_CONFIG current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
+        bool config_changed = false;
+        if (current_config == LORA_SEND_CONTROL_COMMAND ||
+            current_config == LORA_SEND_SKY_WAL_CONFIG) {
+            config_changed = true;
+        }
+
         uint64_t time_now;
         GB_GetTimerUs(&time_now);
-        if (time_now - ctx->receive_waittime < NRF24_RECEIVE_WAITTING_TIME)
+        if (!config_changed && time_now - ctx->receive_waittime < NRF24_RECEIVE_WAITTING_TIME)
             return true; // continue waiting
+
+        ctx->send_retry ++;
+        if (config_changed)
+        {
+            GB_DEBUGI(RF24_TAG, "Config changed during receiving, switching to send");
+            ctx->send_retry = 0;
+        }
+        else
+        {
+            GB_DEBUGI(RF24_TAG, "Waiting to receive package, retry: %d", ctx->send_retry);
+        }
 
         ctx->lora_state = LORA_SEND;
         radio.stopListening(&radio);
-        GB_DEBUGI(RF24_TAG, "Waiting to receive timeout, re-send package");
+        radio.write_register(&radio, NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT), false);
+        radio.flush_rx(&radio);
+
+        if (ctx->send_retry >= 5)
+        {
+            ctx->send_retry = 0;
+            GB_DEBUGI(RF24_TAG, "Max receive retries, resetting to init data");
+            atomic_store(&lora_send_config, LORA_SEND_NA);
+            ctx->delay_time = 1000;
+        }
     }
     else
     {
@@ -519,11 +573,14 @@ static bool rf_handle_receive(rf_context_t *ctx)
             GB_DEBUGI(RF24_TAG, "Received nothing..., try to send again");
             ctx->lora_state = LORA_SEND;
             radio.stopListening(&radio);
+            radio.write_register(&radio, NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT), false);
+            radio.flush_rx(&radio);
         }
         else
         {
             uint8_t bytes = radio.getPayloadSize(&radio);
             radio.read(&radio, &ctx->receive_package, bytes);
+            ctx->send_retry = 0;
 
             if (ctx->receive_package.type == GB_PID_FRAGMENT)
                 return rf_handle_pid_fragment(ctx);
@@ -532,21 +589,39 @@ static bool rf_handle_receive(rf_context_t *ctx)
         }
     }
 
-    if (rf_status & _BV(TX_DS))
-        GB_DEBUGI(RF24_TAG, "Transmission successful !");
-    if (rf_status & _BV(MAX_RT))
-        GB_DEBUGI(RF24_TAG, "Transmission MAX_RT !");
-
     return false;
+}
+
+static volatile TaskHandle_t nrf24_rf_task_handle = NULL;
+
+static void IRAM_ATTR nrf24_rx_isr_handle(void *arg)
+{
+    if (nrf24_rf_task_handle) {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        vTaskNotifyGiveFromISR(nrf24_rf_task_handle, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
 }
 
 void rf_loop(void *arg)
 {
     static rf_context_t ctx = {0};
 
+    nrf24_rf_task_handle = xTaskGetCurrentTaskHandle();
+
     GB_LoraSystemInit(LORA_SEND, 1, &ctx.lora_state);
     radio.enableDynamicAck(&radio);
     GB_ReassemblyInit(&ctx.reassembly_ctx);
+
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_NEGEDGE,
+        .pin_bit_mask = (1ULL << NRF24_INT),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = 0,
+        .pull_down_en = 1,
+    };
+    gpio_config(&io_conf);
+    gpio_isr_handler_add(NRF24_INT, nrf24_rx_isr_handle, NULL);
 
     ctx.delay_time = 1000;
 
