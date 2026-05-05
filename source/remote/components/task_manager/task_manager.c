@@ -236,6 +236,17 @@ void controller_task(void *pvParameter)
                 }
             }
 
+            // cancel PID pull request
+            if (!current_toggle_state.sw3_state && prev_toggle_state.sw3_state)
+            {
+                GB_SEND_CONFIG current = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
+                if (current == LORA_SEND_PID_GET_INFO)
+                {
+                    GB_DEBUGI(GB_INFO, "SW3 OFF: Cancelling PID request");
+                    atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
+                }
+            }
+
             // Handle SW4: Push PID table to master (rising edge)
             if (current_toggle_state.sw4_state && !prev_toggle_state.sw4_state)
             {
@@ -247,6 +258,16 @@ void controller_task(void *pvParameter)
                 else
                 {
                     GB_DEBUGI(GB_INFO, "SW3 ignored: Cannot push PID during fly mode");
+                }
+            }
+
+            if (!current_toggle_state.sw4_state && prev_toggle_state.sw4_state)
+            {
+                GB_SEND_CONFIG current = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
+                if (current == LORA_SEND_PID_SET_INFO)
+                {
+                    GB_DEBUGI(GB_INFO, "SW4 OFF: Cancelling PID push");
+                    atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
                 }
             }
 
@@ -267,7 +288,10 @@ typedef struct {
     uint8_t send_retry;
     GB_LORA_STATE lora_state;
     GB_LORA_PACKAGE_T send_package;
-    GB_LORA_PACKAGE_T receive_package;
+    union {
+        GB_LORA_PACKAGE_T pkg;
+        GB_LORA_FRAGMENT_T frag;
+    } receive_buf;
 } rf_context_t;
 
 static void rf_prepare_package(rf_context_t *ctx, GB_SEND_CONFIG config)
@@ -387,7 +411,7 @@ static bool rf_handle_send(rf_context_t *ctx)
 
 static bool rf_handle_pid_fragment(rf_context_t *ctx)
 {
-    GB_LORA_FRAGMENT_T *frag = (GB_LORA_FRAGMENT_T *)&ctx->receive_package;
+    GB_LORA_FRAGMENT_T *frag = (GB_LORA_FRAGMENT_T *)&ctx->receive_buf.frag;
     uint8_t complete_msg[GB_MAX_FRAGMENTS * GB_FRAGMENT_PAYLOAD_SIZE];
     size_t msg_len = 0;
 
@@ -423,9 +447,17 @@ static bool rf_handle_pid_fragment(rf_context_t *ctx)
                               ctx->pid_table.params[i].ki,
                               ctx->pid_table.params[i].kd);
                 }
+                ctx->send_retry = 0;
                 atomic_store(&lora_send_config, LORA_SEND_NA);
             } else {
-                GB_DEBUGI(RF24_TAG, "PID table CRC validation failed!");
+                GB_DEBUGE(RF24_TAG, "PID table CRC validation failed!");
+                ctx->send_retry++;
+                if (ctx->send_retry >= 3)
+                {
+                    GB_DEBUGE(RF24_TAG, "PID table CRC failed %d times, aborting", ctx->send_retry);
+                    ctx->send_retry = 0;
+                    atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
+                }
             }
         }
 
@@ -438,24 +470,24 @@ static bool rf_handle_pid_fragment(rf_context_t *ctx)
 
 static void rf_process_response(rf_context_t *ctx)
 {
-    if (ctx->receive_package.sync != ctx->send_package.sync + 1)
+    if (ctx->receive_buf.pkg.sync != ctx->send_package.sync + 1)
         GB_DEBUGE(ERROR_TAG, "Receive error!");
 
-    GB_DEBUGD(RF24_TAG, "type = %d, sync = %d", ctx->receive_package.type, ctx->receive_package.sync);
+    GB_DEBUGD(RF24_TAG, "type = %d, sync = %d", ctx->receive_buf.pkg.type, ctx->receive_buf.pkg.sync);
 
     GB_SEND_CONFIG current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
 
     if (LORA_SEND_NA == current_config) {
-        battery_level = ctx->receive_package.init.battery_capacity;
+        battery_level = ctx->receive_buf.pkg.init.battery_capacity;
 
         // Update dashboard with init data
         flight_data_t *fdata = dashboard_get_flight_data();
-        fdata->connected = (ctx->receive_package.init.system_state == GB_SYSTEM_INITIALIZE_PASS ||
-                            ctx->receive_package.init.system_state == GB_SYSTEM_UNLOCK);
-        fdata->armed = (ctx->receive_package.init.system_state == GB_SYSTEM_UNLOCK);
+        fdata->connected = (ctx->receive_buf.pkg.init.system_state == GB_SYSTEM_INITIALIZE_PASS ||
+                            ctx->receive_buf.pkg.init.system_state == GB_SYSTEM_UNLOCK);
+        fdata->armed = (ctx->receive_buf.pkg.init.system_state == GB_SYSTEM_UNLOCK);
 
         // Parse sensor_state bits: MPU | COMPASS | BMP280 | CAMERA
-        uint8_t sensors = ctx->receive_package.init.sensor_state;
+        uint8_t sensors = ctx->receive_buf.pkg.init.sensor_state;
         fdata->imu_status = (sensors & 0x08) ? SENSOR_STATUS_GOOD : SENSOR_STATUS_ERROR;
         fdata->mag_status = (sensors & 0x04) ? SENSOR_STATUS_GOOD : SENSOR_STATUS_ERROR;
         fdata->baro_status = (sensors & 0x02) ? SENSOR_STATUS_GOOD : SENSOR_STATUS_ERROR;
@@ -476,19 +508,19 @@ static void rf_process_response(rf_context_t *ctx)
         atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
         ctx->delay_time = 10;
     } else if (LORA_GET_MOTION_STATE == current_config) {
-        float roll = (float)ctx->receive_package.request.motion_status.roll / GB_ERLER_SCALE_RATE;
-        float pitch = (float)ctx->receive_package.request.motion_status.pitch / GB_ERLER_SCALE_RATE;
-        float yaw = (float)ctx->receive_package.request.motion_status.yaw / GB_ERLER_SCALE_RATE;
-        int16_t altitude = ctx->receive_package.request.motion_status.altitude;
-        battery_level = ctx->receive_package.request.motion_status.battery;
-        GB_SYSTEM_STATE sys_state = ctx->receive_package.request.motion_status.system_state;
+        float roll = (float)ctx->receive_buf.pkg.request.motion_status.roll / GB_ERLER_SCALE_RATE;
+        float pitch = (float)ctx->receive_buf.pkg.request.motion_status.pitch / GB_ERLER_SCALE_RATE;
+        float yaw = (float)ctx->receive_buf.pkg.request.motion_status.yaw / GB_ERLER_SCALE_RATE;
+        int16_t altitude = ctx->receive_buf.pkg.request.motion_status.altitude;
+        battery_level = ctx->receive_buf.pkg.request.motion_status.battery;
+        GB_SYSTEM_STATE sys_state = ctx->receive_buf.pkg.request.motion_status.system_state;
 
         GB_DEBUGI(RF24_TAG, "Received motion_status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
-                 ctx->receive_package.request.motion_status.roll,
-                 ctx->receive_package.request.motion_status.pitch,
-                 ctx->receive_package.request.motion_status.yaw,
+                 ctx->receive_buf.pkg.request.motion_status.roll,
+                 ctx->receive_buf.pkg.request.motion_status.pitch,
+                 ctx->receive_buf.pkg.request.motion_status.yaw,
                  altitude,
-                 ctx->receive_package.request.motion_status.battery);
+                 ctx->receive_buf.pkg.request.motion_status.battery);
 
         // Update dashboard with motion data
         flight_data_t *fdata = dashboard_get_flight_data();
@@ -579,10 +611,10 @@ static bool rf_handle_receive(rf_context_t *ctx)
         else
         {
             uint8_t bytes = radio.getPayloadSize(&radio);
-            radio.read(&radio, &ctx->receive_package, bytes);
+            radio.read(&radio, &ctx->receive_buf, bytes);
             ctx->send_retry = 0;
 
-            if (ctx->receive_package.type == GB_PID_FRAGMENT)
+            if (ctx->receive_buf.pkg.type == GB_PID_FRAGMENT)
                 return rf_handle_pid_fragment(ctx);
 
             rf_process_response(ctx);

@@ -130,7 +130,7 @@ GB_RESULT GB_LoraSystemInit(GB_LORA_STATE init_state, bool radioNumber, GB_LORA_
     // save on transmission time by setting the radio to only transmit the
     // number of bytes we need to transmit a float
     CHK_BOOL(sizeof(GB_LORA_PACKAGE_T) <= 32);
-    CHK_RES(radio.setPayloadSize(&radio, sizeof(GB_LORA_PACKAGE_T)));
+    CHK_RES(radio.setPayloadSize(&radio, 32));
     CHK_RES(radio.maskIRQ(&radio, true, true, false));
     // set the TX address of the RX node into the TX pipe
     CHK_RES(radio.openWritingPipeAddr(&radio, address[radioNumber])); // always uses pipe 0
@@ -151,7 +151,7 @@ GB_RESULT GB_LoraSystemInit(GB_LORA_STATE init_state, bool radioNumber, GB_LORA_
     default:
         CHK_RES(GB_RF24_UNKNOWN_STAT);
     }
-    GB_DEBUGI(GB_INFO, "NRF24 initialization DONE, %p, %p, payload size: %d", &radio, &(radio.get_status), sizeof(GB_LORA_PACKAGE_T));
+    GB_DEBUGI(GB_INFO, "NRF24 initialization DONE, %p, %p, payload size: %d", &radio, &(radio.get_status), 32);
 
 error_exit:
     return res;
