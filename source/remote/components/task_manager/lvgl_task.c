@@ -313,6 +313,35 @@ static void _update_pid_table_display(void)
     }
 }
 
+void gui_pid_table_get(GB_PID_TABLE_T *out)
+{
+    if (xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(100)) == pdTRUE)
+    {
+        for (int i = 0; i < PID_MAX; i++)
+        {
+            out->params[i].kp = pid_table[i + 1][1];
+            out->params[i].ki = pid_table[i + 1][2];
+            out->params[i].kd = pid_table[i + 1][3];
+        }
+        xSemaphoreGive(xGuiSemaphore);
+    }
+}
+
+void gui_pid_table_set(const GB_PID_TABLE_T *in)
+{
+    if (xSemaphoreTake(xGuiSemaphore, pdMS_TO_TICKS(100)) == pdTRUE)
+    {
+        for (int i = 0; i < PID_MAX; i++)
+        {
+            pid_table[i + 1][1] = in->params[i].kp;
+            pid_table[i + 1][2] = in->params[i].ki;
+            pid_table[i + 1][3] = in->params[i].kd;
+        }
+        _update_pid_table_display();
+        xSemaphoreGive(xGuiSemaphore);
+    }
+}
+
 static void remote_controller_event_cb(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);

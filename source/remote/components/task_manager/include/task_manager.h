@@ -18,9 +18,13 @@
 #ifndef _TASK_MANAGER__
 #define _TASK_MANAGER__
 
+#include "lora_state.h"
+
 void gui_task(void *pvParameter);
 void controller_task(void *pvParameter);
 void rf_loop(void *pvParameter);
+void gui_pid_table_get(GB_PID_TABLE_T *out);
+void gui_pid_table_set(const GB_PID_TABLE_T *in);
 
 extern SemaphoreHandle_t xGuiSemaphore;
 

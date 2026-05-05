@@ -345,6 +345,7 @@ static bool rf_send_pid_table(rf_context_t *ctx)
 {
     GB_DEBUGI(RF24_TAG, "Sending PID table to master via fragments...");
 
+    gui_pid_table_get(&ctx->pid_table);
     ctx->pid_table.crc16 = GB_PidTableCalculateCRC(&ctx->pid_table);
     ctx->msg_id_counter++;
 
@@ -447,6 +448,7 @@ static bool rf_handle_pid_fragment(rf_context_t *ctx)
                               ctx->pid_table.params[i].ki,
                               ctx->pid_table.params[i].kd);
                 }
+                gui_pid_table_set(&ctx->pid_table);
                 ctx->send_retry = 0;
                 atomic_store(&lora_send_config, LORA_SEND_NA);
             } else {
