@@ -560,8 +560,10 @@ static void rf_process_response(rf_context_t *ctx)
 static bool rf_handle_receive(rf_context_t *ctx)
 {
     uint8_t rf_status = radio.get_status(&radio);
+    uint8_t pipe;
+    bool has_data = (rf_status & _BV(RX_DR)) || radio.available(&radio, &pipe);
 
-    if (!(rf_status & _BV(RX_DR)))
+    if (!has_data)
     {
         GB_SEND_CONFIG current_config = (GB_SEND_CONFIG)atomic_load(&lora_send_config);
         bool config_changed = false;
@@ -601,13 +603,14 @@ static bool rf_handle_receive(rf_context_t *ctx)
     }
     else
     {
-        uint8_t pipe;
+        radio.write_register(&radio, NRF_STATUS, _BV(RX_DR), false);
+
         if (!radio.available(&radio, &pipe))
         {
             GB_DEBUGI(RF24_TAG, "Received nothing..., try to send again");
             ctx->lora_state = LORA_SEND;
             radio.stopListening(&radio);
-            radio.write_register(&radio, NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT), false);
+            radio.write_register(&radio, NRF_STATUS, _BV(TX_DS) | _BV(MAX_RT), false);
             radio.flush_rx(&radio);
         }
         else

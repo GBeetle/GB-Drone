@@ -97,7 +97,7 @@ static int selected_column = -1;
 
 lv_timer_t *draw_task = NULL;
 lv_obj_t *model_canvas = NULL;
-uint32_t canvas_buffer_size = LV_HOR_RES_MAX * LV_VER_RES_MAX * 2;
+uint32_t canvas_buffer_size = RENDER_3D_WIDTH * RENDER_3D_HEIGHT * 2;
 uint16_t *canvas_buffer = NULL;
 uint16_t *canvas_buffer_b = NULL;
 static bool canvas_initializing = false;
@@ -224,11 +224,14 @@ void init_canvas()
         model_canvas = lv_canvas_create(lv_screen_active());
 
 #if (CONFIG_DISPLAY_ORIENTATION_PORTRAIT)
-        lv_obj_set_size(model_canvas, LV_VER_RES_MAX, LV_HOR_RES_MAX - 30);
+        lv_obj_set_size(model_canvas, RENDER_3D_HEIGHT, RENDER_3D_WIDTH);
 #else
-        lv_obj_set_size(model_canvas, LV_HOR_RES_MAX, LV_VER_RES_MAX - 30);
+        lv_obj_set_size(model_canvas, RENDER_3D_WIDTH, RENDER_3D_HEIGHT);
 #endif
-        lv_obj_align(model_canvas, LV_ALIGN_TOP_LEFT, 0, 30);
+        lv_obj_align(model_canvas, LV_ALIGN_CENTER, 0, 15);
+        lv_obj_set_style_border_width(model_canvas, 0, 0);
+        lv_obj_set_style_pad_all(model_canvas, 0, 0);
+        lv_obj_set_style_outline_width(model_canvas, 0, 0);
 
         lv_obj_move_foreground(model_canvas);
         if (status_bar)
@@ -471,9 +474,9 @@ static void canvas_draw_task(lv_timer_t *timer)
     {
         uint16_t *buf = quad3d_get_front_buffer();
 #if (CONFIG_DISPLAY_ORIENTATION_PORTRAIT)
-        lv_canvas_set_buffer(model_canvas, buf, LV_VER_RES_MAX, LV_HOR_RES_MAX, LV_COLOR_FORMAT_RGB565);
+        lv_canvas_set_buffer(model_canvas, buf, RENDER_3D_HEIGHT, RENDER_3D_WIDTH, LV_COLOR_FORMAT_RGB565);
 #else
-        lv_canvas_set_buffer(model_canvas, buf, LV_HOR_RES_MAX, LV_VER_RES_MAX, LV_COLOR_FORMAT_RGB565);
+        lv_canvas_set_buffer(model_canvas, buf, RENDER_3D_WIDTH, RENDER_3D_HEIGHT, LV_COLOR_FORMAT_RGB565);
 #endif
     }
 }

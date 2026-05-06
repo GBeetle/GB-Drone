@@ -16,17 +16,18 @@
 #include "log_sys.h"
 #include "disp_driver.h"
 #include "gb_timer.h"
+#include "quad_3d.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265
 #endif
 
 #if (CONFIG_DISPLAY_ORIENTATION_PORTRAIT)
-#define winSizeX LV_VER_RES_MAX
-#define winSizeY LV_HOR_RES_MAX
+#define winSizeX RENDER_3D_HEIGHT
+#define winSizeY RENDER_3D_WIDTH
 #else
-#define winSizeX LV_VER_RES_MAX
-#define winSizeY LV_HOR_RES_MAX
+#define winSizeX RENDER_3D_HEIGHT
+#define winSizeY RENDER_3D_WIDTH
 #endif
 
 vec3 campos = (vec3){.d[0] = 8, .d[1] = 8, .d[2] = 8};     // camera position
@@ -43,23 +44,6 @@ static mat4 view_matrix;
 static bool init_fail = false;
 
 SemaphoreHandle_t angleProtected;
-
-GLubyte stipplepattern[128] = {
-    0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA,
-    0xAA, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55,
-    0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55,
-
-    0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA,
-    0xAA, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55,
-    0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55,
-
-    0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA,
-    0xAA, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55,
-    0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55,
-
-    0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA,
-    0xAA, 0x55, 0x55, 0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55,
-    0x55, 0x55, 0xAA, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55, 0x55};
 
 GLuint createModelDisplayList(
     // HUGE important note! these depend on the math library using
@@ -131,9 +115,17 @@ bool quad3d_init()
         GB_DEBUGI(DISP_TAG, "Internal SRAM not enough for zbuf, keeping PSRAM");
     }
 
-    glShadeModel(GL_SMOOTH);
-    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+    if (frameBuffer->frame_buffer_allocated && frameBuffer->pbuf)
+    {
+        gl_free(frameBuffer->pbuf);
+        frameBuffer->pbuf = NULL;
+        frameBuffer->frame_buffer_allocated = 0;
+    }
+
+    glShadeModel(GL_FLAT);
+    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
     glEnable(GL_DEPTH_TEST);
+
     glEnable(GL_LIGHTING);
     glSetEnableSpecular(0);
     static GLfloat white[4] = {1.0, 1.0, 1.0, 0.0};
@@ -165,7 +157,6 @@ bool quad3d_init()
     // glDisable(GL_DEPTH_TEST);
     glViewport(0, 0, winSizeX, winSizeY);
     // glEnable(GL_POLYGON_STIPPLE);
-    glPolygonStipple(stipplepattern);
 
     {
         objraw omodel;
@@ -214,6 +205,8 @@ bool quad3d_get_image(uint16_t *image_buffer)
             return false;
     }
 
+    frameBuffer->pbuf = (PIXEL *)image_buffer;
+
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glLoadMatrixf(projection_matrix.d);
@@ -228,12 +221,9 @@ bool quad3d_get_image(uint16_t *image_buffer)
     if (xSemaphoreTake(angleProtected, pdMS_TO_TICKS(10)) == pdTRUE)
     {
         glPushMatrix();
-        mat4 total_translation = translate((vec3){{0.0, 0.0, 0.0}});
-        glMultMatrixf(total_translation.d);
         glRotatef(pitch, 1.0f, 0.0f, 0.0f);
         glRotatef(yaw, 0.0f, 1.0f, 0.0f);
         glRotatef(roll, 0.0f, 0.0f, 1.0f);
-        // glMultMatrixf(total_rotation.d);
         glCallList(modelDisplayList);
         glPopMatrix();
 
@@ -242,19 +232,6 @@ bool quad3d_get_image(uint16_t *image_buffer)
 
     glPopMatrix(); // The view transform.
 
-    // Quickly convert all pixels to the correct format
-#if TGL_FEATURE_RENDER_BITS == 32
-    if (needsRGBAFix)
-        for (int i = 0; i < frameBuffer->xsize * frameBuffer->ysize; i++)
-        {
-#define DATONE (frameBuffer->pbuf[i])
-            DATONE =
-                ((DATONE & 0x000000FF)) << screen->format->Rshift |
-                ((DATONE & 0x0000FF00) >> 8) << screen->format->Gshift |
-                ((DATONE & 0x00FF0000) >> 16) << screen->format->Bshift;
-        }
-#endif
-    ZB_copyFrameBuffer(frameBuffer, image_buffer, winSizeX * sizeof(PIXEL));
     return true;
 }
 

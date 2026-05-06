@@ -29,7 +29,7 @@
  * some platforms, And because some systems may have float types which are
  * incompatible with it.
  */
-#define TGL_FEATURE_FISR 0
+#define TGL_FEATURE_FISR 1
 
 #define TGL_FEATURE_ARRAYS 1
 

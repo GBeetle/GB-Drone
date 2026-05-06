@@ -21,6 +21,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define RENDER_3D_WIDTH  (LV_HOR_RES_MAX / 2)
+#define RENDER_3D_HEIGHT (LV_VER_RES_MAX / 2)
+
 bool quad3d_init();
 bool quad3d_get_image(uint16_t *image_buffer);
 bool quad3d_set_angle(float roll, float pitch, float yaw);

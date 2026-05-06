@@ -565,12 +565,17 @@ void nrf24_interrupt_func(void *arg)
     //GB_GPS_Init();
     nrf24_isr_register();
 
+    radio.write_register(&radio, NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT), false);
+    radio.flush_rx(&radio);
+
     while (1)
     {
         // portENTER_CRITICAL(&lora_mutex);
         // gpio_set_level( TEST_NRF24_IO, 1 );
         uint8_t rf_status = radio.get_status(&radio);
-        if ((rf_status & _BV(RX_DR)) && lora_state == LORA_RECEIVE)
+        uint8_t pipe;
+        if (lora_state == LORA_RECEIVE &&
+            ((rf_status & _BV(RX_DR)) || radio.available(&radio, &pipe)))
         {
             // This device is a RX node
             uint8_t pipe;
