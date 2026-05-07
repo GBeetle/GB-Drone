@@ -30,7 +30,7 @@
 #define winSizeY RENDER_3D_WIDTH
 #endif
 
-vec3 campos = (vec3){.d[0] = 8, .d[1] = 8, .d[2] = 8};     // camera position
+vec3 campos = (vec3){.d[0] = 6, .d[1] = 6, .d[2] = 6};     // camera position
 vec3 camforw = (vec3){.d[0] = -1, .d[1] = -1, .d[2] = -1}; // camera forward direction
 vec3 camup = (vec3){.d[0] = 0, .d[1] = 1, .d[2] = 0};      // camera up direction
 float yaw = 0.0f;

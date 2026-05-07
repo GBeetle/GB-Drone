@@ -651,6 +651,9 @@ static void toggle_switch_update_task(lv_timer_t *timer)
  **********************/
 void welkin_widgets()
 {
+    lv_obj_set_style_bg_color(lv_screen_active(), lv_color_make(0xF8, 0xFC, 0xF8), 0);
+    lv_obj_set_style_bg_opa(lv_screen_active(), LV_OPA_COVER, 0);
+
     // Initialize custom styles for toggle switches
     // Style for switch when ON (checked)
     lv_style_init(&style_switch_on);
