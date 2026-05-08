@@ -153,7 +153,7 @@ bool quad3d_init()
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     // glDisable(GL_LIGHTING);
-    glShadeModel(GL_SMOOTH);
+    glShadeModel(GL_FLAT);
     // glDisable(GL_DEPTH_TEST);
     glViewport(0, 0, winSizeX, winSizeY);
     // glEnable(GL_POLYGON_STIPPLE);
@@ -207,6 +207,8 @@ bool quad3d_get_image(uint16_t *image_buffer)
 
     frameBuffer->pbuf = (PIXEL *)image_buffer;
 
+    memset(image_buffer, 0xFF, winSizeX * winSizeY * sizeof(uint16_t));
+
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glLoadMatrixf(projection_matrix.d);
@@ -215,7 +217,7 @@ bool quad3d_get_image(uint16_t *image_buffer)
     glPushMatrix(); // Pushing on the LookAt Matrix.
 
     glLoadMatrixf(view_matrix.d);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
     if (xSemaphoreTake(angleProtected, pdMS_TO_TICKS(10)) == pdTRUE)

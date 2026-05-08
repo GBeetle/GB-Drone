@@ -35,7 +35,7 @@
 
 #define TGL_FEATURE_DISPLAYLISTS 1
 
-#define TGL_FEATURE_LIT_TEXTURES 1
+#define TGL_FEATURE_LIT_TEXTURES 0
 /* Enable the patternized "discard"-ing of pixels.*/
 #define TGL_FEATURE_POLYGON_STIPPLE 0
 /* Enable the use of GL_SELECT and GL_FEEDBACK*/
@@ -48,7 +48,7 @@
  */
 #define TGL_FEATURE_GL_POLYGON 0
 
-#define TGL_FEATURE_BLEND 1
+#define TGL_FEATURE_BLEND 0
 
 #define TGL_FEATURE_BLEND_DRAW_PIXELS 0
 /* The width of textures as a power of 2. The default is 8, or 256x256
