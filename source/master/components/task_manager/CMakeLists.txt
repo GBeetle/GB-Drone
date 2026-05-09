@@ -1,4 +1,4 @@
-set(COMPONENT_SRCS "task_manager.c")
+set(COMPONENT_SRCS "task_manager.c" "flight_control.c")
 
 set(COMPONENT_REQUIRES esp_driver_uart io_define isr_manager imu_driver anotic_debug Fusion gb_timer nrf24 esc max1704x gps_driver)
 set(COMPONENT_ADD_INCLUDEDIRS "include")

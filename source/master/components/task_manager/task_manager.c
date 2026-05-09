@@ -26,6 +26,7 @@
 #include "task_manager.h"
 #include "max1704x.h"
 #include "gps_driver.h"
+#include "flight_control.h"
 
 typedef struct
 {
@@ -45,6 +46,23 @@ static volatile uint8_t anotic_debug_id = 0x00;
 QueueHandle_t gyroQueue, accelQueue, magQueue, baroQueue;
 SemaphoreHandle_t mpuDataQueueReady;
 SemaphoreHandle_t mpuSensorReady;
+
+// Flight controller state
+static flight_pid_set_t pids;
+static volatile flight_state_t flight_state = FLIGHT_DISARMED;
+static volatile uint16_t rev_throttle = 0;
+static volatile uint64_t last_remote_packet_ms = 0;
+
+typedef struct {
+    struct { float roll; float pitch; float yaw; } rev_state;
+    struct { float roll; float pitch; float yaw; } rev_speed;
+} rev_set_info_t;
+static volatile rev_set_info_t rev_set_info = {0};
+
+static portMUX_TYPE receive_package_mutex = portMUX_INITIALIZER_UNLOCKED;
+static portMUX_TYPE system_state_mutex = portMUX_INITIALIZER_UNLOCKED;
+
+#define FAILSAFE_TIMEOUT_MS 500
 
 static inline GB_RESULT get_sensor_data(raw_axes_t *accelRaw, raw_axes_t *gyroRaw, raw_axes_t *magRaw,
     float_axes_t *accelG, float_axes_t *gyroDPS, float_axes_t *magDPS, baro_t *baro_data)
@@ -251,6 +269,8 @@ void gb_sensor_fusion(void* arg)
     };
     FusionAhrsSetSettings(&ahrs, &settings);
 
+    flight_control_init(&pids);
+
     while (1)
     {
         if (xSemaphoreTake(mpuDataQueueReady, portMAX_DELAY) == pdTRUE) {}
@@ -296,6 +316,61 @@ void gb_sensor_fusion(void* arg)
         motionState.pitch = euler.angle.pitch;
         motionState.yaw = euler.angle.yaw;
         motionState.height = baro_data.altitude;
+
+        // ======= Flight Controller =======
+        uint64_t current_ms;
+        GB_GetTimerMs(&current_ms);
+
+        // Failsafe: cut motors if no remote packet received
+        if ((current_ms - last_remote_packet_ms) > FAILSAFE_TIMEOUT_MS && flight_state == FLIGHT_ARMED) {
+            portENTER_CRITICAL(&system_state_mutex);
+            flight_state = FLIGHT_FAILSAFE;
+            portEXIT_CRITICAL(&system_state_mutex);
+            pid_reset(&pids.roll_angle);
+            pid_reset(&pids.roll_rate);
+            pid_reset(&pids.pitch_angle);
+            pid_reset(&pids.pitch_rate);
+            pid_reset(&pids.yaw_rate);
+        }
+
+        if (flight_state == FLIGHT_ARMED && deltaTime > 0.0f) {
+            float des_roll, des_pitch, des_yaw_rate, thr;
+
+            portENTER_CRITICAL(&receive_package_mutex);
+            des_roll = rev_set_info.rev_state.roll;
+            des_pitch = rev_set_info.rev_state.pitch;
+            des_yaw_rate = rev_set_info.rev_speed.yaw;
+            thr = (float)rev_throttle / 1000.0f;
+            portEXIT_CRITICAL(&receive_package_mutex);
+
+            // Cascaded PID: angle -> rate -> motor correction
+            float roll_rate_sp = pid_update(&pids.roll_angle, des_roll - motionState.roll, deltaTime);
+            float roll_cmd = pid_update(&pids.roll_rate, roll_rate_sp - gyroscope.axis.x, deltaTime);
+
+            float pitch_rate_sp = pid_update(&pids.pitch_angle, des_pitch - motionState.pitch, deltaTime);
+            float pitch_cmd  = pid_update(&pids.pitch_rate, pitch_rate_sp - gyroscope.axis.y, deltaTime);
+            float yaw_cmd    = pid_update(&pids.yaw_rate, des_yaw_rate - gyroscope.axis.z, deltaTime);
+
+            // Throttle floor: disable I-term accumulation at low throttle
+            if (thr < 0.05f) {
+                pids.roll_rate.integral = 0.0f;
+                pids.pitch_rate.integral = 0.0f;
+                pids.yaw_rate.integral = 0.0f;
+                thr = 0.0f;
+            }
+
+            motor_output_t motors;
+            motor_mix(thr, roll_cmd, pitch_cmd, yaw_cmd, &motors);
+            for (int i = 0; i < 4; i++) {
+                esc_set_duty(i, motors.motor[i]);
+            }
+        }
+        else {
+            // Disarmed or failsafe: all motors minimum
+            for (int i = 0; i < 4; i++) {
+                esc_set_duty(i, 5.0f);
+            }
+        }
 
         GB_DEBUGD(SENSOR_TAG, "Gyro.x %f, Gyro.y %f, Gyro.z %f\n", gyroscope.axis.x, gyroscope.axis.y, gyroscope.axis.z);
         GB_DEBUGD(SENSOR_TAG, "Accel.x %f, Accel.y %f, Accel.z %f\n", accelerometer.axis.x, accelerometer.axis.y, accelerometer.axis.z);
@@ -383,26 +458,21 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
                 esc_set_duty(i, _control_commander_to_range(GB_THROTTLE, in->config.throttle, 0));
             // GB_DEBUGI(LORA_TAG, "Receive GB_SET_THROTTLE, throttle: %d", in->config.throttle);
             break;
-#if 0
         case GB_SET_CONTROL_ARG:
             // throttle from 0 ~ 1000 for [pid to motor control]
-            rev_throttle = in->config.control_arg.throttle;
             portENTER_CRITICAL(&receive_package_mutex);
+            rev_throttle = in->config.control_arg.throttle;
             rev_set_info.rev_state.roll = _control_commander_to_range(GB_ROLL, in->config.control_arg.roll, 0);
             rev_set_info.rev_state.pitch = _control_commander_to_range(GB_PITCH, in->config.control_arg.pitch, 0);
             rev_set_info.rev_state.yaw = _control_commander_to_range(GB_YAW, in->config.control_arg.yaw, 0);
-
-            // constrain roll/pitch/yaw speed from -500 ~ 500 for [pid to motor control]
-            // rev_set_info.rev_speed.roll   = _control_commander_to_range(GB_ROLL, in->config.control_arg.roll, 1);
-            // rev_set_info.rev_speed.pitch  = _control_commander_to_range(GB_PITCH, in->config.control_arg.pitch, 1);
             rev_set_info.rev_speed.yaw = _control_commander_to_range(GB_YAW, in->config.control_arg.yaw, 1);
             portEXIT_CRITICAL(&receive_package_mutex);
+
+            GB_GetTimerMs((uint64_t*)&last_remote_packet_ms);
             portENTER_CRITICAL(&system_state_mutex);
-            system_state = GB_SYSTEM_UNLOCK;
-            _resetRemoteState();
+            flight_state = FLIGHT_ARMED;
             portEXIT_CRITICAL(&system_state_mutex);
             break;
-#endif
         default:
             GB_DEBUGI(LORA_TAG, "Unknown setting type: %d", in->config.set_type);
         }
@@ -518,7 +588,8 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
                             g_master_pid_table.params[i].kd);
                     }
 
-                    // TODO: Apply PID parameters to flight controller
+                    // Apply PID parameters to flight controller
+                    flight_control_apply_pid_table(&g_master_pid_table, &pids);
                 }
                 else
                 {
