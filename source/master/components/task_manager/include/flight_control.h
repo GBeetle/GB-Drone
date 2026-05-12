@@ -23,7 +23,6 @@
 #include "lora_state.h"
 
 typedef struct {
-    float kp, ki, kd;
     float integral;
     float prev_error;
     float integral_limit;
@@ -31,6 +30,7 @@ typedef struct {
 } pid_controller_t;
 
 typedef struct {
+    GB_PID_TABLE_T pid_table;
     pid_controller_t roll_angle, roll_rate;
     pid_controller_t pitch_angle, pitch_rate;
     pid_controller_t yaw_angle, yaw_rate;
@@ -47,17 +47,13 @@ typedef enum {
 } flight_state_t;
 
 //PID functions
-float pid_update(pid_controller_t *pid, float error, float dt);
+float pid_update(pid_controller_t *pid, const GB_PID_PARAM_T *param, float error, float dt);
 void pid_reset(pid_controller_t *pid);
-void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float integral_limit, float output_limit);
 
 //Motor mixer (X-configuration)
 //throttle:0.0-1.0 normalized from raw ADC (0-1000)/1000
 //roll/pitch/yaw_cmd: PID output (-1.0 to +1.0)
 void motor_mix(float throttle, float roll_cmd, float pitch_cmd, float yaw_cmd, motor_output_t *out);
-
-//Apply PID table received from remote
-void flight_control_apply_pid_table(const GB_PID_TABLE_T *table, flight_pid_set_t *pids);
 
 //Initialize with conservative default gains
 void flight_control_init(flight_pid_set_t *pids);

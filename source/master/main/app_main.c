@@ -38,6 +38,7 @@ void app_main(void)
     GB_ISR_Init();
 
     GB_SleepMs(5000);     // Waiting USB Log Ready
+    GB_FileSystem_Init();
     if (GB_OK == GB_SDCardFileSystem_Init())
     {
         GB_DEBUGI(GB_INFO, "Setting Log to SD Card");

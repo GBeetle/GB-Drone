@@ -15,17 +15,14 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
 #include "flight_control.h"
 
 // Maximum PID correction as percentage of ESC duty range (5%-10% = 5% total)
 #define MAX_CORRECTION_DUTY 2.0f
 
-void pid_init(pid_controller_t *pid, float kp, float ki, float kd,
-    float integral_limit, float output_limit)
+static void pid_init(pid_controller_t *pid, float integral_limit, float output_limit)
 {
-    pid->kp = kp;
-    pid->ki = ki;
-    pid->kd = kd;
     pid->integral = 0.0f;
     pid->prev_error = 0.0f;
     pid->integral_limit = integral_limit;
@@ -38,22 +35,26 @@ void pid_reset(pid_controller_t *pid)
     pid->prev_error = 0.0f;
 }
 
-float pid_update(pid_controller_t *pid, float error, float dt)
+float pid_update(pid_controller_t *pid, const GB_PID_PARAM_T *param, float error, float dt)
 {
     if (dt <= 0.0f) return 0.0f;
 
+    float kp = param->kp / 100.0f;
+    float ki = param->ki / 100.0f;
+    float kd = param->kd / 100.0f;
+
     // Proportional
-    float p_term = pid->kp * error;
+    float p_term = kp * error;
 
     // Integral with anti-windup (clamping)
-    pid->integral += pid->ki * error * dt;
+    pid->integral += ki * error * dt;
     if (pid->integral > pid->integral_limit)
         pid->integral = pid->integral_limit;
     else if (pid->integral < -pid->integral_limit)
         pid->integral = -pid->integral_limit;
 
     // Derivative on error
-    float d_term = pid->kd * (error - pid->prev_error) / dt;
+    float d_term = kd * (error - pid->prev_error) / dt;
     pid->prev_error = error;
 
     // Total output with saturation
@@ -97,43 +98,33 @@ void motor_mix(float throttle, float roll_cmd, float pitch_cmd, float yaw_cmd,
     }
 }
 
-void flight_control_apply_pid_table(const GB_PID_TABLE_T *table,flight_pid_set_t*pids)
-{
-    pids->roll_angle.kp = table->params[PID_ROLL_ANGLE].kp / 100.0f;
-    pids->roll_angle.ki = table->params[PID_ROLL_ANGLE].ki / 100.0f;
-    pids->roll_angle.kd = table->params[PID_ROLL_ANGLE].kd / 100.0f;
-
-    pids->roll_rate.kp = table->params[PID_ROLL_RATE].kp / 100.0f;
-    pids->roll_rate.ki = table->params[PID_ROLL_RATE].ki / 100.0f;
-    pids->roll_rate.kd = table->params[PID_ROLL_RATE].kd / 100.0f;
-
-    pids->pitch_angle.kp = table->params[PID_PITCH_ANGLE].kp / 100.0f;
-    pids->pitch_angle.ki = table->params[PID_PITCH_ANGLE].ki / 100.0f;
-    pids->pitch_angle.kd = table->params[PID_PITCH_ANGLE].kd / 100.0f;
-
-    pids->pitch_rate.kp = table->params[PID_PITCH_RATE].kp / 100.0f;
-    pids->pitch_rate.ki = table->params[PID_PITCH_RATE].ki / 100.0f;
-    pids->pitch_rate.kd = table->params[PID_PITCH_RATE].kd / 100.0f;
-
-    pids->yaw_angle.kp = table->params[PID_YAW_ANGLE].kp / 100.0f;
-    pids->yaw_angle.ki = table->params[PID_YAW_ANGLE].ki / 100.0f;
-    pids->yaw_angle.kd = table->params[PID_YAW_ANGLE].kd / 100.0f;
-
-    pids->yaw_rate.kp = table->params[PID_YAW_RATE].kp / 100.0f;
-    pids->yaw_rate.ki = table->params[PID_YAW_RATE].ki / 100.0f;
-    pids->yaw_rate.kd = table->params[PID_YAW_RATE].kd / 100.0f;
-}
-
 void flight_control_init(flight_pid_set_t *pids)
 {
-    // Conservative defaults for initial testing
+    // Default PID gains (uint16_t x100 format) stored in the shared table
     // Angle PIDs: output is desired rate in deg/s
-    pid_init(&pids->roll_angle, 4.0f, 0.02f, 0.0f, 75.0f, 300.0f);
-    pid_init(&pids->pitch_angle, 4.0f, 0.02f, 0.0f, 75.0f, 300.0f);
-    pid_init(&pids->yaw_angle, 3.0f, 0.01f, 0.0f, 75.0f, 300.0f);
+    pids->pid_table.params[PID_ROLL_ANGLE] = (GB_PID_PARAM_T){400, 2, 0}; // kp=4.0, ki=0.02, kd=0.0
+    pids->pid_table.params[PID_PITCH_ANGLE] = (GB_PID_PARAM_T){400, 2, 0}; // kp=4.0, ki=0.02, kd=0.0
+    pids->pid_table.params[PID_YAW_ANGLE] = (GB_PID_PARAM_T){300, 1, 0}; // kp=3.0, ki=0.01, kd=0.0
 
     // Rate PIDs: output is normalized correction (-1.0 to +1.0)
-    pid_init(&pids->roll_rate, 0.6f, 0.3f, 0.02f, 0.25f, 1.0f);
-    pid_init(&pids->pitch_rate, 0.6f, 0.3f, 0.02f, 0.25f, 1.0f);
-    pid_init(&pids->yaw_rate, 1.0f, 0.5f, 0.0f, 0.25f, 1.0f);
+    pids->pid_table.params[PID_ROLL_RATE] = (GB_PID_PARAM_T){60, 30, 2}; // kp=0.6, ki=0.3, kd=0.02
+    pids->pid_table.params[PID_PITCH_RATE] = (GB_PID_PARAM_T){60, 30, 2}; // kp=0.6, ki=0.3, kd=0.02
+    pids->pid_table.params[PID_YAW_RATE] = (GB_PID_PARAM_T){100, 50, 0}; // kp=1.0, ki=0.5, kd=0.0
+
+    // Reserved
+    memset(&pids->pid_table.params[PID_ALTITUDE], 0, sizeof(GB_PID_PARAM_T));
+    memset(&pids->pid_table.params[PID_CLIMB_RATE], 0, sizeof(GB_PID_PARAM_T));
+
+    pids->pid_table.crc16 = GB_PidTableCalculateCRC(&pids->pid_table);
+
+    // Conservative defaults for initial testing
+    // Angle PIDs: output is desired rate in deg/s
+    pid_init(&pids->roll_angle, 75.0f, 300.0f);
+    pid_init(&pids->pitch_angle, 75.0f, 300.0f);
+    pid_init(&pids->yaw_angle, 75.0f, 300.0f);
+
+    // Rate PIDs: output is normalized correction (-1.0 to +1.0)
+    pid_init(&pids->roll_rate, 0.25f, 1.0f);
+    pid_init(&pids->pitch_rate, 0.25f, 1.0f);
+    pid_init(&pids->yaw_rate, 0.25f, 1.0f);
 }

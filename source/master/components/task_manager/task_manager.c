@@ -27,6 +27,7 @@
 #include "max1704x.h"
 #include "gps_driver.h"
 #include "flight_control.h"
+#include "file_system.h"
 
 typedef struct
 {
@@ -39,7 +40,6 @@ typedef struct
 struct imu imu;  // create a default MPU object
 volatile GB_Motion_State motionState;
 
-static GB_PID_TABLE_T g_master_pid_table = {0};
 static GB_REASSEMBLY_CTX_T g_master_ressembly_ctx = {0};
 
 static volatile uint8_t anotic_debug_id = 0x00;
@@ -61,6 +61,36 @@ static volatile rev_set_info_t rev_set_info = {0};
 
 static portMUX_TYPE receive_package_mutex = portMUX_INITIALIZER_UNLOCKED;
 static portMUX_TYPE system_state_mutex = portMUX_INITIALIZER_UNLOCKED;
+
+#define PID_TABLE_FILE "pid_table.bin"
+
+static GB_RESULT pid_table_save(const GB_PID_TABLE_T *table)
+{
+    GB_RESULT res = GB_FileSystem_Write(GB_FILE_SPI_FLASH, PID_TABLE_FILE,
+        (const uint8_t *)table, sizeof(GB_PID_TABLE_T));
+    if (res == GB_OK) {
+        GB_DEBUGI("PID", "PID table saved to flash");
+    } else {
+        GB_DEBUGE("PID", "Failed to save PID table to flash");
+    }
+    return res;
+}
+
+static GB_RESULT pid_table_load(GB_PID_TABLE_T *table)
+{
+    GB_RESULT res = GB_FileSystem_Read(GB_FILE_SPI_FLASH, PID_TABLE_FILE,
+        (uint8_t *)table, sizeof(GB_PID_TABLE_T));
+    if (res != GB_OK) {
+        GB_DEBUGE("PID", "No PID table file in flash, using defaults");
+        return res;
+    }
+
+    res = GB_PidTableValidate(table);
+    if (res != GB_OK) {
+        GB_DEBUGE("PID", "PID table loaded but CRC invalid, ignoring");
+    }
+    return res;
+}
 
 #define FAILSAFE_TIMEOUT_MS 500
 
@@ -271,6 +301,18 @@ void gb_sensor_fusion(void* arg)
 
     flight_control_init(&pids);
 
+    // load saved PID table from flash
+    GB_PID_TABLE_T loaded_table;
+    if (pid_table_load(&loaded_table) == GB_OK)
+    {
+        memcpy(&pids.pid_table, &loaded_table, sizeof(GB_PID_TABLE_T));
+        GB_DEBUGI(GB_INFO, "Loaded PID table from flash");
+    }
+    else
+    {
+        GB_DEBUGI(GB_INFO, "Using default PID values");
+    }
+
     while (1)
     {
         if (xSemaphoreTake(mpuDataQueueReady, portMAX_DELAY) == pdTRUE) {}
@@ -344,12 +386,12 @@ void gb_sensor_fusion(void* arg)
             portEXIT_CRITICAL(&receive_package_mutex);
 
             // Cascaded PID: angle -> rate -> motor correction
-            float roll_rate_sp = pid_update(&pids.roll_angle, des_roll - motionState.roll, deltaTime);
-            float roll_cmd = pid_update(&pids.roll_rate, roll_rate_sp - gyroscope.axis.x, deltaTime);
+            float roll_rate_sp = pid_update(&pids.roll_angle, &pids.pid_table.params[PID_ROLL_ANGLE], des_roll - motionState.roll, deltaTime);
+            float roll_cmd = pid_update(&pids.roll_rate, &pids.pid_table.params[PID_ROLL_RATE], roll_rate_sp - gyroscope.axis.x, deltaTime);
 
-            float pitch_rate_sp = pid_update(&pids.pitch_angle, des_pitch - motionState.pitch, deltaTime);
-            float pitch_cmd  = pid_update(&pids.pitch_rate, pitch_rate_sp - gyroscope.axis.y, deltaTime);
-            float yaw_cmd    = pid_update(&pids.yaw_rate, des_yaw_rate - gyroscope.axis.z, deltaTime);
+            float pitch_rate_sp = pid_update(&pids.pitch_angle, &pids.pid_table.params[PID_PITCH_ANGLE], des_pitch - motionState.pitch, deltaTime);
+            float pitch_cmd  = pid_update(&pids.pitch_rate, &pids.pid_table.params[PID_PITCH_RATE], pitch_rate_sp - gyroscope.axis.y, deltaTime);
+            float yaw_cmd    = pid_update(&pids.yaw_rate, &pids.pid_table.params[PID_YAW_RATE], des_yaw_rate - gyroscope.axis.z, deltaTime);
 
             // Throttle floor: disable I-term accumulation at low throttle
             if (thr < 0.05f) {
@@ -515,7 +557,7 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             GB_DEBUGI(LORA_TAG, "Remote requested PID table, sending via fragments...");
 
             // Calculate and set CRC for PID table
-            g_master_pid_table.crc16 = GB_PidTableCalculateCRC(&g_master_pid_table);
+            pids.pid_table.crc16 = GB_PidTableCalculateCRC(&pids.pid_table);
 
             radio.stopListening(&radio);
 
@@ -524,8 +566,8 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             msg_id_counter++;
 
             CHK_RES(GB_LoraFragmentSend(
-                (const uint8_t *)&g_master_pid_table,
-                sizeof(g_master_pid_table),
+                (const uint8_t *)&pids.pid_table,
+                sizeof(pids.pid_table),
                 msg_id_counter,
                 state
             ));
@@ -571,11 +613,13 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             // Copy to PID table structure
             if (msg_len >= sizeof(GB_PID_TABLE_T))
             {
-                memcpy(&g_master_pid_table, complete_msg, sizeof(GB_PID_TABLE_T));
+                GB_PID_TABLE_T received_table;
+                memcpy(&received_table, complete_msg, sizeof(GB_PID_TABLE_T));
 
                 // Validate CRC
-                if (GB_PidTableValidate(&g_master_pid_table) == GB_OK)
+                if (GB_PidTableValidate(&received_table) == GB_OK)
                 {
+                    memcpy(&pids.pid_table, &received_table, sizeof(GB_PID_TABLE_T));
                     GB_DEBUGI(LORA_TAG, "PID table received and validated successfully!");
 
                     // Log received PID parameters
@@ -583,13 +627,13 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
                     {
                         GB_DEBUGI(LORA_TAG, "PID[%d]: Kp=%d, Ki=%d, Kd=%d",
                             i,
-                            g_master_pid_table.params[i].kp,
-                            g_master_pid_table.params[i].ki,
-                            g_master_pid_table.params[i].kd);
+                            pids.pid_table.params[i].kp,
+                            pids.pid_table.params[i].ki,
+                            pids.pid_table.params[i].kd);
                     }
 
                     // Apply PID parameters to flight controller
-                    flight_control_apply_pid_table(&g_master_pid_table, &pids);
+                    pid_table_save(&pids.pid_table);
                 }
                 else
                 {
