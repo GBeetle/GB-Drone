@@ -181,6 +181,8 @@ GB_RESULT GB_LoraFragmentSend(
             goto error_exit;
         }
 
+        radio.flush_rx(&radio);
+        radio.write_register(&radio, NRF_STATUS, _BV(RX_DR), false);
         radio.startListening(&radio);
 
         // Wait for ACK with timeout

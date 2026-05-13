@@ -62,7 +62,7 @@ static volatile rev_set_info_t rev_set_info = {0};
 static portMUX_TYPE receive_package_mutex = portMUX_INITIALIZER_UNLOCKED;
 static portMUX_TYPE system_state_mutex = portMUX_INITIALIZER_UNLOCKED;
 
-#define PID_TABLE_FILE "pid_table.bin"
+#define PID_TABLE_FILE "pid.bin"
 
 static GB_RESULT pid_table_save(const GB_PID_TABLE_T *table)
 {
@@ -545,7 +545,7 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             }
             out->request.motion_status.battery = cached_battery;
 
-            GB_DEBUGI(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
+            GB_DEBUGD(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
                         out->request.motion_status.roll,
                         out->request.motion_status.pitch,
                         out->request.motion_status.yaw,
@@ -560,6 +560,8 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             pids.pid_table.crc16 = GB_PidTableCalculateCRC(&pids.pid_table);
 
             radio.stopListening(&radio);
+            radio.flush_rx(&radio);
+            radio.write_register(&radio, NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT), false);
 
             // Send PID table as fragmented message
             static uint8_t msg_id_counter = 0;

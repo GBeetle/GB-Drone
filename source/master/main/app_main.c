@@ -37,7 +37,7 @@ void app_main(void)
     GB_MutexInitialize();
     GB_ISR_Init();
 
-    GB_SleepMs(5000);     // Waiting USB Log Ready
+    GB_SleepMs(1000);     // Waiting ...
     GB_FileSystem_Init();
     if (GB_OK == GB_SDCardFileSystem_Init())
     {

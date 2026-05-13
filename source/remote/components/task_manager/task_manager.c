@@ -333,7 +333,7 @@ static void rf_prepare_package(rf_context_t *ctx, GB_SEND_CONFIG config)
         pkg->type = GB_GET_REQUEST;
         pkg->sync = 0xad;
         pkg->request.get_type = GB_GET_MOTION_STATE;
-        GB_DEBUGI(RF24_TAG, "GB_GET_MOTION_STATE");
+        GB_DEBUGD(RF24_TAG, "GB_GET_MOTION_STATE");
         break;
     default:
         GB_DEBUGE(ERROR_TAG, "UNKNOWN LORA SEND CONFIG!");
@@ -507,8 +507,9 @@ static void rf_process_response(rf_context_t *ctx)
         }
 
         // Auto-enter motion state polling after successful init
-        atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
-        ctx->delay_time = 10;
+        uint_fast32_t expected_state = LORA_SEND_NA;
+        if (atomic_compare_exchange_strong(&lora_send_config, &expected_state, LORA_GET_MOTION_STATE))
+            ctx->delay_time = 10;
     } else if (LORA_GET_MOTION_STATE == current_config) {
         float roll = (float)ctx->receive_buf.pkg.request.motion_status.roll / GB_ERLER_SCALE_RATE;
         float pitch = (float)ctx->receive_buf.pkg.request.motion_status.pitch / GB_ERLER_SCALE_RATE;
@@ -517,7 +518,7 @@ static void rf_process_response(rf_context_t *ctx)
         battery_level = ctx->receive_buf.pkg.request.motion_status.battery;
         GB_SYSTEM_STATE sys_state = ctx->receive_buf.pkg.request.motion_status.system_state;
 
-        GB_DEBUGI(RF24_TAG, "Received motion_status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
+        GB_DEBUGD(RF24_TAG, "Received motion_status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
                  ctx->receive_buf.pkg.request.motion_status.roll,
                  ctx->receive_buf.pkg.request.motion_status.pitch,
                  ctx->receive_buf.pkg.request.motion_status.yaw,
@@ -547,8 +548,9 @@ static void rf_process_response(rf_context_t *ctx)
         if (draw_task != NULL)
             quad3d_set_angle(roll, pitch, yaw);
 
-        atomic_store(&lora_send_config, LORA_GET_MOTION_STATE);
-        ctx->delay_time = 10;
+        uint_fast32_t expected_state = LORA_GET_MOTION_STATE;
+        if (atomic_compare_exchange_strong(&lora_send_config, &expected_state, LORA_GET_MOTION_STATE))
+            ctx->delay_time = 10;
     } else {
         GB_DEBUGI(RF24_TAG, "Config changed externally to %d, skipping response", current_config);
     }
@@ -591,12 +593,12 @@ static bool rf_handle_receive(rf_context_t *ctx)
         ctx->lora_state = LORA_SEND;
         radio.stopListening(&radio);
         radio.write_register(&radio, NRF_STATUS, _BV(RX_DR) | _BV(TX_DS) | _BV(MAX_RT), false);
-        radio.flush_rx(&radio);
 
         if (ctx->send_retry >= 5)
         {
             ctx->send_retry = 0;
             GB_DEBUGI(RF24_TAG, "Max receive retries, resetting to init data");
+            radio.flush_rx(&radio);
             atomic_store(&lora_send_config, LORA_SEND_NA);
             ctx->delay_time = 1000;
         }

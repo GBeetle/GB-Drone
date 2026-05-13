@@ -1088,7 +1088,7 @@ static GB_RESULT stopListening(struct rf24 *nrf24)
     nrf24->ce(nrf24, RF_LOW);
 
     //delayMicroseconds(100);
-    vTaskDelay(nrf24->txDelay / portTICK_PERIOD_MS);
+    GB_SleepUs(nrf24->txDelay);
     if (nrf24->ack_payloads_enabled)
     {
         nrf24->flush_tx(nrf24);
@@ -1126,7 +1126,7 @@ static GB_RESULT powerUp(struct rf24 *nrf24)
         // There must be a delay of Tpd2stby (see Table 16.) after the nRF24L01+ leaves power down mode before
         // the CEis set high. - Tpd2stby can be up to 5ms per the 1.0 datasheet
         //delayMicroseconds(RF24_POWERUP_DELAY);
-        vTaskDelay(RF24_POWERUP_DELAY / portTICK_PERIOD_MS);
+        GB_SleepUs(RF24_POWERUP_DELAY);
     }
 error_exit:
     return res;
