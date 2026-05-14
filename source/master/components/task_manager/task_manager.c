@@ -520,6 +520,7 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
         }
         break;
     case GB_GET_REQUEST:
+        out->type = GB_GET_REQUEST;
         switch (in->request.get_type)
         {
         case GB_GET_BATTERY_INFO:
@@ -567,14 +568,17 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             static uint8_t msg_id_counter = 0;
             msg_id_counter++;
 
-            CHK_RES(GB_LoraFragmentSend(
+            if (GB_LoraFragmentSend(
                 (const uint8_t *)&pids.pid_table,
                 sizeof(pids.pid_table),
                 msg_id_counter,
                 state
-            ));
+            ) == GB_OK) {
+                GB_DEBUGI(LORA_TAG, "PID table sent successfully");
+            } else {
+                GB_DEBUGE(LORA_TAG, "PID table send failed");
+            }
 
-            GB_DEBUGI(LORA_TAG, "PID table sent successfully (msg_id=%d)", msg_id_counter);
             *state = LORA_RECEIVE;
             radio.startListening(&radio);
             return res; // Early return - fragments handle ACK
@@ -658,7 +662,6 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
     }
     out->sync = in->sync + 1; // check for remote
 
-error_exit:
     return res;
 }
 

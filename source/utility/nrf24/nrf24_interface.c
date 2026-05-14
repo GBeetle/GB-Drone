@@ -1161,9 +1161,8 @@ static GB_RESULT write_data(struct rf24 *nrf24, const void *buf, uint8_t len, co
     if (nrf24->status & _BV(MAX_RT))
     {
         nrf24->flush_tx(nrf24); // Only going to be 1 packet in the FIFO at a time using this method, so just flush
-        //res = GB_RF24_W_DATA_FAIL;
-        CHK_RES(res);
     }
+    
 error_exit:
     return res;
 }
