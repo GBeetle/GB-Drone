@@ -502,6 +502,12 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             break;
         case GB_SET_CONTROL_ARG:
             // throttle from 0 ~ 1000 for [pid to motor control]
+            GB_DEBUGI(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d, throttle: %d,"
+                        in->config.control_arg.roll,
+                        in->config.control_arg.pitch,
+                        in->config.control_arg.yaw,
+                        in->config.control_arg.throttle);
+
             portENTER_CRITICAL(&receive_package_mutex);
             rev_throttle = in->config.control_arg.throttle;
             rev_set_info.rev_state.roll = _control_commander_to_range(GB_ROLL, in->config.control_arg.roll, 0);
@@ -509,6 +515,12 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             rev_set_info.rev_state.yaw = _control_commander_to_range(GB_YAW, in->config.control_arg.yaw, 0);
             rev_set_info.rev_speed.yaw = _control_commander_to_range(GB_YAW, in->config.control_arg.yaw, 1);
             portEXIT_CRITICAL(&receive_package_mutex);
+
+            GB_DEBUGD(RF24_TAG, "Send Quad status roll: %f, pitch: %f, yaw: %f, throttle: %d,"
+                        rev_set_info.rev_state.roll,
+                        rev_set_info.rev_state.pitch,
+                        rev_set_info.rev_state.yaw,
+                        rev_throttle);
 
             GB_GetTimerMs((uint64_t*)&last_remote_packet_ms);
             portENTER_CRITICAL(&system_state_mutex);
@@ -546,7 +558,7 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             }
             out->request.motion_status.battery = cached_battery;
 
-            GB_DEBUGD(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
+            GB_DEBUGI(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d, alt: %d, battery: %d",
                         out->request.motion_status.roll,
                         out->request.motion_status.pitch,
                         out->request.motion_status.yaw,
@@ -727,12 +739,12 @@ void nrf24_interrupt_func(void *arg)
             {
                 GB_DEBUGI(RF24_TAG, "Transmission failed or timed out, retry: %d", send_retry);
                 send_retry++;
-                if (send_retry >= 5)
+                if (send_retry >= 3)
                 {
                     send_retry = 0;
-                    lora_state = LORA_RECEIVE;
-                    radio.startListening(&radio);
                 }
+                lora_state = LORA_RECEIVE;
+                radio.startListening(&radio);
             }
         }
         // gpio_set_level( TEST_NRF24_IO, 0 );

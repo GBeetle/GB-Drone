@@ -126,7 +126,7 @@ GB_RESULT GB_LoraSystemInit(GB_LORA_STATE init_state, bool radioNumber, GB_LORA_
     // Set the PA Level low to try preventing power supply related problems
     // because these examples are likely run with nodes in close proximity to
     // each other.
-    CHK_RES(radio.setPALevel(&radio, RF24_PA_LOW, true)); // RF24_PA_MAX is default.
+    CHK_RES(radio.setPALevel(&radio, RF24_PA_HIGH, true)); // RF24_PA_MAX is default.
     // save on transmission time by setting the radio to only transmit the
     // number of bytes we need to transmit a float
     CHK_BOOL(sizeof(GB_LORA_PACKAGE_T) <= 32);
@@ -1162,7 +1162,7 @@ static GB_RESULT write_data(struct rf24 *nrf24, const void *buf, uint8_t len, co
     {
         nrf24->flush_tx(nrf24); // Only going to be 1 packet in the FIFO at a time using this method, so just flush
     }
-    
+
 error_exit:
     return res;
 }

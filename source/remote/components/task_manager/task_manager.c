@@ -319,7 +319,7 @@ static void rf_prepare_package(rf_context_t *ctx, GB_SEND_CONFIG config)
         adc_read_by_item(ADC_YAW, &pkg->config.control_arg.yaw, true);
         adc_read_by_item(ADC_PITCH, &pkg->config.control_arg.pitch, true);
         adc_read_by_item(ADC_ROLL, &pkg->config.control_arg.roll, true);
-        GB_DEBUGD(RF24_TAG, "Commander throttle, %d, yaw: %d, pitch: %d, roll: %d",
+        GB_DEBUGI(RF24_TAG, "Commander throttle, %d, yaw: %d, pitch: %d, roll: %d",
                   pkg->config.control_arg.throttle, pkg->config.control_arg.yaw,
                   pkg->config.control_arg.pitch, pkg->config.control_arg.roll);
         break;
