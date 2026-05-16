@@ -502,7 +502,7 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             break;
         case GB_SET_CONTROL_ARG:
             // throttle from 0 ~ 1000 for [pid to motor control]
-            GB_DEBUGI(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d, throttle: %d,"
+            GB_DEBUGD(RF24_TAG, "Send Quad status roll: %d, pitch: %d, yaw: %d, throttle: %d",
                         in->config.control_arg.roll,
                         in->config.control_arg.pitch,
                         in->config.control_arg.yaw,
@@ -512,11 +512,10 @@ static GB_RESULT gb_lora_request_dispatch(GB_MAX1704X_DEV_T *dev, GB_LORA_PACKAG
             rev_throttle = in->config.control_arg.throttle;
             rev_set_info.rev_state.roll = _control_commander_to_range(GB_ROLL, in->config.control_arg.roll, 0);
             rev_set_info.rev_state.pitch = _control_commander_to_range(GB_PITCH, in->config.control_arg.pitch, 0);
-            rev_set_info.rev_state.yaw = _control_commander_to_range(GB_YAW, in->config.control_arg.yaw, 0);
             rev_set_info.rev_speed.yaw = _control_commander_to_range(GB_YAW, in->config.control_arg.yaw, 1);
             portEXIT_CRITICAL(&receive_package_mutex);
 
-            GB_DEBUGD(RF24_TAG, "Send Quad status roll: %f, pitch: %f, yaw: %f, throttle: %d,"
+            GB_DEBUGD(RF24_TAG, "Send Quad status roll: %f, pitch: %f, yaw: %f, throttle: %d",
                         rev_set_info.rev_state.roll,
                         rev_set_info.rev_state.pitch,
                         rev_set_info.rev_state.yaw,
