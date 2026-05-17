@@ -44,6 +44,7 @@
         "source/remote/components/lv_examples": true,
         "source/remote/components/tinygl": true,
         "source/remote/components/nrf24": true,
+        "source/remote/components/i2s_speaker": true,
     },
 
     "search.exclude": {
@@ -88,6 +89,7 @@
         "source/remote/components/lv_examples": true,
         "source/remote/components/tinygl": true,
         "source/remote/components/nrf24": true,
+        "source/remote/components/i2s_speaker": true,
     },
     "files.associations": {
         "cdc.h": "c",

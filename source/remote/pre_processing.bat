@@ -5,7 +5,7 @@ rem set source dir and target dir
 set "vendorSourceDir=%cd%\..\vendor\esp32"
 set "utilitySourceDir=%cd%\..\utility"
 set "targetDir=%cd%\components"
-set "vendorSourceFolders=i2c_bus log_sys spi_bus gb_timer file_system gpio_setting"
+set "vendorSourceFolders=i2c_bus log_sys spi_bus gb_timer file_system gpio_setting i2s_speaker"
 set "utilitySourceFolders=error_handle disp_driver tft_driver lvgl lv_examples tinygl nrf24"
 
 rem create target dir

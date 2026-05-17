@@ -113,6 +113,7 @@ source/remote/components/gpio_setting
 source/remote/components/lv_examples
 source/remote/components/tinygl
 source/remote/components/nrf24
+source/remote/components/i2s_speaker
 
 # tools
 tools/esp-idf-ftpServer/build

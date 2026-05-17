@@ -147,4 +147,11 @@ typedef uint32_t GB_RESULT;
 #define GB_SEND_ERROR           0x80000f04
 #define GB_RECEIVE_ERROR        0x80000f05
 
+#define GB_I2S_INIT_FAIL        0x80001000
+#define GB_I2S_WRITE_FAIL       0x80001001
+#define GB_I2S_STOP_FAIL        0x80001002
+#define GB_I2S_DEINIT_FAIL      0x80001003
+#define GB_I2S_ENABLE_FAIL      0x80001004
+#define GB_I2S_DISABLE_FAIL     0x80001005
+
 #endif /* end of include guard: _GB_RESULTS__ */

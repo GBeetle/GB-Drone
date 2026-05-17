@@ -80,4 +80,8 @@
 #define TOGGLE_SW_3_GPIO       2
 #define TOGGLE_SW_4_GPIO       1
 
+#define I2S_SPEAKER_BCLK       47
+#define I2S_SPEAKER_WS         46
+#define I2S_SPEAKER_DOUT       48
+
 #endif /* end of include guard: _IO_DEFINE__ */
