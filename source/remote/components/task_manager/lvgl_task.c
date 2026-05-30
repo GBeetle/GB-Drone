@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdatomic.h>
+#include <stdbool.h>
 #include <esp_heap_caps.h>
 #include "log_sys.h"
 #include "lvgl.h"
@@ -30,6 +31,7 @@
 #include "io_define.h"
 #include "task_manager.h"
 #include "dashboard_widgets.h"
+#include "max1704x.h"
 
 /*********************
  *      DEFINES
@@ -102,10 +104,63 @@ uint16_t *canvas_buffer = NULL;
 uint16_t *canvas_buffer_b = NULL;
 static bool canvas_initializing = false;
 
-// battery
+// battery - drone (from NRF24)
 int battery_level = 0;
-static lv_obj_t *battery_label;
-static lv_obj_t *battery_icon;
+static lv_obj_t *drone_battery_label;
+static lv_obj_t *drone_battery_icon;
+
+// battery - remote (from local MAX1704X)
+int remote_battery_level = 0;
+bool remote_battery_charging = false;
+bool remote_battery_full = false;
+static lv_obj_t *remote_battery_label;
+static lv_obj_t *remote_battery_icon;
+static lv_obj_t *remote_charging_icon;
+
+#define REMOTE_VOL_MIN   2.75f
+#define REMOTE_VOL_MAX   4.25f
+#define REMOTE_VOL_FULL  4.15f
+
+static GB_MAX1704X_DEV_T max_dev = { 0 };
+
+void remote_battery_init(void)
+{
+    GB_Max1704xInit(&max_dev);
+    GB_Max1704xStart(&max_dev);
+
+    GB_GPIO_Reset(CHARGER_STAT1_GPIO);
+    GB_GPIO_SetDirection(CHARGER_STAT1_GPIO, GB_GPIO_INPUT);
+}
+
+static void update_remote_battery(void)
+{
+    float voltage = 0;
+
+    if (GB_Max1704xGetVoltage(&max_dev, &voltage) == GB_OK) {
+        if (voltage >= REMOTE_VOL_MIN && voltage <= REMOTE_VOL_MAX) {
+            remote_battery_level = (int)((voltage - REMOTE_VOL_MIN) / (REMOTE_VOL_MAX - REMOTE_VOL_MIN) * 100.0f);
+        } else if (voltage < REMOTE_VOL_MIN) {
+            remote_battery_level = 0;
+        } else {
+            remote_battery_level = 100;
+        }
+    }
+
+    // Charge state detection
+    uint32_t stat1_level = 1;
+    GB_GPIO_Get(CHARGER_STAT1_GPIO, &stat1_level);
+
+    if (!stat1_level) {
+        remote_battery_charging = true;
+        remote_battery_full = false;
+    } else if (voltage >= REMOTE_VOL_FULL) {
+        remote_battery_charging = false;
+        remote_battery_full = true;
+    } else {
+        remote_battery_charging = false;
+        remote_battery_full = false;
+    }
+}
 
 // Toggle switch display - using LVGL switch widgets
 static lv_obj_t *toggle_sw_widgets[4] = {NULL}; // The switch widgets
@@ -481,24 +536,44 @@ static void canvas_draw_task(lv_timer_t *timer)
     }
 }
 
+static const char * battery_level_to_symbol(int level)
+{
+    if (level > 80) return LV_SYMBOL_BATTERY_FULL;
+    if (level > 60) return LV_SYMBOL_BATTERY_3;
+    if (level > 40) return LV_SYMBOL_BATTERY_2;
+    if (level > 20) return LV_SYMBOL_BATTERY_1;
+    return LV_SYMBOL_BATTERY_EMPTY;
+}
+
 static void battery_update_task(lv_timer_t *timer)
 {
     LV_UNUSED(timer);
+    static char buf[12];
 
-    static char buf[8];
-    snprintf(buf, sizeof(buf), "%d%%", battery_level);
-    lv_label_set_text(battery_label, buf);
+    // Drone battery (from NRF24)
+    snprintf(buf, sizeof(buf), "D:%d%%", battery_level);
+    lv_label_set_text(drone_battery_label, buf);
+    lv_label_set_text(drone_battery_icon, battery_level_to_symbol(battery_level));
 
-    if (battery_level > 80)
-        lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_FULL);
-    else if (battery_level > 60)
-        lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_3);
-    else if (battery_level > 40)
-        lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_2);
-    else if (battery_level > 20)
-        lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_1);
-    else
-        lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_EMPTY);
+    // Remote battery - read from MAX1704X + check charge state
+    update_remote_battery();
+
+    snprintf(buf, sizeof(buf), "R:%d%%", remote_battery_level);
+    lv_label_set_text(remote_battery_label, buf);
+    lv_label_set_text(remote_battery_icon, battery_level_to_symbol(remote_battery_level));
+
+    // Charging / full indicator
+    if (remote_battery_charging) {
+        lv_label_set_text(remote_charging_icon, LV_SYMBOL_CHARGE);
+        lv_obj_set_style_text_color(remote_charging_icon, lv_color_hex(0x00E676), 0);
+        lv_obj_remove_flag(remote_charging_icon, LV_OBJ_FLAG_HIDDEN);
+    } else if (remote_battery_full) {
+        lv_label_set_text(remote_charging_icon, LV_SYMBOL_OK);
+        lv_obj_set_style_text_color(remote_charging_icon, lv_color_hex(0x00E676), 0);
+        lv_obj_remove_flag(remote_charging_icon, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(remote_charging_icon, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static void toggle_switch_update_task(lv_timer_t *timer)
@@ -725,14 +800,31 @@ void welkin_widgets()
     lv_obj_set_style_bg_opa(battery_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_opa(battery_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_pad_all(battery_cont, 2, 0);
+    lv_obj_set_style_pad_column(battery_cont, 4, 0);
 
-    battery_label = lv_label_create(battery_cont);
-    lv_label_set_text(battery_label, "0%");
-    lv_obj_set_style_text_font(battery_label, &lv_font_montserrat_16, 0);
+    // Drone battery icon + label
+    drone_battery_icon = lv_label_create(battery_cont);
+    lv_label_set_text(drone_battery_icon, LV_SYMBOL_BATTERY_EMPTY);
+    lv_obj_set_style_text_font(drone_battery_icon, &lv_font_montserrat_16, 0);
 
-    battery_icon = lv_label_create(battery_cont);
-    lv_label_set_text(battery_icon, LV_SYMBOL_BATTERY_EMPTY);
-    lv_obj_set_style_text_font(battery_icon, &lv_font_montserrat_16, 0);
+    drone_battery_label = lv_label_create(battery_cont);
+    lv_label_set_text(drone_battery_label, "D:0%");
+    lv_obj_set_style_text_font(drone_battery_label, &lv_font_montserrat_16, 0);
+
+    // Remote battery icon + label + charging indicator
+    remote_battery_icon = lv_label_create(battery_cont);
+    lv_label_set_text(remote_battery_icon, LV_SYMBOL_BATTERY_EMPTY);
+    lv_obj_set_style_text_font(remote_battery_icon, &lv_font_montserrat_16, 0);
+
+    remote_battery_label = lv_label_create(battery_cont);
+    lv_label_set_text(remote_battery_label, "R:0%");
+    lv_obj_set_style_text_font(remote_battery_label, &lv_font_montserrat_16, 0);
+
+    remote_charging_icon = lv_label_create(battery_cont);
+    lv_label_set_text(remote_charging_icon, LV_SYMBOL_CHARGE);
+    lv_obj_set_style_text_font(remote_charging_icon, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(remote_charging_icon, lv_color_hex(0x00E676), 0);
+    lv_obj_add_flag(remote_charging_icon, LV_OBJ_FLAG_HIDDEN);
 
     // Create tabview AFTER status bar, positioned below it
     tv = lv_tabview_create(lv_screen_active());

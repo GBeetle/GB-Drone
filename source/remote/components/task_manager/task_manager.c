@@ -114,6 +114,9 @@ void gui_task(void *pvParameter)
     /* Create the demo application */
     demo();
 
+    extern void remote_battery_init(void);
+    remote_battery_init();
+
     while (1)
     {
         /* Delay 1 tick (assumes FreeRTOS tick is 10ms */

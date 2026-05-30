@@ -84,4 +84,9 @@
 #define I2S_SPEAKER_WS         46
 #define I2S_SPEAKER_DOUT       48
 
+#define MAX_SDA                13
+#define MAX_SCL                20
+
+#define CHARGER_STAT1_GPIO     23
+
 #endif /* end of include guard: _IO_DEFINE__ */

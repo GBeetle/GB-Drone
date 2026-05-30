@@ -114,6 +114,7 @@ source/remote/components/lv_examples
 source/remote/components/tinygl
 source/remote/components/nrf24
 source/remote/components/i2s_speaker
+source/remote/components/max1704x
 
 # tools
 tools/esp-idf-ftpServer/build
