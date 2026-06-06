@@ -25,18 +25,8 @@
 #include "log_sys.h"
 #include "error_handle.h"
 #include "../disp_dsi.h"
-#include "i2c_bus.h"
-
-
-#define PCA9536_ADDR         0x41
-#define PCA9536_INPUT_REG    0x00
-#define PCA9536_OUTPUT_REG   0x01
-#define PCA9536_POLARITY_REG 0x02
-#define PCA9536_CONFIG_REG   0x03
-
-#define I2C_MASTER_SDA_IO    22    // SDA pin (from screen project)
-#define I2C_MASTER_SCL_IO    21    // SCL pin (from screen project)
-#define I2C_MASTER_FREQ_HZ   100000    // 100 kHz
+#include "esp_lcd_panel_interface.h"
+#include "esp_check.h"
 
 // Static handles
 static esp_lcd_panel_handle_t s_panel_handle = NULL;
@@ -117,170 +107,6 @@ static const st7701_init_cmd_t vendor_init_cmds[] = {
 
 };
 
-static esp_err_t pca9536_i2c_init(void)
-{
-    // Initialize I2C bus using project's i2c_bus wrapper
-    GB_RESULT ret = i2c0.begin(&i2c0, I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO, I2C_MASTER_FREQ_HZ);
-    if (ret != GB_OK) {
-        GB_DEBUGE(DISP_TAG, "I2C bus initialization failed");
-        return ESP_FAIL;
-    }
-
-    // Add PCA9536 device to I2C bus
-    ret = i2c0.addDevice(&i2c0, PCA9536_ADDR, I2C_MASTER_FREQ_HZ);
-    if (ret != GB_OK) {
-        GB_DEBUGE(DISP_TAG, "Failed to add PCA9536 device to I2C bus");
-        return ESP_FAIL;
-    }
-
-    GB_DEBUGI(DISP_TAG, "I2C master initialized (SDA: GPIO%d, SCL: GPIO%d, Freq: %d Hz)",
-        I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO, I2C_MASTER_FREQ_HZ);
-
-    return ESP_OK;
-}
-
-static esp_err_t pca9536_write_reg(uint8_t reg_addr, uint8_t data)
-{
-    GB_RESULT ret = i2c0.writeByte(&i2c0, PCA9536_ADDR, reg_addr, data);
-    if (ret != GB_OK) {
-        GB_DEBUGE(DISP_TAG, "Write PCA9536 register 0x%02X failed", reg_addr);
-        return ESP_FAIL;
-    }
-    return ESP_OK;
-}
-
-static esp_err_t pca9536_read_reg(uint8_t reg_addr, uint8_t *data)
-{
-    GB_RESULT ret = i2c0.readByte(&i2c0, PCA9536_ADDR, reg_addr, data);
-    if (ret != GB_OK) {
-        GB_DEBUGE(DISP_TAG, "Read PCA9536 register 0x%02X failed", reg_addr);
-        return ESP_FAIL;
-    }
-    return ESP_OK;
-}
-
-esp_err_t pca9536_init(void)
-{
-    esp_err_t ret;
-
-    GB_DEBUGI(DISP_TAG, "Initializing PCA9536 GPIO expander (addr: 0x%02X)", PCA9536_ADDR);
-
-    // Initialize I2C bus if not already done
-    ret = pca9536_i2c_init();
-        if (ret != ESP_OK) {
-        return ret;
-    }
-
-    // Configure all pins as outputs (0 = output, 1 = input)
-    ret = pca9536_write_reg(PCA9536_CONFIG_REG, 0x00);
-    if (ret != ESP_OK) {
-        GB_DEBUGE(DISP_TAG, "Failed to configure pins as outputs");
-        return ret;
-    }
-
-    GB_DEBUGI(DISP_TAG, "PCA9536 initialized successfully (all pins output, low)");
-
-    return ESP_OK;
-}
-
-esp_err_t pca9536_set_pin_high(uint8_t pin_mask)
-{
-    uint8_t current_state;
-    esp_err_t ret;
-
-    // Read current output state
-    ret = pca9536_read_reg(PCA9536_OUTPUT_REG, &current_state);
-        if (ret != ESP_OK) {
-        return ret;
-    }
-
-    // Set specified pins high
-    uint8_t new_state = current_state | pin_mask;
-    ret = pca9536_write_reg(PCA9536_OUTPUT_REG, new_state);
-
-    if (ret == ESP_OK) {
-        GB_DEBUGI(DISP_TAG, "Set pins 0x%02X high (state: 0x%02X -> 0x%02X)",
-            pin_mask, current_state, new_state);
-    }
-
-    return ret;
-}
-
-esp_err_t pca9536_set_pin_low(uint8_t pin_mask)
-{
-    uint8_t current_state;
-    esp_err_t ret;
-
-    // Read current output state
-    ret = pca9536_read_reg(PCA9536_OUTPUT_REG, &current_state);
-        if (ret != ESP_OK) {
-        return ret;
-    }
-
-    // Set specified pins low
-    uint8_t new_state = current_state & ~pin_mask;
-    ret = pca9536_write_reg(PCA9536_OUTPUT_REG, new_state);
-
-    if (ret == ESP_OK) {
-        GB_DEBUGI(DISP_TAG, "Set pins 0x%02X low (state: 0x%02X -> 0x%02X)",
-            pin_mask, current_state, new_state);
-    }
-
-    return ret;
-}
-
-esp_err_t pca9536_read_pins(uint8_t *state)
-{
-    return pca9536_read_reg(PCA9536_INPUT_REG, state);
-}
-
-static esp_err_t st7701_send_init_commands(void)
-{
-    esp_lcd_panel_io_handle_t io = disp_dsi_get_dbi_io();
-    if (!io) {
-        GB_DEBUGE(DISP_TAG, "DBI I/O not initialized");
-        return ESP_FAIL;
-    }
-
-    const int cmd_count = sizeof(vendor_init_cmds) / sizeof(st7701_init_cmd_t);
-
-    GB_DEBUGI(DISP_TAG, "Sending %d initialization commands...", cmd_count);
-
-    for (int i = 0; i < cmd_count; i++) {
-        const st7701_init_cmd_t *cmd = &vendor_init_cmds[i];
-
-        // Send command with parameters
-        esp_err_t ret = esp_lcd_panel_io_tx_param(io, cmd->cmd,
-                                                    cmd->data, cmd->data_len);
-
-        if (ret != ESP_OK) {
-            GB_DEBUGE(DISP_TAG, "Failed to send command @%02X (index %d)", cmd->cmd, i);
-            return ret;
-        }
-        //else
-        //    GB_DEBUGI(DISP_TAG, "send command @%02X (index %d)", cmd->cmd, i);
-
-        // Delay if required
-        if (cmd->delay_ms > 0) {
-            vTaskDelay(pdMS_TO_TICKS(cmd->delay_ms));
-        }
-    }
-
-    GB_DEBUGI(DISP_TAG, "Initialization commands sent successfully");
-    return ESP_OK;
-}
-
-void st7701_enable_backlight(bool enable)
-{
-    if (enable) {
-        pca9536_set_pin_high(1 << ST7701_PCA9536_BACKLIGHT_PIN);
-        GB_DEBUGI(DISP_TAG, "Backlight ON");
-    } else {
-        pca9536_set_pin_low(1 << ST7701_PCA9536_BACKLIGHT_PIN);
-        GB_DEBUGI(DISP_TAG, "Backlight OFF");
-    }
-}
-
 void st7701_sleep_in(void)
 {
     esp_lcd_panel_io_handle_t io = disp_dsi_get_dbi_io();
@@ -301,22 +127,88 @@ void st7701_sleep_out(void)
     }
 }
 
-static void st7701_hardware_reset(void)
+// ========== ST7701 Vendor Panel Wrapper ==========
+
+typedef struct {
+    esp_lcd_panel_io_handle_t io;
+    uint8_t madctl_val;
+    esp_err_t (*orig_del)(esp_lcd_panel_t *panel);
+    esp_err_t (*orig_init)(esp_lcd_panel_t *panel);
+} st7701_vendor_t;
+
+static esp_err_t st7701_panel_del(esp_lcd_panel_t *panel)
 {
-    GB_DEBUGI(DISP_TAG, "Performing hardware reset via PCA9536 PIN%d",
-            ST7701_PCA9536_RESET_PIN);
+    st7701_vendor_t *vendor = (st7701_vendor_t *)panel->user_data;
+    panel->del = vendor->orig_del;
+    panel->user_data = NULL;
+    esp_err_t ret = vendor->orig_del(panel);
+    free(vendor);
+    return ret;
+}
 
-    // Reset sequence: high -> low (10ms) -> high (50ms)
-    pca9536_set_pin_high(1 << ST7701_PCA9536_RESET_PIN);
-    vTaskDelay(pdMS_TO_TICKS(10));
+static esp_err_t st7701_panel_init(esp_lcd_panel_t *panel)
+{
+    st7701_vendor_t *vendor = (st7701_vendor_t *)panel->user_data;
+    esp_lcd_panel_io_handle_t io = vendor->io;
 
-    pca9536_set_pin_low(1 << ST7701_PCA9536_RESET_PIN);
-    vTaskDelay(pdMS_TO_TICKS(30));
+    uint8_t id[3] = {0};
+    esp_lcd_panel_io_rx_param(io, 0x04, id, 3);
+    GB_DEBUGI(DISP_TAG, "Display ID: 0x%02x 0x%02x 0x%02x", id[0], id[1], id[2]);
 
-    pca9536_set_pin_high(1 << ST7701_PCA9536_RESET_PIN);
-    vTaskDelay(pdMS_TO_TICKS(50));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_MADCTL, (uint8_t[]){vendor->madctl_val}, 1);
 
-    GB_DEBUGI(DISP_TAG, "Hardware reset completed");
+    int cmd_count = sizeof(vendor_init_cmds) / sizeof(st7701_init_cmd_t);
+    for (int i = 0; i < cmd_count; i++) {
+        const st7701_init_cmd_t *cmd = &vendor_init_cmds[i];
+        esp_lcd_panel_io_tx_param(io, cmd->cmd, cmd->data, cmd->data_len);
+        if (cmd->delay_ms > 0) {
+            vTaskDelay(pdMS_TO_TICKS(cmd->delay_ms));
+        }
+    }
+
+    panel->init = vendor->orig_init;
+    esp_err_t ret = vendor->orig_init(panel);
+    panel->init = st7701_panel_init;
+
+    return ret;
+}
+
+static esp_err_t st7701_panel_reset(esp_lcd_panel_t *panel)
+{
+    st7701_vendor_t *vendor = (st7701_vendor_t *)panel->user_data;
+    if (vendor->io) {
+        esp_lcd_panel_io_tx_param(vendor->io, LCD_CMD_SWRESET, NULL, 0);
+        vTaskDelay(pdMS_TO_TICKS(120));
+    }
+    return ESP_OK;
+}
+
+static esp_err_t st7701_panel_mirror(esp_lcd_panel_t *panel, bool mirror_x, bool mirror_y)
+{
+    st7701_vendor_t *vendor = (st7701_vendor_t *)panel->user_data;
+    uint8_t madctl_val = vendor->madctl_val;
+    if (mirror_x) madctl_val |= (1 << 0);
+    else madctl_val &= ~(1 << 0);
+    if (mirror_y) madctl_val |= (1 << 1);
+    else madctl_val &= ~(1 << 1);
+    esp_err_t ret = esp_lcd_panel_io_tx_param(vendor->io, LCD_CMD_MADCTL,
+        (uint8_t[]){madctl_val}, 1);
+    if (ret == ESP_OK) vendor->madctl_val = madctl_val;
+    return ret;
+}
+
+static esp_err_t st7701_panel_invert_color(esp_lcd_panel_t *panel, bool invert_color_data)
+{
+    st7701_vendor_t *vendor = (st7701_vendor_t *)panel->user_data;
+    return esp_lcd_panel_io_tx_param(vendor->io,
+        invert_color_data ? LCD_CMD_INVON : LCD_CMD_INVOFF, NULL, 0);
+}
+
+static esp_err_t st7701_panel_disp_on_off(esp_lcd_panel_t *panel, bool on_off)
+{
+    st7701_vendor_t *vendor = (st7701_vendor_t *)panel->user_data;
+    return esp_lcd_panel_io_tx_param(vendor->io,
+        on_off ? LCD_CMD_DISPON : LCD_CMD_DISPOFF, NULL, 0);
 }
 
 esp_err_t st7701_register_flush_callback(void)
@@ -354,9 +246,6 @@ void st7701_init(void)
     GB_DEBUGI(DISP_TAG, "Resolution: %dx%d, DSI lanes: %d, Bitrate: %d Mbps",
         LV_HOR_RES_MAX, LV_VER_RES_MAX, ST7701_DSI_LANES,
         ST7701_LANE_BITRATE_MBPS);
-
-    if (ESP_OK != pca9536_init())
-        return;
 
     // Step 1: Create DSI bus + DBI I/O
     esp_lcd_dsi_bus_config_t bus_config = {
@@ -402,57 +291,34 @@ void st7701_init(void)
     disp_dsi_set_dpi_panel(s_panel_handle);
     GB_DEBUGI(DISP_TAG, "DPI panel created successfully");
 
-    // Step 3: Software reset
-    {
-        esp_lcd_panel_io_handle_t io = disp_dsi_get_dbi_io();
-        if (io) {
-            esp_lcd_panel_io_tx_param(io, LCD_CMD_SWRESET, NULL, 0);
-            vTaskDelay(pdMS_TO_TICKS(200));
-        }
-    }
-
-    // Step 4: Hardware reset via PCA9536 (use raw ticks like demo)
-    st7701_hardware_reset();
-
-    // Step 5: check display connect
-    {
-        esp_lcd_panel_io_handle_t io = disp_dsi_get_dbi_io();
-        if (io) {
-            esp_lcd_panel_io_tx_param(io, LCD_CMD_SWRESET, NULL, 0);
-            vTaskDelay(pdMS_TO_TICKS(150));
-
-            esp_lcd_panel_io_tx_param(io, LCD_CMD_SLPOUT, NULL, 0);
-            vTaskDelay(pdMS_TO_TICKS(120));
-
-            uint8_t id_data[4] = {0};
-            esp_lcd_panel_io_rx_param(io, 0xA1, id_data, 3);
-
-            uint8_t power_mode[2] = {0};
-            esp_lcd_panel_io_rx_param(io, 0x0A, power_mode, 1);
-
-            GB_DEBUGI(DISP_TAG, "Display ID: 0x%02x 0x%02x 0x%02x, Power: 0x%02x",
-                id_data[0], id_data[1], id_data[2], power_mode[0]);
-        }
-    }
-
-    // Step 6: Send vendor init commands via DBI (BEFORE creating DPI panel)
-    ret = st7701_send_init_commands();
-    if (ret != ESP_OK) {
-        GB_DEBUGE(DISP_TAG, "Failed to send initialization commands");
+    // Step 3: Wrap DPI panel with vendor operations
+    st7701_vendor_t *vendor = calloc(1, sizeof(st7701_vendor_t));
+    if (!vendor) {
+        GB_DEBUGE(DISP_TAG, "Failed to allocate vendor struct");
         return;
     }
+    vendor->io = disp_dsi_get_dbi_io();
+    vendor->madctl_val = 0;
+    vendor->orig_del = s_panel_handle->del;
+    vendor->orig_init = s_panel_handle->init;
 
-    // Step 7: Initialize DPI panel (starts video stream)
+    s_panel_handle->del = st7701_panel_del;
+    s_panel_handle->init = st7701_panel_init;
+    s_panel_handle->reset = st7701_panel_reset;
+    s_panel_handle->mirror = st7701_panel_mirror;
+    s_panel_handle->invert_color = st7701_panel_invert_color;
+    s_panel_handle->disp_on_off = st7701_panel_disp_on_off;
+    s_panel_handle->user_data = vendor;
+
+    // Step 4: Reset (DBI software reset)
+    esp_lcd_panel_reset(s_panel_handle);
+
+    // Step 5: Init (sends vendor init cmds + starts DPI video)
     ret = esp_lcd_panel_init(s_panel_handle);
     if (ret != ESP_OK) {
-        GB_DEBUGE(DISP_TAG, "Failed to initialize DPI panel");
+        GB_DEBUGE(DISP_TAG, "Failed to initialize panel");
         return;
     }
-
-    GB_DEBUGI(DISP_TAG, "DPI panel initialized");
-
-    // Step 8: Enable backlight
-    st7701_enable_backlight(true);
 
     GB_DEBUGI(DISP_TAG, "ST7701 initialized successfully");
 }
